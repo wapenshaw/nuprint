@@ -10,7 +10,7 @@ Thanks for helping. NuPrint talks to real hardware that burns real paper, so the
 
 ## Development setup
 
-You need Rust (rustup installs the pinned toolchain from `rust-toolchain.toml`), Node.js 22 or newer, and on Linux the [Tauri system packages](https://tauri.app/start/prerequisites/) plus BlueZ development headers (`libdbus-1-dev`). Fetch PDFium once, because PDF tests and PDF preview need it:
+You need Rust (rustup installs the pinned toolchain from `rust-toolchain.toml`), Node.js 26 or newer, and on Linux the [Tauri system packages](https://tauri.app/start/prerequisites/) plus BlueZ development headers (`libdbus-1-dev`). Fetch PDFium once, because PDF tests and PDF preview need it:
 
 ```sh
 ./scripts/fetch-pdfium.sh        # Windows: .\scripts\fetch-pdfium.ps1
