@@ -423,8 +423,8 @@ impl AppService {
             LogLevel::Debug => tracing::debug!("{}", line.message),
         }
         if let Some(path) = &self.inner.log_file {
-            if fs::metadata(path).map(|m| m.len() > LOG_ROTATE_BYTES).unwrap_or(false) {
-                let _ = fs::rename(path, path.with_extension("log.1"));
+            if fs::metadata(path).is_ok_and(|m| m.len() > LOG_ROTATE_BYTES) {
+                let _ = fs::rename(path, path.with_added_extension("1"));
             }
             if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
                 let _ = writeln!(file, "{} {:?} {}", line.at_ms as i64, line.level, line.message);
