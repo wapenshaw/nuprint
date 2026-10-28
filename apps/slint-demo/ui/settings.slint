@@ -1,0 +1,694 @@
+// Settings, over the dimmed window: saved printers and finding new ones, appearance and
+// diagnostics.
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Icons } from "theme.slint";
+import { Data } from "data.slint";
+import { DeviceItem, PrinterItem } from "types.slint";
+import { Badge, Body, Btn, Card, Check, CodeBox, Edge, FieldGroup, Hint, Icon, Mono, Muted, Note, PageTitle, PrinterLight, Segmented, Side, Small, Strong, SubHeading } from "widgets.slint";
+
+component SettingsTab inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> current;
+    callback clicked();
+    height: 34px;
+    border-radius: 8px;
+    background: root.current ? Theme.accent : (area.has-hover ? Theme.surface-3 : transparent);
+    animate background { duration: 120ms; }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        cross-axis-alignment: center;
+        Icon {
+            d: root.icon;
+            color: root.current ? Theme.accent-ink : Theme.ink-muted;
+        }
+
+        Text {
+            text: root.text;
+            color: root.current ? Theme.accent-ink : Theme.ink;
+            font-size: 14px;
+            font-weight: root.current ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component Page inherits VerticalLayout {
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 20px;
+    padding-bottom: 28px;
+    spacing: 18px;
+    alignment: start;
+}
+
+// A settings card: flat, unlike the cards in the main window.
+component Panel inherits Card {
+    in property <string> title;
+    flat: true;
+    VerticalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        spacing: 10px;
+        alignment: start;
+        if root.title != "": SubHeading {
+            text: root.title;
+        }
+        @children
+    }
+}
+
+component FactRow inherits HorizontalLayout {
+    in property <string> key;
+    in property <string> value;
+    in property <bool> mono;
+    spacing: 14px;
+    Muted {
+        width: 140px;
+        text: root.key;
+        vertical-alignment: top;
+        wrap: no-wrap;
+    }
+
+    Text {
+        text: root.value;
+        color: Theme.ink;
+        font-size: root.mono ? 12.5px : 14px;
+        font-family: root.mono ? Theme.mono-family : "";
+        wrap: word-wrap;
+        horizontal-stretch: 1;
+    }
+}
+
+component PrinterRow inherits Rectangle {
+    in property <PrinterItem> printer;
+    background: Theme.surface-2;
+    border-radius: 12px;
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 12px;
+        cross-axis-alignment: start;
+        PrinterLight {
+            size: 40px;
+            light: root.printer.light;
+            paper: root.printer.paper;
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 6px;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                cross-axis-alignment: center;
+                Strong {
+                    text: root.printer.name;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                Badge {
+                    text: root.printer.support;
+                    tone: root.printer.support-tone;
+                }
+
+                if root.printer.customized: Badge {
+                    text: "Edited settings";
+                    tone: 3;
+                }
+                if root.printer.is-default: Badge {
+                    text: "Default";
+                    tone: 1;
+                }
+            }
+
+            Small {
+                text: root.printer.profile-line;
+                wrap: word-wrap;
+            }
+
+            if root.printer.unavailable: Note {
+                label: "Note";
+                text: "The saved profile for this printer is not available in this version of NuPrint, so it cannot print until the app is updated.";
+                tone: 3;
+            }
+            if root.printer.checking: Body {
+                text: "Checking the connection… This does not print anything.";
+            }
+            if root.printer.check-error != "": Note {
+                label: "Error";
+                text: root.printer.check-error;
+                tone: 4;
+            }
+            if root.printer.has-check && !root.printer.checking: Rectangle {
+                background: root.printer.check-ok ? Theme.good-bg : Theme.warn-bg;
+                border-radius: 8px;
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 2px;
+                    Body {
+                        text: root.printer.check-line;
+                        color: root.printer.check-ok ? Theme.good-ink : Theme.warn-ink;
+                        wrap: word-wrap;
+                    }
+
+                    if root.printer.check-flags != "": Body {
+                        text: "Status: " + root.printer.check-flags;
+                        color: root.printer.check-ok ? Theme.good-ink : Theme.warn-ink;
+                        wrap: word-wrap;
+                    }
+                    if root.printer.check-firmware != "": Muted {
+                        text: "Firmware " + root.printer.check-firmware;
+                        wrap: no-wrap;
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                Btn {
+                    small: true;
+                    text: "Check connection";
+                    enabled: !Data.checking-any;
+                    clicked => {
+                        Data.check-printer(root.printer.id);
+                    }
+                }
+
+                if !root.printer.is-default: Btn {
+                    small: true;
+                    text: "Make default";
+                    clicked => {
+                        Data.make-default(root.printer.id);
+                    }
+                }
+                Btn {
+                    small: true;
+                    kind: 3;
+                    text: "Advanced";
+                    clicked => {
+                        Data.ask-advanced(root.printer.id);
+                    }
+                }
+
+                Btn {
+                    small: true;
+                    kind: 3;
+                    text: "Remove";
+                    clicked => {
+                        Data.ask-remove(root.printer.id);
+                    }
+                }
+            }
+        }
+    }
+}
+
+component DeviceRow inherits Rectangle {
+    in property <DeviceItem> device;
+    background: Theme.surface-2;
+    border-radius: 12px;
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                cross-axis-alignment: center;
+                Strong {
+                    text: root.device.name;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                if root.device.unknown: Badge {
+                    text: "Unknown device";
+                    tone: 0;
+                }
+                if !root.device.unknown: Badge {
+                    text: root.device.support;
+                    tone: root.device.support-tone;
+                }
+                if root.device.saved: Badge {
+                    text: "Saved";
+                    tone: 1;
+                }
+            }
+
+            Small {
+                text: root.device.meta;
+                wrap: word-wrap;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: end;
+            cross-axis-alignment: center;
+            Btn {
+                small: true;
+                text: "Inspect";
+                clicked => {
+                    Data.ask-inspect(root.device.id);
+                }
+            }
+
+            Btn {
+                small: true;
+                kind: 1;
+                text: "Save…";
+                enabled: root.device.can-save;
+                clicked => {
+                    Data.ask-save(root.device.id);
+                }
+            }
+        }
+    }
+}
+
+component PrintersPage inherits Page {
+    PageTitle {
+        text: "Printers";
+    }
+
+    Panel {
+        title: "Saved printers";
+        if Data.printers.length == 0: Muted {
+            text: "No printers saved yet. Use “Find printers” below to add one.";
+        }
+        for printer in Data.printers: PrinterRow {
+            printer: printer;
+        }
+    }
+
+    Panel {
+        title: "Find printers";
+        Note {
+            label: Data.adapter-label;
+            text: Data.adapter-text;
+            tone: Data.adapter-tone;
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            cross-axis-alignment: center;
+            if !Data.scanning: Btn {
+                kind: 1;
+                text: "Find printers";
+                clicked => {
+                    Data.find-printers();
+                }
+            }
+            if Data.scanning: Btn {
+                text: "Stop scan";
+                clicked => {
+                    Data.stop-scan();
+                }
+            }
+            Check {
+                text: "Show unknown devices";
+                checked <=> Data.include-unknown;
+                enabled: !Data.scanning;
+                horizontal-stretch: 0;
+            }
+
+            Btn {
+                small: true;
+                kind: 3;
+                text: "Recheck Bluetooth";
+                clicked => {
+                    Data.recheck-adapter();
+                }
+            }
+        }
+
+        if Data.scan-error != "": Note {
+            label: "Error";
+            text: Data.scan-error;
+            tone: 4;
+        }
+        for device in Data.devices: DeviceRow {
+            device: device;
+        }
+    }
+
+    Hint {
+        text: "Only one device can talk to the printer at a time. If a printer is not found or will not connect, close the printer's phone app (or turn off the phone's Bluetooth) and try again. NuPrint does not need Bluetooth pairing for supported printers.";
+    }
+}
+
+// A pickable option with the chosen look shared by .swatch-option and .icon-choice: the accent
+// outline on the soft accent fill.
+component ChoiceTile inherits Rectangle {
+    in property <bool> on;
+    callback clicked();
+    border-width: root.on ? 2px : 1px;
+    background: root.on ? Theme.accent-soft : (area.has-hover ? Theme.surface-2 : transparent);
+    border-color: root.on ? Theme.accent : Theme.line-strong;
+    animate background, border-color { duration: 120ms; }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// A colour choice drawn as a pill (.swatch-option).
+component Swatch inherits ChoiceTile {
+    in property <string> text;
+    in property <color> dot;
+    height: 34px;
+    horizontal-stretch: 0;
+    max-width: pill.preferred-width;
+    border-radius: 17px;
+    pill := HorizontalLayout {
+        padding-left: 9px;
+        padding-right: 14px;
+        spacing: 8px;
+        cross-axis-alignment: center;
+        Rectangle {
+            width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #0000001f;
+            background: root.dot;
+        }
+
+        Text {
+            text: root.text;
+            color: root.on ? Theme.accent-text : Theme.ink;
+            font-size: 14px;
+            font-weight: root.on ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// An app icon choice drawn as a tile (.icon-choice).
+component IconChoice inherits ChoiceTile {
+    in property <string> text;
+    in property <image> source;
+    width: 112px;
+    border-radius: 12px;
+    VerticalLayout {
+        padding-top: 12px;
+        padding-bottom: 10px;
+        padding-left: 6px;
+        padding-right: 6px;
+        spacing: 6px;
+        alignment: start;
+        Image {
+            source: root.source;
+            height: 56px;
+            image-fit: contain;
+        }
+
+        Text {
+            text: root.text;
+            color: root.on ? Theme.accent-text : Theme.ink;
+            font-size: 14px;
+            font-weight: root.on ? 600 : 500;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+component AppearancePage inherits Page {
+    PageTitle {
+        text: "Appearance";
+    }
+
+    FieldGroup {
+        label: "Mode";
+        Segmented {
+            fill: false;
+            options: ["Match system", "Light", "Dark"];
+            current: Theme.mode;
+            selected(index) => {
+                Data.set-mode-pref(index);
+            }
+        }
+    }
+
+    FieldGroup {
+        label: "Accent colour";
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            for name[index] in ["Indigo", "Coral", "Ocean", "Teal"]: Swatch {
+                text: name;
+                dot: Theme.accent-of(index);
+                on: Theme.accent-index == index;
+                clicked => {
+                    Data.set-accent(index);
+                }
+            }
+        }
+    }
+
+    FieldGroup {
+        label: "App icon";
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: start;
+            for choice[index] in [
+                { text: "Little cube", source: @image-url("../../desktop/src-tauri/icons/choices/cube.png") },
+                { text: "Curl", source: @image-url("../../desktop/src-tauri/icons/choices/curl.png") },
+                { text: "Ribbon", source: @image-url("../../desktop/src-tauri/icons/choices/ribbon.png") },
+                { text: "Air roll", source: @image-url("../../desktop/src-tauri/icons/choices/roll.png") },
+            ]: IconChoice {
+                text: choice.text;
+                source: choice.source;
+                on: Data.brand-icon == index;
+                clicked => {
+                    Data.set-icon(index);
+                }
+            }
+        }
+
+        Hint {
+            text: "Shown on the window and in the taskbar while NuPrint is open.";
+        }
+    }
+}
+
+component DiagnosticsPage inherits Page {
+    PageTitle {
+        text: "Diagnostics";
+    }
+
+    Panel {
+        title: "This app";
+        for fact in Data.app-facts: FactRow {
+            key: fact.key;
+            value: fact.value;
+            mono: fact.mono;
+        }
+    }
+
+    Panel {
+        title: "Last connection check";
+        if !Data.has-check: Muted {
+            text: "No check yet. Use “Check connection” in the printer menu or in Printers.";
+        }
+        for fact in Data.check-facts: FactRow {
+            key: fact.key;
+            value: fact.value;
+            mono: fact.mono;
+        }
+    }
+
+    Panel {
+        title: "Activity log";
+        log := CodeBox {
+            height: 200px;
+            VerticalLayout {
+                width: log.width - 12px;
+                padding: 8px;
+                spacing: 2px;
+                alignment: start;
+                if Data.logs.length == 0: Muted {
+                    text: "Nothing logged yet.";
+                }
+                for line in Data.logs: HorizontalLayout {
+                    spacing: 8px;
+                    Mono {
+                        text: line.time;
+                        color: Theme.ink-faint;
+                    }
+
+                    Mono {
+                        text: line.level;
+                        color: Theme.tone-ink(line.tone);
+                        font-weight: 700;
+                        width: 42px;
+                    }
+
+                    Mono {
+                        text: line.text;
+                        wrap: word-wrap;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Panel {
+        title: "Share a report";
+        Muted {
+            text: "A report lists the app version, printer models, recent job outcomes and the log. Printer names and addresses are left out unless you include them.";
+        }
+
+        Check {
+            text: "Include printer names and addresses";
+            checked <=> Data.include-ids;
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            Btn {
+                kind: 1;
+                text: "Export…";
+                enabled: !Data.exporting;
+                clicked => {
+                    Data.export-report();
+                }
+            }
+
+            Btn {
+                text: "Preview report";
+                clicked => {
+                    Data.preview-report();
+                }
+            }
+        }
+
+        if Data.report-error != "": Note {
+            label: "Error";
+            text: Data.report-error;
+            tone: 4;
+        }
+        if Data.report-text != "": CodeBox {
+            height: 220px;
+            text: Data.report-text;
+        }
+    }
+}
+
+export component SettingsWindow inherits Rectangle {
+    Rectangle {
+        background: Theme.scrim;
+        TouchArea {
+            clicked => {
+                Data.close-view();
+            }
+        }
+    }
+
+    Rectangle {
+        width: min(880px, root.width - 32px);
+        height: min(660px, root.height - 32px);
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        background: Theme.surface;
+        border-radius: 14px;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 60px;
+        drop-shadow-color: #00000059;
+        drop-shadow-offset-y: 20px;
+        clip: true;
+        TouchArea { }
+
+        HorizontalLayout {
+            Rectangle {
+                width: 200px;
+                background: Theme.bg;
+                Edge {
+                    side: Side.right;
+                }
+
+                VerticalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    padding-top: 16px;
+                    padding-bottom: 16px;
+                    spacing: 2px;
+                    alignment: start;
+                    Small {
+                        text: "Settings";
+                        font-weight: 600;
+                        height: 28px;
+                        x: 10px;
+                    }
+
+                    for tab in [
+                        { view: "printers", text: "Printers", icon: Icons.printer },
+                        { view: "appearance", text: "Appearance", icon: Icons.palette },
+                        { view: "diagnostics", text: "Diagnostics", icon: Icons.pulse },
+                    ]: SettingsTab {
+                        icon: tab.icon;
+                        text: tab.text;
+                        current: Data.view == tab.view;
+                        clicked => {
+                            Data.show-view(tab.view);
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                content := ScrollView {
+                    if Data.view == "printers": PrintersPage {
+                        width: content.visible-width;
+                    }
+                    if Data.view == "appearance": AppearancePage {
+                        width: content.visible-width;
+                    }
+                    if Data.view == "diagnostics": DiagnosticsPage {
+                        width: content.visible-width;
+                    }
+                }
+
+                Btn {
+                    x: parent.width - 28px - 14px;
+                    y: 14px;
+                    width: 28px;
+                    height: 28px;
+                    small: true;
+                    kind: 3;
+                    icon: Icons.close;
+                    clicked => {
+                        Data.close-view();
+                    }
+                }
+            }
+        }
+    }
+}

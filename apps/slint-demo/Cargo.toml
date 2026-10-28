@@ -1,0 +1,31 @@
+[package]
+name = "nuprint-slint-demo"
+description = "Demo NuPrint front end written in Slint, driving the same application service as the Tauri app and CLI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "nuprint-slint"
+path = "src/main.rs"
+
+[dependencies]
+nuprint-core.workspace = true
+nuprint-render.workspace = true
+nuprint-transport.workspace = true
+
+image.workspace = true
+rfd = "0.17"
+serde.workspace = true
+serde_json.workspace = true
+# Skia rasterises text with the platform's own engine (DirectWrite, Core Text, FreeType), as the
+# Tauri app's web view does. `unstable-winit-030` gives access to window events (see main.rs).
+slint = { version = "1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-skia", "accessibility", "compat-1-2", "unstable-winit-030"] }
+tokio.workspace = true
+uuid.workspace = true
+
+[build-dependencies]
+slint-build = "1.18.1"

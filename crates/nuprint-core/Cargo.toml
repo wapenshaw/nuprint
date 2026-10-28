@@ -1,0 +1,32 @@
+[package]
+name = "nuprint-core"
+description = "NuPrint application service: profiles, sessions, jobs, storage and typed API contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+nuprint-protocol = { workspace = true, features = ["ts"] }
+nuprint-render.workspace = true
+nuprint-transport.workspace = true
+
+async-trait.workspace = true
+hex.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+tempfile.workspace = true
+ts-rs.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

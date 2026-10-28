@@ -1,0 +1,60 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/nuprint-protocol",
+    "crates/nuprint-transport",
+    "crates/nuprint-render",
+    "crates/nuprint-core",
+    "crates/nuprint-cli",
+    "apps/desktop/src-tauri",
+    "apps/slint-demo",
+]
+default-members = [
+    "crates/nuprint-protocol",
+    "crates/nuprint-transport",
+    "crates/nuprint-render",
+    "crates/nuprint-core",
+    "crates/nuprint-cli",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+repository = "https://github.com/wapenshaw/nuprint"
+publish = false
+
+[workspace.dependencies]
+nuprint-protocol = { path = "crates/nuprint-protocol" }
+nuprint-transport = { path = "crates/nuprint-transport" }
+nuprint-render = { path = "crates/nuprint-render" }
+nuprint-core = { path = "crates/nuprint-core" }
+
+anyhow = "1.0.104"
+async-trait = "0.1.92"
+btleplug = "=0.13.3"
+clap = { version = "4.6.7", features = ["derive"] }
+cosmic-text = { version = "=0.19.0", default-features = false, features = ["std", "swash", "shape-run-cache"] }
+futures = "0.3.34"
+hex = "0.4.3"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "gif", "webp", "tiff"] }
+# The CoreBluetooth binding btleplug uses; read directly for the permission btleplug does not expose.
+objc2-core-bluetooth = { version = "=0.3.2", default-features = false, features = ["std", "CBManager"] }
+pdfium-render = { version = "=0.9.4", default-features = false, features = ["pdfium_latest", "thread_safe", "image_latest"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.150"
+sha2 = "0.11.0"
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio-util = "=0.7.19"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+ts-rs = { version = "12.0.1", features = ["serde-compat", "no-serde-warnings"] }
+uuid = { version = "1.28.0", features = ["v4", "serde"] }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

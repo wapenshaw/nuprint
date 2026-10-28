@@ -1,0 +1,321 @@
+// Small confirmation and editing dialogs, centred over a dimmed window.
+import { Theme } from "theme.slint";
+import { Data } from "data.slint";
+import { Btn, Check, CodeBox, Edge, Field, FieldGroup, Heading, Hint, Muted, Note, Radio, Side, TextArea } from "widgets.slint";
+
+// As the web modal: a head with the title and Close, the body, and a footer bar (Footer).
+component Modal inherits Rectangle {
+    in property <string> title;
+    in property <length> card-width: 480px;
+    in property <length> card-height: 0px;
+    callback dismissed();
+    Rectangle {
+        background: Theme.scrim;
+        TouchArea {
+            clicked => {
+                root.dismissed();
+            }
+        }
+    }
+
+    card := Rectangle {
+        width: min(root.card-width, root.width - 32px);
+        height: root.card-height > 0px ? min(root.card-height, root.height - 32px) : body.preferred-height;
+        x: (root.width - self.width) / 2;
+        y: max(16px, (root.height - self.height) / 2);
+        background: Theme.surface;
+        border-radius: 14px;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 60px;
+        drop-shadow-color: #00000059;
+        drop-shadow-offset-y: 20px;
+        TouchArea { }
+
+        body := VerticalLayout {
+            Rectangle {
+                Edge {
+                    side: Side.bottom;
+                }
+
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 14px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 12px;
+                    cross-axis-alignment: center;
+                    Heading {
+                        text: root.title;
+                        wrap: word-wrap;
+                        horizontal-stretch: 1;
+                    }
+
+                    Btn {
+                        kind: 3;
+                        text: "Close";
+                        clicked => {
+                            root.dismissed();
+                        }
+                    }
+                }
+            }
+
+            VerticalLayout {
+                padding-left: 18px;
+                padding-right: 18px;
+                padding-top: 16px;
+                spacing: 14px;
+                @children
+            }
+        }
+    }
+}
+
+// The button bar along the bottom of a modal, with a line across the full card width.
+component Footer inherits Rectangle {
+    Rectangle {
+        x: -18px;
+        y: 0px;
+        width: parent.width + 36px;
+        height: 1px;
+        background: Theme.line;
+    }
+
+    HorizontalLayout {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 8px;
+        alignment: end;
+        cross-axis-alignment: center;
+        @children
+    }
+}
+
+component SaveDialog inherits Modal {
+    title: Data.save-title;
+    dismissed => {
+        Data.close-dialog();
+    }
+    Muted {
+        text: "Choose what kind of printer this is. NuPrint uses it to pick the right settings.";
+    }
+
+    for choice[index] in Data.save-choices: Radio {
+        text: choice.label + "  ·  " + choice.support;
+        selected: Data.save-choice == index;
+        chosen => {
+            Data.save-choice = index;
+            Data.save-choice-changed(index);
+        }
+    }
+
+    if Data.save-note != "": Note {
+        label: "Note";
+        text: Data.save-note;
+        tone: 3;
+    }
+    if Data.save-experimental: Check {
+        text: "I understand this printer has not been fully verified with NuPrint.";
+        checked <=> Data.save-ack;
+    }
+    if Data.dialog-error != "": Note {
+        label: "Error";
+        text: Data.dialog-error;
+        tone: 4;
+    }
+    Footer {
+        Btn {
+            text: "Cancel";
+            clicked => {
+                Data.close-dialog();
+            }
+        }
+
+        Btn {
+            kind: 1;
+            text: "Save printer";
+            enabled: Data.save-can && !Data.dialog-busy;
+            clicked => {
+                Data.confirm-save();
+            }
+        }
+    }
+}
+
+component RemoveDialog inherits Modal {
+    title: "Remove " + Data.remove-name + "?";
+    dismissed => {
+        Data.close-dialog();
+    }
+    Muted {
+        text: "NuPrint forgets this printer and its settings. Jobs already in the history stay. You can add it again by finding it.";
+    }
+
+    if Data.dialog-error != "": Note {
+        label: "Error";
+        text: Data.dialog-error;
+        tone: 4;
+    }
+    Footer {
+        Btn {
+            text: "Cancel";
+            clicked => {
+                Data.close-dialog();
+            }
+        }
+
+        Btn {
+            kind: 2;
+            text: "Remove printer";
+            enabled: !Data.dialog-busy;
+            clicked => {
+                Data.confirm-remove();
+            }
+        }
+    }
+}
+
+component ClearDialog inherits Modal {
+    title: "Clear history?";
+    dismissed => {
+        Data.close-dialog();
+    }
+    Muted {
+        text: "Finished and cancelled jobs are removed from the list. Jobs that are waiting or printing stay.";
+    }
+
+    Footer {
+        Btn {
+            text: "Cancel";
+            clicked => {
+                Data.close-dialog();
+            }
+        }
+
+        Btn {
+            kind: 2;
+            text: "Clear history";
+            clicked => {
+                Data.confirm-clear();
+            }
+        }
+    }
+}
+
+component AdvancedDialog inherits Modal {
+    title: Data.adv-title;
+    card-width: 680px;
+    dismissed => {
+        Data.close-dialog();
+    }
+    Note {
+        label: "Careful";
+        text: "These settings control how NuPrint talks to this printer. Wrong values can waste paper or make printing fail. “Reset to defaults” always brings the built-in settings back.";
+        tone: 3;
+    }
+
+    GridLayout {
+        spacing-horizontal: 16px;
+        spacing-vertical: 12px;
+        for field[index] in Data.adv-quick: FieldGroup {
+            row: floor(index / 3);
+            col: Math.mod(index, 3);
+            label: field.label;
+            spacing: 4px;
+            Field {
+                text: field.value;
+                edited(text) => {
+                    Data.adv-quick-edited(index, text);
+                }
+            }
+
+            if field.invalid: Hint {
+                text: "Not a valid value";
+                color: Theme.bad-ink;
+                wrap: no-wrap;
+            }
+        }
+    }
+
+    FieldGroup {
+        label: "All settings (JSON)";
+        spacing: 4px;
+        TextArea {
+            height: 190px;
+            mono: true;
+            text-size: 12.5px;
+            text <=> Data.adv-json;
+            edited(text) => {
+                Data.adv-json-edited(text);
+            }
+        }
+    }
+
+    if Data.dialog-error != "": Note {
+        label: "Error";
+        text: Data.dialog-error;
+        tone: 4;
+    }
+    Footer {
+        Btn {
+            text: "Reset to defaults";
+            enabled: Data.adv-customized && !Data.dialog-busy;
+            clicked => {
+                Data.adv-reset();
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        Btn {
+            text: "Cancel";
+            clicked => {
+                Data.close-dialog();
+            }
+        }
+
+        Btn {
+            kind: 1;
+            text: "Save settings";
+            enabled: Data.adv-changed && !Data.adv-invalid && !Data.dialog-busy;
+            clicked => {
+                Data.adv-save();
+            }
+        }
+    }
+}
+
+component InspectDialog inherits Modal {
+    title: Data.inspect-title;
+    card-width: 680px;
+    dismissed => {
+        Data.close-dialog();
+    }
+    if Data.inspect-state == 0: Muted {
+        text: "Connecting to read the device's services… This does not print anything.";
+    }
+    if Data.inspect-state != 0: CodeBox {
+        height: 260px;
+        text: Data.inspect-text;
+        text-color: Data.inspect-state == 2 ? Theme.bad-ink : Theme.ink;
+    }
+    Footer {
+        Btn {
+            text: "Close";
+            clicked => {
+                Data.close-dialog();
+            }
+        }
+    }
+}
+
+export component Dialogs inherits Rectangle {
+    if Data.dialog == "save": SaveDialog { }
+    if Data.dialog == "remove": RemoveDialog { }
+    if Data.dialog == "clear": ClearDialog { }
+    if Data.dialog == "advanced": AdvancedDialog { }
+    if Data.dialog == "inspect": InspectDialog { }
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "sc03h-iprint-384",
+  "revision": 1,
+  "display_name": "SC03h (lowercase)",
+  "vendor": "ZEITEL",
+  "model": "SC03h",
+  "protocol": { "id": "iprint-5178", "version": 1 },
+  "match": {
+    "name_prefixes": ["SC03h-"],
+    "notes": "Case-sensitive. Uppercase SC03H- is a different APK profile with different heat/speed values and is not matched."
+  },
+  "transport": {
+    "kind": "ble_gatt",
+    "services": [
+      "0000ae30-0000-1000-8000-00805f9b34fb",
+      "0000ae00-0000-1000-8000-00805f9b34fb"
+    ],
+    "write_characteristic": "0000ae01-0000-1000-8000-00805f9b34fb",
+    "write_mode": "without_response",
+    "notify_characteristics": [
+      "0000ae02-0000-1000-8000-00805f9b34fb",
+      "0000ae04-0000-1000-8000-00805f9b34fb"
+    ],
+    "min_notify_subscriptions": 1,
+    "max_chunk_bytes": 180,
+    "pacing": { "chunk_delay_ms": 25, "boundary_bytes": 4096, "boundary_delay_ms": 250 },
+    "timeouts": {
+      "find_ms": 30000,
+      "connect_ms": 25000,
+      "subscribe_ms": 10000,
+      "write_ms": 10000,
+      "flow_pause_ms": 20000,
+      "disconnect_ms": 10000
+    }
+  },
+  "raster": {
+    "width_dots": 384,
+    "dots_per_mm": 8.0,
+    "max_height": 4000,
+    "wire_packing": "lsb_first_one_black"
+  },
+  "media": {
+    "kind": "continuous",
+    "description": "Continuous thermal roll, nominal 58 mm paper, about 48 mm printable"
+  },
+  "limits": { "max_copies": 20 },
+  "driver": {
+    "width_dots": 384,
+    "max_height": 4000,
+    "quality": 51,
+    "energy": { "light": 4250, "normal": 5000, "dark": 5750 },
+    "image_mode": 0,
+    "print_speed": 10,
+    "feed_speed": 25,
+    "feed_steps_per_mm": 8,
+    "feed_command_max_steps": 48,
+    "feed": { "min_mm": 0, "max_mm": 12, "default_mm": 12, "calibrated_reduced": false },
+    "timing": { "status_timeout_ms": 3000, "settle_ms": 2000, "ready_poll_ms": 1000, "ready_deadline_ms": 60000 }
+  },
+  "default_density": "normal",
+  "verification": [
+    {
+      "os": "windows",
+      "level": "verified_basic",
+      "date": "2026-10-12",
+      "firmware": "3.0.49",
+      "summary": "SC03h-3DE8: discovery (AF30 advertisement), AE30/AE01/AE02 GATT, status/device-info replies and an owner-confirmed 384 x 164-dot strip via the Python reference. Rust app packaged short print pending."
+    },
+    {
+      "os": "macos",
+      "level": "verified_basic",
+      "date": "2026-10-13",
+      "summary": "SC03h-3DE8 on macOS 27.0.1 (Apple silicon): Bluetooth permission prompt, discovery, AE30/AE01 GATT (link limit 182), ready status before and after, and four short text prints from the Rust app (three dev build, one packaged debug .app) that the owner reported working. Firmware not read on macOS."
+    }
+  ],
+  "evidence": [
+    { "kind": "apk", "reference": "docs/protocol.md", "summary": "base.apk PrintModelUtils lowercase sc03h: 384 px, 8 dots/mm, image energy 5000, speed 10, 180-byte writes" },
+    { "kind": "hardware", "reference": "docs/validation.md", "summary": "2026-10-12 Windows 11, firmware 3.0.49, ready status 00, text/border strip confirmed on paper" },
+    { "kind": "hardware", "reference": "docs/validation.md", "summary": "2026-10-13 macOS 27.0.1 Apple silicon, Rust app dev and packaged debug builds, ready status 00 before and after four short text prints the owner reported working" },
+    { "kind": "fixtures", "reference": "fixtures/sc03h/vectors.json", "summary": "Rust encoder matches the Python reference byte-for-byte" }
+  ]
+}

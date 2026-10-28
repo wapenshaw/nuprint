@@ -1,0 +1,4 @@
+interface:
+  display_name: "SC03h Printer Development"
+  short_description: "Develop and diagnose NuPrint's SC03h connection"
+  default_prompt: "Use $sc03h-printer to diagnose or improve NuPrint's printer integration and validate it against the documented protocol."

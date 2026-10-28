@@ -1,0 +1,35 @@
+# Project-local Rust code navigation. Requires uv and the pinned Rust toolchain.
+# See docs/codex-rust-lsp.md. Keep Serena pinned when refreshing this setup.
+[mcp_servers.rust_lsp]
+command = "uvx"
+args = [
+  "--python", "3.13",
+  "--from", "git+https://github.com/oraios/serena@4aa0d9fa40df457b14779a9789fbae8ac71d886d",
+  "serena", "start-mcp-server",
+  "--context", "codex",
+  "--project-from-cwd",
+  "--language-backend", "LSP",
+  "--agent-interface", "tools",
+  "--enable-web-dashboard", "false",
+  "--enable-gui-log-window", "false",
+  "--open-web-dashboard", "false",
+]
+# Codex desktop may start MCP outside the project. Update this when moving the checkout.
+cwd = "Z:/Personal/nuprint"
+startup_timeout_sec = 180
+tool_timeout_sec = 180
+enabled_tools = [
+  "initial_instructions",
+  "activate_project",
+  "get_current_config",
+  "find_symbol",
+  "get_symbols_overview",
+  "find_referencing_symbols",
+  "find_declaration",
+  "find_implementations",
+  "get_diagnostics_for_file",
+]
+
+[mcp_servers.rust_lsp.env]
+# Scope Cargo's cache override to this bridge and its children.
+CARGO_TARGET_DIR = "target/rust-analyzer"

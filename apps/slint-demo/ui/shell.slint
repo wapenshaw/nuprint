@@ -1,0 +1,621 @@
+// The toolbar, the status bar and the queue that slides over the workspace.
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Icons } from "theme.slint";
+import { Data } from "data.slint";
+import { JobItem } from "types.slint";
+import { Badge, Body, BrandMark, Btn, Edge, FieldLabel, Heading, Hint, Icon, Muted, Note, Popover, PrinterLight, ProgressBar, Separator, Side, Small, Strong } from "widgets.slint";
+
+component MenuItem inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <string> hint;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 34px;
+    border-radius: 8px;
+    opacity: root.enabled ? 1 : 0.5;
+    background: area.has-hover && root.enabled ? Theme.surface-2 : transparent;
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        cross-axis-alignment: center;
+        Icon {
+            d: root.icon;
+            color: Theme.ink-muted;
+        }
+
+        Body {
+            text: root.text;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        Hint {
+            text: root.hint;
+            vertical-alignment: center;
+            wrap: no-wrap;
+        }
+    }
+
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// The printer jobs go to and its last connection check; its menu switches printers.
+component PrinterMenu inherits Rectangle {
+    // A toolbar button as wide as what it says, up to 460px; a long name is cut short.
+    height: 34px;
+    min-width: 120px;
+    preferred-width: row.preferred-width;
+    max-width: min(460px, row.preferred-width);
+    horizontal-stretch: 0;
+    border-radius: 8px;
+    border-width: 1px;
+    background: button.has-hover ? Theme.surface-3 : Theme.surface-2;
+    border-color: button.has-hover ? Theme.line-strong : Theme.line;
+    animate background, border-color { duration: 120ms; }
+    row := HorizontalLayout {
+        y: button.pressed ? 1px : 0px;
+        width: parent.width;
+        height: parent.height;
+        padding-left: Data.has-printer ? 6px : 12px;
+        padding-right: 10px;
+        spacing: 8px;
+        cross-axis-alignment: center;
+        if Data.has-printer: PrinterLight {
+            size: 24px;
+            light: Data.printer-light;
+            paper: Data.printer-paper;
+        }
+        Strong {
+            text: Data.has-printer ? Data.printer-name : "No printer";
+            color: Data.has-printer ? Theme.ink : Theme.ink-muted;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        if Data.has-printer: Small {
+            text: Data.printer-light-label;
+            color: Theme.light-ink(Data.printer-light);
+            vertical-alignment: center;
+        }
+        if Data.has-printer && Data.printer-support-tone != 2: Badge {
+            text: Data.printer-support;
+            tone: Data.printer-support-tone;
+        }
+        Icon {
+            d: Icons.chevron;
+            size: 14px;
+            color: Theme.ink-muted;
+        }
+    }
+
+    button := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            menu.show();
+        }
+    }
+
+    menu := PopupWindow {
+        x: 0px;
+        y: root.height + 6px;
+        width: 330px;
+        Popover {
+            border-radius: 12px;
+            VerticalLayout {
+                padding: 6px;
+                spacing: 2px;
+                if Data.printers.length > 0: FieldLabel {
+                    text: "Print to";
+                    height: 26px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+                for printer in Data.printers: Rectangle {
+                    height: 46px;
+                    border-radius: 8px;
+                    background: printer.id == Data.selected-id ? Theme.accent-soft : (option.has-hover ? Theme.surface-2 : transparent);
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        cross-axis-alignment: center;
+                        PrinterLight {
+                            size: 32px;
+                            light: printer.light;
+                            paper: printer.paper;
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Strong {
+                                text: printer.name;
+                                overflow: elide;
+                            }
+
+                            Hint {
+                                text: printer.light-label + " · " + printer.support;
+                                color: Theme.light-ink(printer.light);
+                                overflow: elide;
+                                wrap: no-wrap;
+                            }
+                        }
+
+                        if printer.id == Data.selected-id: Icon {
+                            d: Icons.check;
+                            color: Theme.accent-text;
+                            thickness: 2px;
+                        }
+                    }
+
+                    option := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            Data.select-printer(printer.id);
+                            menu.close();
+                        }
+                    }
+                }
+                if Data.printers.length == 0: Muted {
+                    text: "No printer saved yet. Turn the printer on, then find it.";
+                    x: 8px;
+                    width: parent.width - 16px;
+                }
+                VerticalLayout {
+                    padding: 4px;
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    Separator { }
+                }
+
+                MenuItem {
+                    icon: Icons.refresh;
+                    text: "Check connection";
+                    hint: "Does not print";
+                    enabled: Data.has-printer && !Data.checking-any;
+                    clicked => {
+                        menu.close();
+                        Data.check-printer(Data.selected-id);
+                    }
+                }
+
+                MenuItem {
+                    icon: Icons.search;
+                    text: "Find printers…";
+                    clicked => {
+                        menu.close();
+                        Data.show-view("printers");
+                        Data.find-printers();
+                    }
+                }
+
+                MenuItem {
+                    icon: Icons.settings;
+                    text: "Manage printers…";
+                    clicked => {
+                        menu.close();
+                        Data.show-view("printers");
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component Header inherits Rectangle {
+    height: 52px;
+    background: Theme.surface;
+    Edge {
+        side: Side.bottom;
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 14px;
+        cross-axis-alignment: center;
+        HorizontalLayout {
+            horizontal-stretch: 0;
+            spacing: 8px;
+            cross-axis-alignment: center;
+            BrandMark {
+                icon: Data.brand-icon;
+            }
+
+            Heading {
+                text: "NuPrint";
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+        }
+
+        PrinterMenu { }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        HorizontalLayout {
+            horizontal-stretch: 0;
+            spacing: 8px;
+            cross-axis-alignment: center;
+            // The count sits on the button's corner, like a Dock badge, so the button never
+            // changes width.
+            Rectangle {
+                width: queue-btn.preferred-width;
+                height: 34px;
+                queue-btn := Btn {
+                    width: parent.width;
+                    icon: Icons.queue;
+                    text: "Queue";
+                    on: Data.view == "queue";
+                    clicked => {
+                        if Data.view == "queue" {
+                            Data.close-view();
+                        } else {
+                            Data.show-view("queue");
+                        }
+                    }
+                }
+
+                // 18px badge plus the 2px surface-coloured ring, 6px past the corner.
+                if Data.open-jobs > 0: Rectangle {
+                    x: parent.width - self.width + 8px;
+                    y: -8px;
+                    height: 22px;
+                    width: max(22px, badge-text.preferred-width + 14px);
+                    border-radius: 11px;
+                    background: Theme.accent;
+                    border-width: 2px;
+                    border-color: Theme.surface;
+                    badge-text := Text {
+                        text: Data.open-jobs;
+                        color: Theme.accent-ink;
+                        font-size: 11.5px;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Btn {
+                icon: Icons.settings;
+                clicked => {
+                    Data.show-view("printers");
+                }
+            }
+        }
+    }
+}
+
+export component StatusBar inherits Rectangle {
+    height: 40px;
+    background: Theme.surface;
+    Edge { }
+
+    HorizontalLayout {
+        padding-left: 20px;
+        padding-right: 20px;
+        spacing: 8px;
+        cross-axis-alignment: center;
+        HorizontalLayout {
+            horizontal-stretch: 1;
+            min-width: 80px;
+            spacing: 4px;
+            if Data.has-status: Small {
+                text: Data.status-prefix + ":";
+                color: Data.status-tone == 4 ? Theme.bad-ink : Data.status-tone == 2 ? Theme.good-ink : Theme.ink-muted;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Small {
+                text: Data.has-status ? Data.status-text : "Ready. Keep the printer's phone app closed while NuPrint prints.";
+                color: Data.status-tone == 4 ? Theme.bad-ink : Data.status-tone == 2 ? Theme.good-ink : Theme.ink-muted;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+        }
+
+        if Data.has-job: Separator {
+            vertical: true;
+            height: 22px;
+        }
+        if Data.has-job: Rectangle {
+            width: 4px;
+        }
+        if Data.has-job: Badge {
+            text: Data.job-label;
+            tone: Data.job-tone;
+        }
+        if Data.has-job: Small {
+            text: Data.job-line;
+            vertical-alignment: center;
+            overflow: elide;
+            max-width: 420px;
+        }
+        if Data.has-job && Data.job-show-progress: ProgressBar {
+            width: 96px;
+            progress: Data.job-progress;
+        }
+        if Data.has-job && Data.job-cancellable: Btn {
+            small: true;
+            text: "Cancel";
+            clicked => {
+                Data.cancel-latest-job();
+            }
+        }
+        if Data.status-action-label != "": Btn {
+            small: true;
+            text: Data.status-action-label;
+            clicked => {
+                Data.status-action();
+            }
+        }
+        if Data.has-status: Btn {
+            small: true;
+            kind: 3;
+            text: "Dismiss";
+            clicked => {
+                Data.dismiss-status();
+            }
+        }
+    }
+}
+
+component JobCard inherits Rectangle {
+    in property <JobItem> job;
+    background: Theme.surface;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.line;
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 12px;
+        // The job drawn as the receipt it makes.
+        Rectangle {
+            width: 56px;
+            VerticalLayout {
+                alignment: start;
+                Rectangle {
+                    background: Theme.paper;
+                    border-radius: 2px;
+                    height: root.job.has-thumb ? min(92px, 56px * root.job.thumb.height / max(1, root.job.thumb.width) + 8px) : root.job.blank-height + 8px;
+                    drop-shadow-blur: 5px;
+                    drop-shadow-color: #0000001a;
+                    drop-shadow-offset-y: 2px;
+                    clip: true;
+                    if root.job.has-thumb: Image {
+                        x: 3px;
+                        y: 3px;
+                        width: parent.width - 6px;
+                        source: root.job.thumb;
+                        image-fit: contain;
+                        height: self.width * root.job.thumb.height / max(1, root.job.thumb.width);
+                        image-rendering: pixelated;
+                    }
+                }
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+            HorizontalLayout {
+                spacing: 8px;
+                cross-axis-alignment: center;
+                Strong {
+                    text: root.job.title;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+
+                Badge {
+                    text: root.job.label;
+                    tone: root.job.tone;
+                }
+            }
+
+            Small {
+                text: root.job.meta;
+                wrap: word-wrap;
+            }
+
+            if root.job.text != "": Small {
+                text: root.job.text;
+                wrap: word-wrap;
+            }
+            if root.job.show-progress: VerticalLayout {
+                spacing: 4px;
+                ProgressBar {
+                    progress: root.job.progress;
+                }
+
+                Hint {
+                    text: root.job.progress-text;
+                }
+            }
+            if root.job.error != "": Note {
+                label: "Error";
+                text: root.job.error;
+                tone: 4;
+            }
+            if root.job.partial: Note {
+                label: "Some paper may have printed";
+                text: "Check the paper before printing again.";
+                tone: 3;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                if root.job.can-cancel: Btn {
+                    small: true;
+                    text: "Cancel";
+                    clicked => {
+                        Data.cancel-job(root.job.id);
+                    }
+                }
+                if root.job.can-retry: Btn {
+                    small: true;
+                    text: "Print again";
+                    clicked => {
+                        Data.retry-job(root.job.id);
+                    }
+                }
+                if root.job.can-remove: Btn {
+                    small: true;
+                    kind: 3;
+                    text: "Remove";
+                    clicked => {
+                        Data.remove-job(root.job.id);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The queue, slid in from the right over the workspace. Not modal: the toolbar and status bar
+// stay usable. Escape, the close button or a click on the dimmed workspace closes it.
+export component QueueDrawer inherits Rectangle {
+    private property <bool> open: Data.view == "queue";
+    private property <length> drawer-w: min(460px, root.width);
+    scrim := Rectangle {
+        background: Theme.scrim.with-alpha(0.22);
+        opacity: root.open ? 1 : 0;
+        visible: self.opacity > 0.01;
+        animate opacity { duration: 180ms; }
+        TouchArea {
+            clicked => {
+                Data.close-view();
+            }
+        }
+    }
+
+    Rectangle {
+        x: root.open ? root.width - root.drawer-w : root.width + 20px;
+        width: root.drawer-w;
+        background: Theme.surface;
+        drop-shadow-blur: 32px;
+        drop-shadow-color: #00000029;
+        drop-shadow-offset-x: -12px;
+        animate x { duration: 220ms; easing: ease-out; }
+        Edge {
+            side: Side.left;
+        }
+
+        TouchArea { }
+
+        VerticalLayout {
+            HorizontalLayout {
+                padding-left: 18px;
+                padding-right: 12px;
+                padding-top: 12px;
+                padding-bottom: 12px;
+                spacing: 8px;
+                cross-axis-alignment: center;
+                Heading {
+                    text: "Queue";
+                    font-size: 16px;
+                    vertical-alignment: center;
+                }
+
+                Small {
+                    text: Data.waiting-text;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+
+                Btn {
+                    small: true;
+                    text: Data.queue-held ? "Resume queue" : "Hold queue";
+                    clicked => {
+                        Data.toggle-hold();
+                    }
+                }
+
+                Btn {
+                    small: true;
+                    kind: 3;
+                    icon: Icons.close;
+                    clicked => {
+                        Data.close-view();
+                    }
+                }
+            }
+
+            Separator { }
+
+            ScrollView {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    width: root.drawer-w - 1px;
+                    padding: 12px;
+                    spacing: 10px;
+                    alignment: start;
+                    if Data.queue-held: Note {
+                        label: "Queue held";
+                        text: "A job that is already printing will finish or can be cancelled, but waiting jobs will not start until you resume.";
+                        tone: 3;
+                    }
+                    if Data.has-held-jobs: Note {
+                        label: "Jobs were held after restart";
+                        text: "resume when ready. NuPrint never replays a half-sent job on its own, so check each job first.";
+                        tone: 3;
+                    }
+                    if Data.jobs.length == 0: Rectangle {
+                        height: 80px;
+                        Muted {
+                            x: 12px;
+                            width: parent.width - 24px;
+                            text: "No jobs yet. Press Print and the job appears here while it prints.";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    for job in Data.jobs: JobCard {
+                        job: job;
+                    }
+                }
+            }
+
+            Separator { }
+
+            HorizontalLayout {
+                padding-left: 18px;
+                padding-right: 12px;
+                padding-top: 10px;
+                padding-bottom: 10px;
+                spacing: 8px;
+                cross-axis-alignment: center;
+                Hint {
+                    text: "Printed jobs keep their details and a small preview, not their print data.";
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+
+                Btn {
+                    small: true;
+                    text: "Clear history";
+                    enabled: Data.can-clear;
+                    clicked => {
+                        Data.ask-clear();
+                    }
+                }
+            }
+        }
+    }
+}

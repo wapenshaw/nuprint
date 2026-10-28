@@ -1,0 +1,81 @@
+// Plain data the Rust side hands to the screens.
+
+export struct PrinterItem {
+    id: string,
+    name: string,
+    profile-line: string,
+    support: string,
+    support-tone: int,
+    customized: bool,
+    is-default: bool,
+    unavailable: bool,
+    // 0 idle, 1 busy, 2 good, 3 warn, 4 bad (see PrinterLight).
+    light: int,
+    light-label: string,
+    paper: bool,
+    checking: bool,
+    check-error: string,
+    has-check: bool,
+    check-ok: bool,
+    check-line: string,
+    check-flags: string,
+    check-firmware: string,
+}
+
+export struct DeviceItem {
+    id: string,
+    name: string,
+    meta: string,
+    unknown: bool,
+    support: string,
+    support-tone: int,
+    saved: bool,
+    can-save: bool,
+}
+
+export struct JobItem {
+    id: string,
+    title: string,
+    state: string,
+    label: string,
+    tone: int,
+    meta: string,
+    text: string,
+    error: string,
+    partial: bool,
+    progress: float,
+    show-progress: bool,
+    progress-text: string,
+    has-thumb: bool,
+    thumb: image,
+    blank-height: length,
+    can-cancel: bool,
+    can-retry: bool,
+    can-remove: bool,
+}
+
+export struct LogItem {
+    time: string,
+    level: string,
+    text: string,
+    tone: int,
+}
+
+export struct Fact {
+    key: string,
+    value: string,
+    mono: bool,
+}
+
+export struct Choice {
+    id: string,
+    label: string,
+    support: string,
+    tone: int,
+}
+
+export struct QuickField {
+    label: string,
+    value: string,
+    invalid: bool,
+}

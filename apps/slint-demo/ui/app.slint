@@ -1,0 +1,100 @@
+// NuPrint, drawn with Slint to match the web UI: toolbar, workspace, queue drawer, settings and
+// dialogs. All state and actions are in `Data`; the Rust side drives them.
+import { Theme } from "theme.slint";
+import { Data } from "data.slint";
+import { Header, QueueDrawer, StatusBar } from "shell.slint";
+import { Inspector, PreviewPane, PrintBar } from "workspace.slint";
+import { SettingsWindow } from "settings.slint";
+import { Dialogs } from "dialogs.slint";
+
+export { Data, Theme }
+export { Choice, DeviceItem, Fact, JobItem, LogItem, PrinterItem, QuickField } from "types.slint";
+
+export component AppWindow inherits Window {
+    title: "NuPrint";
+    icon: @image-url("../../desktop/src-tauri/icons/icon.png");
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: 900px;
+    min-height: 600px;
+    background: Theme.bg;
+    default-font-size: 14px;
+    default-font-family: Theme.font-family;
+
+    focus := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                if Data.dialog != "" {
+                    Data.close-dialog();
+                } else if Data.view != "workspace" {
+                    Data.close-view();
+                }
+                return accept;
+            }
+            if event.modifiers.control && Data.dialog == "" {
+                if event.text == "o" {
+                    Data.open-file();
+                    return accept;
+                }
+                if event.text == "p" {
+                    Data.print();
+                    return accept;
+                }
+                if event.text == "s" {
+                    Data.save-png();
+                    return accept;
+                }
+                if event.text == "," {
+                    Data.show-view("printers");
+                    return accept;
+                }
+            }
+            reject
+        }
+
+        VerticalLayout {
+            Header { }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+                Inspector {
+                    width: 320px;
+                }
+
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    PreviewPane {
+                        vertical-stretch: 1;
+                    }
+
+                    PrintBar { }
+                }
+            }
+
+            StatusBar { }
+        }
+
+        // The drawer sits between the toolbar and the status bar.
+        Rectangle {
+            y: 52px;
+            height: root.height - 92px;
+            QueueDrawer { }
+        }
+
+        if Data.view == "printers" || Data.view == "appearance" || Data.view == "diagnostics": SettingsWindow { }
+        Dialogs { }
+
+        if Data.load-error != "": Rectangle {
+            background: Theme.bg;
+            Text {
+                x: 40px;
+                width: parent.width - 80px;
+                text: "NuPrint could not start: " + Data.load-error;
+                color: Theme.bad-ink;
+                font-size: 15px;
+                wrap: word-wrap;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

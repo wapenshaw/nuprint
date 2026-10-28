@@ -1,0 +1,31 @@
+apks
+
+.tools/
+output/
+
+# Python proof of concept (poc/python)
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+poc/python/build/
+poc/python/dist/
+
+# Rust / Tauri
+/target/
+vendor/
+apps/desktop/src-tauri/gen/schemas/
+apps/desktop/src-tauri/resources/pdfium/
+
+# Frontend
+node_modules/
+apps/desktop/dist/
+
+# Serena's machine-local index and memories (share only the project settings).
+/.serena/*
+!/.serena/project.yml
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/

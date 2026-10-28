@@ -1,0 +1,89 @@
+// Design tokens: the same neutral surfaces, one accent and light/dark pairs as the web UI's
+// styles.css. `mode` is 0 = follow the system, 1 = light, 2 = dark; `accent` indexes
+// indigo, coral, ocean, teal.
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    in-out property <int> mode: 0;
+    in-out property <int> accent-index: 0;
+    out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
+
+    // The fonts the web UI resolves on this platform (styles.css: system-ui and ui-monospace
+    // stacks). Rust sets them at start-up; empty means the platform's default UI font.
+    in-out property <string> font-family;
+    in-out property <string> mono-family;
+
+    out property <color> bg: dark ? #101217 : #f3f4f7;
+    out property <color> surface: dark ? #181b22 : #ffffff;
+    out property <color> surface-2: dark ? #20242d : #f0f2f6;
+    out property <color> surface-3: dark ? #2a2f3a : #e5e8ee;
+    out property <color> raised: dark ? #323845 : #ffffff;
+    out property <color> field: dark ? #13161c : #ffffff;
+    out property <color> line: dark ? #272c36 : #e2e5eb;
+    out property <color> line-strong: dark ? #363c49 : #cdd2db;
+    out property <color> ink: dark ? #e8eaf0 : #1b1f27;
+    out property <color> ink-muted: dark ? #9da4b4 : #5f6676;
+    out property <color> ink-faint: dark ? #6f7686 : #8a91a0;
+
+    out property <color> accent: accent-of(accent-index);
+    out property <color> accent-hover: dark ? [#7682ff, #ff8f73, #4593f0, #4ee0ce][accent-index] : [#4350c4, #b94322, #1a61b8, #0a786b][accent-index];
+    out property <color> accent-ink: dark ? [#ffffff, #230d06, #ffffff, #032421][accent-index] : #ffffff;
+    out property <color> accent-text: dark ? [#a3abff, #ffa48c, #7dbbff, #6ee9d8][accent-index] : [#4450c8, #b8431f, #1a63bd, #0b7a6e][accent-index];
+    out property <color> accent-soft: dark ? [#6470f32e, #ff7a5929, #2f84e82e, #2dd4bf26][accent-index] : [#eceefd, #fdece6, #e7f0fc, #e3f5f2][accent-index];
+
+    out property <color> good-bg: dark ? #22c55e24 : #e6f6ec;
+    out property <color> good-ink: dark ? #86e2ad : #15643a;
+    out property <color> warn-bg: dark ? #f59e0b24 : #fdf3da;
+    out property <color> warn-ink: dark ? #f8cf72 : #855600;
+    out property <color> bad-bg: dark ? #ef444426 : #fde8e7;
+    out property <color> bad-ink: dark ? #fca7a7 : #a51d1d;
+    out property <color> active-bg: dark ? #3b82f629 : #e7effc;
+    out property <color> active-ink: dark ? #9cc6ff : #1d4f9c;
+    out property <color> danger: dark ? #e5484d : #d03030;
+    out property <color> danger-hover: dark ? #f0646a : #b82626;
+
+    out property <color> paper: #ffffff;
+    out property <color> desk: dark ? #0b0d11 : #e8eaef;
+    out property <color> slot: dark ? #05060a : #1d2027;
+    out property <color> slot-lip: dark ? #3a404d : #4a505d;
+    out property <color> scrim: #080a0e8c;
+    out property <color> shadow: dark ? #00000066 : #1418211a;
+    // styles.css --shadow-sm (primary buttons) and --shadow-raised (the chosen segment).
+    out property <color> shadow-sm: dark ? #0000004d : #1418210f;
+    out property <color> shadow-raised: dark ? #00000073 : #1418211f;
+
+    // Any accent's colour in the current mode, for the accent choices in Appearance.
+    public pure function accent-of(index: int) -> color {
+        dark ? [#6470f3, #ff7a59, #2f84e8, #2dd4bf][index] : [#4f5bd5, #cf4f2c, #1f6fd1, #0d8a7c][index]
+    }
+    // Tone ids shared by badges, notes and status text: 0 neutral, 1 active, 2 good, 3 warn, 4 bad.
+    public pure function tone-bg(tone: int) -> color {
+        tone == 1 ? active-bg : tone == 2 ? good-bg : tone == 3 ? warn-bg : tone == 4 ? bad-bg : surface-2
+    }
+    public pure function tone-ink(tone: int) -> color {
+        tone == 1 ? active-ink : tone == 2 ? good-ink : tone == 3 ? warn-ink : tone == 4 ? bad-ink : ink-muted
+    }
+    // The words beside a printer light: 0 idle, 1 busy, 2 good, 3 warn, 4 bad.
+    public pure function light-ink(light: int) -> color {
+        light == 1 ? accent-text : light == 2 ? good-ink : light == 3 ? warn-ink : light == 4 ? bad-ink : ink-muted
+    }
+}
+
+// 16 px stroke icons, as in components/icons.tsx.
+export global Icons {
+    out property <string> save: "M3 2.5h8l2.5 2.5v8.5H2.5v-11z M5 2.5v3.5h5V2.5 M5 13.5v-4h6v4";
+    out property <string> queue: "M3 4h10 M3 8h10 M3 12h6";
+    out property <string> settings: "M13.06 6.43 L14.80 6.83 L14.80 9.17 L13.06 9.57 L12.69 10.47 L13.63 11.98 L11.98 13.63 L10.47 12.69 L9.57 13.06 L9.17 14.80 L6.83 14.80 L6.43 13.06 L5.53 12.69 L4.02 13.63 L2.37 11.98 L3.31 10.47 L2.94 9.57 L1.20 9.17 L1.20 6.83 L2.94 6.43 L3.31 5.53 L2.37 4.02 L4.02 2.37 L5.53 3.31 L6.43 2.94 L6.83 1.20 L9.17 1.20 L9.57 2.94 L10.47 3.31 L11.98 2.37 L13.63 4.02 L12.69 5.53Z M5.9 8 a2.1 2.1 0 1 0 4.2 0 a2.1 2.1 0 1 0 -4.2 0";
+    out property <string> chevron: "M4 6l4 4 4-4";
+    out property <string> close: "M4 4l8 8 M12 4l-8 8";
+    out property <string> search: "M11.5 7 a4.5 4.5 0 1 0 -9 0 a4.5 4.5 0 1 0 9 0 M10.5 10.5l3 3";
+    out property <string> refresh: "M13 8a5 5 0 1 1-1.5-3.6 M13 2.5v2.8h-2.8";
+    out property <string> printer: "M4.5 6V2.5h7V6 M4 6h8a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z M4.5 10.5h7v3h-7z";
+    out property <string> palette: "M13.5 8 a5.5 5.5 0 1 0 -11 0 a5.5 5.5 0 1 0 11 0 M8 2.5a5.5 5.5 0 0 1 0 11z";
+    out property <string> pulse: "M1.5 8.5h3l2-5 3 9 2-4h3";
+    out property <string> minus: "M3.5 8h9";
+    out property <string> plus: "M3.5 8h9 M8 3.5v9";
+    out property <string> open: "M2 4.5V12.5h12V6H8L6.5 4.5z";
+    out property <string> rotate: "M3 8a5 5 0 1 0 1.5-3.6 M3 2.5v2.8h2.8";
+    out property <string> check: "M3.5 8.5l3 3 6-7";
+}

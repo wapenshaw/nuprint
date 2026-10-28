@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="cu-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFBFD"/>
+      <stop offset="1" stop-color="#DADCE5"/>
+    </linearGradient>
+    <linearGradient id="cu-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6F7AF3"/>
+      <stop offset="1" stop-color="#3A43B3"/>
+    </linearGradient>
+    <linearGradient id="cu-paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EEEFF4"/>
+    </linearGradient>
+    <linearGradient id="cu-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E2266" stop-opacity="0"/>
+      <stop offset="1" stop-color="#1E2266" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="cu-sh" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0B0D24" flood-opacity="0.28"/>
+    </filter>
+    <filter id="cu-soft" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#141850" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#cu-bg)" filter="url(#cu-sh)"/>
+  <rect x="212" y="548" width="600" height="282" rx="96" fill="url(#cu-body)" filter="url(#cu-soft)"/>
+  <rect x="300" y="552" width="424" height="26" rx="13" fill="#1D2266"/>
+  <g filter="url(#cu-soft)">
+    <path d="M330 566V232l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26l15.17-26l15.17 26V566Z" fill="url(#cu-paper)"/>
+  </g>
+  <rect x="330" y="500" width="364" height="66" fill="url(#cu-fade)"/>
+  <rect x="372" y="286" width="150" height="26" rx="13" fill="#4F5BD5"/>
+  <rect x="372" y="338" width="280" height="16" rx="8" fill="#C5C8D6"/>
+  <rect x="372" y="370" width="230" height="16" rx="8" fill="#C5C8D6"/>
+  <rect x="372" y="402" width="258" height="16" rx="8" fill="#C5C8D6"/>
+  <line x1="364" y1="458" x2="662" y2="458" stroke="#C5C8D6" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/>
+  <rect x="292" y="562" width="440" height="16" rx="8" fill="#6672EE"/>
+  <rect x="252" y="604" width="520" height="24" rx="12" fill="#FFFFFF" fill-opacity="0.12"/>
+  <circle cx="726" cy="764" r="30" fill="#7CF2C6" fill-opacity="0.25"/>
+  <circle cx="726" cy="764" r="16" fill="#7CF2C6"/>
+</svg>

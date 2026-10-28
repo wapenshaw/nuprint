@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in the app or CLI doesn't work as described.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Press …
+  - type: input
+    id: version
+    attributes:
+      label: NuPrint version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options: [Desktop app, CLI, Slint demo, Python reference]
+    validations:
+      required: true
+  - type: input
+    id: printer
+    attributes:
+      label: Printer model
+      placeholder: SC03h, or none if no printer is involved
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: For connection or printing problems, attach a diagnostics export (Settings → Diagnostics). Names, addresses and titles are redacted unless you choose to include them.

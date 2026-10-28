@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "p2-iprint-384",
+  "revision": 1,
+  "display_name": "P2",
+  "vendor": "Unknown (iPrint app family)",
+  "model": "P2",
+  "protocol": {
+    "id": "iprint-5178",
+    "version": 1
+  },
+  "match": {
+    "name_prefixes": [
+      "P2-"
+    ],
+    "notes": "Case-sensitive exact prefix. The APK sends three trailing feed commands instead of two; NuPrint uses its own 0-12 mm trailing-feed setting."
+  },
+  "transport": {
+    "kind": "ble_gatt",
+    "services": [
+      "0000ae30-0000-1000-8000-00805f9b34fb",
+      "0000ae00-0000-1000-8000-00805f9b34fb"
+    ],
+    "write_characteristic": "0000ae01-0000-1000-8000-00805f9b34fb",
+    "write_mode": "without_response",
+    "notify_characteristics": [
+      "0000ae02-0000-1000-8000-00805f9b34fb",
+      "0000ae04-0000-1000-8000-00805f9b34fb"
+    ],
+    "min_notify_subscriptions": 1,
+    "max_chunk_bytes": 180,
+    "pacing": {
+      "chunk_delay_ms": 25,
+      "boundary_bytes": 4096,
+      "boundary_delay_ms": 250
+    },
+    "timeouts": {
+      "find_ms": 30000,
+      "connect_ms": 25000,
+      "subscribe_ms": 10000,
+      "write_ms": 10000,
+      "flow_pause_ms": 20000,
+      "disconnect_ms": 10000
+    }
+  },
+  "raster": {
+    "width_dots": 384,
+    "dots_per_mm": 8.0,
+    "max_height": 4000,
+    "wire_packing": "lsb_first_one_black"
+  },
+  "media": {
+    "kind": "continuous",
+    "description": "Continuous thermal roll, nominal 58 mm paper, about 48 mm printable"
+  },
+  "limits": {
+    "max_copies": 20
+  },
+  "driver": {
+    "width_dots": 384,
+    "max_height": 4000,
+    "quality": 51,
+    "energy": {
+      "light": 4250,
+      "normal": 5000,
+      "dark": 5750
+    },
+    "image_mode": 0,
+    "print_speed": 10,
+    "feed_speed": 25,
+    "feed_steps_per_mm": 8,
+    "feed_command_max_steps": 48,
+    "feed": {
+      "min_mm": 0,
+      "max_mm": 12,
+      "default_mm": 12,
+      "calibrated_reduced": false
+    },
+    "timing": {
+      "status_timeout_ms": 3000,
+      "settle_ms": 2000,
+      "ready_poll_ms": 1000,
+      "ready_deadline_ms": 60000
+    }
+  },
+  "default_density": "normal",
+  "verification": [],
+  "evidence": [
+    {
+      "kind": "apk",
+      "reference": "docs/apk-printer-models.md",
+      "summary": "base.apk PrintModelUtils P2 (line 157): printing settings identical to lowercase sc03h (384 px, 200 dpi, image energy 5000, speed 10, 180-byte writes, two trailing feeds). Not tested on hardware."
+    },
+    {
+      "kind": "profile",
+      "reference": "profiles/sc03h-iprint-384.json",
+      "summary": "Transport, raster and driver settings copied from the verified SC03h profile."
+    }
+  ]
+}

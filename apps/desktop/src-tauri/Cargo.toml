@@ -1,0 +1,43 @@
+[package]
+name = "nuprint-desktop"
+description = "NuPrint desktop host: Tauri shell over the shared Rust application service."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+default-run = "nuprint-desktop"
+
+[lib]
+name = "nuprint_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+nuprint-core.workspace = true
+nuprint-render.workspace = true
+nuprint-transport.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "=2.11.6", features = ["image-png"] }
+tauri-plugin-dialog = "=2.7.3"
+# tauri 2.11.6 does not compile against the 2.12-era sibling crates (semver-compatible on
+# paper, API-incompatible in practice). Pin the exact family it was released with.
+tauri-codegen = "=2.6.3"
+tauri-macros = "=2.6.3"
+tauri-runtime = "=2.11.3"
+tauri-runtime-wry = "=2.11.4"
+tauri-utils = "=2.9.3"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# AppKit, to show the app icon chosen in the header in the Dock. The versions tauri already uses.
+objc2 = "=0.6.5"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSApplication", "NSImage", "NSResponder"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSData"] }

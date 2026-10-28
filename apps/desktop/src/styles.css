@@ -1,0 +1,2038 @@
+/* NuPrint: neutral surfaces, one accent for actions. System fonts only (offline app).
+   Light/dark follows the OS. The accent theme is `data-accent` on <html> (see lib/theme.ts);
+   add a theme by defining its -l/-d palette below, a swatch colour and an entry in ACCENTS. */
+
+/* ---- accent palettes: light (-l) and dark (-d) variants */
+:root,
+:root[data-accent="indigo"] {
+  --a-l: #4f5bd5;
+  --a-l-hover: #4350c4;
+  --a-l-ink: #ffffff;
+  --a-l-text: #4450c8;
+  --a-l-soft: #eceefd;
+  --a-d: #6470f3;
+  --a-d-hover: #7682ff;
+  --a-d-ink: #ffffff;
+  --a-d-text: #a3abff;
+  --a-d-soft: rgb(100 112 243 / 18%);
+}
+:root[data-accent="coral"] {
+  --a-l: #cf4f2c;
+  --a-l-hover: #b94322;
+  --a-l-ink: #ffffff;
+  --a-l-text: #b8431f;
+  --a-l-soft: #fdece6;
+  --a-d: #ff7a59;
+  --a-d-hover: #ff8f73;
+  --a-d-ink: #230d06;
+  --a-d-text: #ffa48c;
+  --a-d-soft: rgb(255 122 89 / 16%);
+}
+:root[data-accent="ocean"] {
+  --a-l: #1f6fd1;
+  --a-l-hover: #1a61b8;
+  --a-l-ink: #ffffff;
+  --a-l-text: #1a63bd;
+  --a-l-soft: #e7f0fc;
+  --a-d: #2f84e8;
+  --a-d-hover: #4593f0;
+  --a-d-ink: #ffffff;
+  --a-d-text: #7dbbff;
+  --a-d-soft: rgb(47 132 232 / 18%);
+}
+:root[data-accent="teal"] {
+  --a-l: #0d8a7c;
+  --a-l-hover: #0a786b;
+  --a-l-ink: #ffffff;
+  --a-l-text: #0b7a6e;
+  --a-l-soft: #e3f5f2;
+  --a-d: #2dd4bf;
+  --a-d-hover: #4ee0ce;
+  --a-d-ink: #032421;
+  --a-d-text: #6ee9d8;
+  --a-d-soft: rgb(45 212 191 / 15%);
+}
+
+/* ---- light theme (default) */
+:root {
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --surface-2: #f0f2f6;
+  --surface-3: #e5e8ee;
+  --raised: #ffffff;
+  --field: #ffffff;
+  --line: #e2e5eb;
+  --line-strong: #cdd2db;
+  --ink: #1b1f27;
+  --ink-muted: #5f6676;
+  --ink-faint: #8a91a0;
+  --accent: var(--a-l);
+  --accent-hover: var(--a-l-hover);
+  --accent-ink: var(--a-l-ink);
+  --accent-text: var(--a-l-text);
+  --accent-soft: var(--a-l-soft);
+  --good-bg: #e6f6ec;
+  --good-ink: #15643a;
+  --warn-bg: #fdf3da;
+  --warn-ink: #855600;
+  --bad-bg: #fde8e7;
+  --bad-ink: #a51d1d;
+  --active-bg: #e7effc;
+  --active-ink: #1d4f9c;
+  --danger: #d03030;
+  --danger-hover: #b82626;
+  --paper: #ffffff;
+  /* The preview desk the receipt feeds out onto, and the printer's paper slot. */
+  --desk: #e8eaef;
+  --desk-edge: rgb(20 24 33 / 7%);
+  --slot: #1d2027;
+  --slot-lip: #4a505d;
+  --shadow-sm: 0 1px 2px rgb(20 24 33 / 6%);
+  --shadow: 0 1px 2px rgb(20 24 33 / 5%), 0 6px 20px rgb(20 24 33 / 6%);
+  --shadow-raised: 0 1px 2px rgb(20 24 33 / 12%), 0 1px 1px rgb(20 24 33 / 6%);
+  --radius: 12px;
+  --radius-sm: 8px;
+  /* Every field, switch and button shares one height; small buttons share the other. */
+  --control-h: 34px;
+  --control-h-small: 28px;
+  color-scheme: light;
+}
+
+/* ---- dark theme: same tokens. lib/theme.ts sets data-theme from the OS or the user's choice. */
+:root[data-theme="dark"] {
+  --desk: #0b0d11;
+  --desk-edge: rgb(0 0 0 / 40%);
+  --slot: #05060a;
+  --slot-lip: #3a404d;
+  --bg: #101217;
+  --surface: #181b22;
+  --surface-2: #20242d;
+  --surface-3: #2a2f3a;
+  --raised: #323845;
+  --field: #13161c;
+  --line: #272c36;
+  --line-strong: #363c49;
+  --ink: #e8eaf0;
+  --ink-muted: #9da4b4;
+  --ink-faint: #6f7686;
+  --accent: var(--a-d);
+  --accent-hover: var(--a-d-hover);
+  --accent-ink: var(--a-d-ink);
+  --accent-text: var(--a-d-text);
+  --accent-soft: var(--a-d-soft);
+  --good-bg: rgb(34 197 94 / 14%);
+  --good-ink: #86e2ad;
+  --warn-bg: rgb(245 158 11 / 14%);
+  --warn-ink: #f8cf72;
+  --bad-bg: rgb(239 68 68 / 15%);
+  --bad-ink: #fca7a7;
+  --active-bg: rgb(59 130 246 / 16%);
+  --active-ink: #9cc6ff;
+  --danger: #e5484d;
+  --danger-hover: #f0646a;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 22%);
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 45%);
+  color-scheme: dark;
+}
+
+/* Before the script sets data-theme, avoid a white flash on dark systems. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) body {
+    background: #101217;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 8px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: 15px;
+}
+h3 {
+  font-size: 13.5px;
+}
+p {
+  margin: 0 0 8px;
+}
+ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+.mono {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+.hint {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--surface);
+  padding: 8px 12px;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+}
+
+/* ---- buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  min-height: var(--control-h);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: transparent;
+}
+.btn-danger {
+  background: var(--danger);
+  border-color: transparent;
+  color: #ffffff;
+  font-weight: 600;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: transparent;
+}
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-muted);
+}
+.btn-quiet:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: transparent;
+  color: var(--ink);
+}
+/* Icons and swatches inside a button keep their size. */
+.btn > svg {
+  flex: none;
+}
+.btn-small {
+  padding: 0 10px;
+  min-height: var(--control-h-small);
+  font-size: 12.5px;
+  border-radius: 7px;
+}
+/* A square button holding only an icon; its aria-label names it. */
+.icon-only {
+  width: var(--control-h);
+  padding: 0;
+}
+.icon-only.btn-small {
+  width: var(--control-h-small);
+}
+/* The stroke icon set (components/icons.tsx). */
+.icon {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- shell: toolbar, workspace, status bar. The queue slides over the workspace and
+   settings open on top, so nothing in the window moves when either opens. */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* Matches the window's minWidth. */
+  min-width: 1000px;
+}
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 52px;
+  flex: none;
+  padding: 0 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+.brand-mark svg {
+  width: 22px;
+  height: 22px;
+}
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.header-tools {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+}
+.tool-btn {
+  position: relative;
+}
+.tool-btn.is-on {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-text);
+}
+/* Sits on the button's corner, like a Dock badge, so the button never changes width. */
+.count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  padding: 0 5px;
+  line-height: 18px;
+  border-radius: 9px;
+  box-shadow: 0 0 0 2px var(--surface);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---- the printer button and its menu */
+.printer-menu {
+  position: relative;
+  min-width: 0;
+}
+.printer-btn {
+  max-width: 460px;
+  gap: 8px;
+  padding: 0 10px 0 6px;
+  font-weight: 400;
+}
+.printer-btn .printer-light {
+  align-self: center;
+  width: 24px;
+  height: 24px;
+}
+.printer-btn-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.printer-btn-status {
+  font-size: 12.5px;
+}
+.printer-btn .icon {
+  color: var(--ink-muted);
+}
+.light-good {
+  color: var(--good-ink);
+}
+.light-warn {
+  color: var(--warn-ink);
+}
+.light-bad {
+  color: var(--bad-ink);
+}
+.light-busy {
+  color: var(--accent-text);
+}
+.light-idle {
+  color: var(--ink-muted);
+}
+.menu-card {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 330px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+}
+/* The card is a div around the fieldset: WebKit draws a fieldset's legend on its top edge,
+   so the fieldset itself stays unstyled and block-level. */
+.menu-card legend {
+  padding: 4px 8px 6px;
+}
+.menu-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.menu-option + .menu-option {
+  margin-top: 2px;
+}
+.menu-option:hover {
+  background: var(--surface-2);
+}
+.menu-option.is-on {
+  background: var(--accent-soft);
+}
+.menu-option.is-on::after {
+  content: "";
+  flex: none;
+  margin-left: auto;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--accent-text);
+  border-bottom: 2px solid var(--accent-text);
+  transform: translateY(-2px) rotate(-45deg);
+}
+.menu-option .printer-light {
+  align-self: center;
+  width: 32px;
+  height: 32px;
+}
+.menu-option-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+.menu-option-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-option-sub {
+  font-size: 12px;
+}
+.menu-option:has(input:focus-visible),
+.menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.menu-empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--ink-muted);
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.menu-item .icon {
+  color: var(--ink-muted);
+}
+.menu-item-hint {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+/* Options drawn as tiles, swatches or menu rows: the radio covers the whole option. */
+.menu-option input,
+.swatch-option input,
+.icon-choice input,
+.segment input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.app-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  /* The queue slides in from past the right edge; clipped, so it never adds a scrollbar. */
+  overflow: hidden;
+}
+.app-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.app-main:focus {
+  outline: none;
+}
+.app-message {
+  padding: 20px;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  height: 40px;
+  flex: none;
+  white-space: nowrap;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.status-text {
+  flex: 1 1 0;
+  min-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-job {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+.status-job .badge {
+  flex: none;
+}
+.status-job-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-bar .btn {
+  flex: none;
+}
+.progress-compact {
+  flex: none;
+  width: 96px;
+  height: 6px;
+}
+.status-error {
+  color: var(--bad-ink);
+}
+.status-success {
+  color: var(--good-ink);
+}
+
+/* ---- workspace: the inspector on the left, the desk and print bar on the right */
+.workspace {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  height: 100%;
+}
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  /* Every source's controls fit the smallest window, so this only scrolls in an unusual case
+     (a PDF password on a large system font). Its scrollbar stays hidden: one that comes and
+     goes would narrow the controls and rewrap their text. */
+  overflow: hidden auto;
+  scrollbar-width: none;
+  padding: 18px 20px 24px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.inspector h2 {
+  margin: 0;
+}
+.inspector .controls {
+  margin-top: 0;
+}
+.workspace-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.card {
+  /* Spaced by the gap alone, so the padding is the same on every edge. */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+.card > * {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+.inspector::-webkit-scrollbar {
+  display: none;
+}
+.file-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.file-summary > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adjust-row {
+  flex-wrap: nowrap;
+}
+.adjust-reset {
+  margin-left: auto;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+.field input[type="range"] {
+  height: var(--control-h);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.field-label {
+  font-weight: 500;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.field-label output {
+  font-weight: 600;
+  color: var(--ink);
+  margin-left: 4px;
+}
+
+/* ---- form controls */
+input[type="number"],
+input[type="password"],
+input[type="text"],
+select,
+textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  min-height: var(--control-h);
+}
+textarea {
+  padding: 8px 10px;
+}
+input[type="number"]:hover,
+input[type="password"]:hover,
+input[type="text"]:hover,
+select:hover:not(:disabled),
+textarea:hover {
+  border-color: var(--ink-faint);
+}
+input[type="number"]:focus,
+input[type="password"]:focus,
+input[type="text"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Own chevron so the arrow has room and follows the theme colours. */
+select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 36px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+    linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 19px) 50%,
+    calc(100% - 14px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+select option {
+  background: var(--raised);
+  color: var(--ink);
+}
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+input.narrow {
+  width: 96px;
+}
+/* − 12 + : the same on every platform; native spinners are hidden. */
+.number-field {
+  display: inline-flex;
+  align-self: flex-start;
+  height: var(--control-h);
+  background: var(--field);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.number-field:hover {
+  border-color: var(--ink-faint);
+}
+.number-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.number-field button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  padding: 0;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.number-field button:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.number-field button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.number-field input[type="number"] {
+  width: 46px;
+  min-height: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+}
+.number-field input[type="number"]:focus {
+  box-shadow: none;
+}
+/* Number boxes look like every other text box: the native spinners differ per platform
+   and are hidden everywhere (NumberField adds its own − and +). */
+input[type="number"] {
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+}
+.text-input {
+  font-size: 15px;
+}
+input[type="range"] {
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+input[type="range"]:focus-visible {
+  outline: none;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 5px var(--accent-soft);
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+}
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- the switch: a track with a raised chip for the choice. One height and one line per
+   option everywhere (components/ui.tsx Segmented). */
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+/* A floated legend is laid out like any block on every engine (WebKit otherwise draws it
+   on the fieldset's edge). A visually hidden legend keeps .sr-only, or its full width
+   sticks out of the window. */
+.segmented-field > legend:not(.sr-only),
+.choice-field > legend:not(.sr-only) {
+  float: left;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 0;
+}
+.segmented-field > legend + *,
+.choice-field > legend + * {
+  clear: both;
+}
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  height: var(--control-h);
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: 9px;
+  vertical-align: top;
+}
+.segmented-fill {
+  display: flex;
+  width: 100%;
+}
+.segmented-fill .segment {
+  flex: 1 1 auto;
+}
+.segmented-fill .segment span {
+  padding: 0 8px;
+}
+.segment {
+  position: relative;
+  display: flex;
+  cursor: pointer;
+}
+.segment span {
+  flex: 1;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: calc(var(--control-h) - 6px);
+  text-align: center;
+  white-space: nowrap;
+}
+/* An invisible bold copy keeps each option as wide as when it is chosen, so nothing shifts. */
+.segment span::after {
+  content: attr(data-label);
+  content: attr(data-label) / "";
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+}
+.segment:hover span {
+  color: var(--ink);
+}
+.segment.is-on span {
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-raised);
+}
+.segment:has(input:focus-visible) span {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ---- badges and notes */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-neutral {
+  background: var(--surface-2);
+  color: var(--ink-muted);
+}
+.badge-active {
+  background: var(--active-bg);
+  color: var(--active-ink);
+}
+.badge-good {
+  background: var(--good-bg);
+  color: var(--good-ink);
+}
+.badge-warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+.badge-bad {
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+}
+
+.note {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.note p:last-child {
+  margin-bottom: 0;
+}
+.note-warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+.note-error {
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+}
+.adapter {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
+.adapter-good {
+  background: var(--good-bg);
+  color: var(--good-ink);
+}
+.adapter-warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+.adapter-bad {
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+}
+.adapter-neutral {
+  background: var(--surface-2);
+}
+
+/* ---- preview: the receipt feeds out of a printer slot onto a recessed desk. Sizes are in
+   printer dots times --dot (1px at actual size; scaled to the desk width when fitting). */
+.preview-desk {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--desk);
+  box-shadow: inset 0 1px 3px var(--desk-edge);
+}
+.desk-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 12px 16px 8px 20px;
+}
+.desk-head h2 {
+  margin: 0;
+}
+.desk-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.preview-meta {
+  flex-basis: 100%;
+  margin: 0;
+  min-height: 20px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.preview-meta strong {
+  color: var(--ink);
+}
+.rendering {
+  font-weight: 600;
+  color: var(--accent-text);
+}
+.preview-desk .warnings {
+  margin: 0 16px 8px;
+}
+/* Its content never sizes the column: it takes whatever height is left and scrolls. */
+.desk-scroll {
+  flex: 1 1 0;
+  contain: size;
+  overflow: auto;
+  /* Room for the ruler on the left; the same on the right keeps the paper centred. */
+  padding: 0 52px 28px;
+  container-type: inline-size;
+  /* Scrollbar room on both sides, kept even for a short page: a tall page (a PDF) then never
+     moves the centred paper or rescales it to fit. Overlay scrollbars take no room. */
+  scrollbar-gutter: stable both-edges;
+}
+.desk-scroll > .empty {
+  padding-top: 72px;
+}
+.feed-out {
+  --dot: 1px;
+  --paper-dots: calc(var(--img-dots) + 2 * var(--edge-dots));
+  width: calc(var(--paper-dots) * var(--dot));
+  margin: 0 auto;
+}
+@supports (width: 1cqi) {
+  .zoom-fit .feed-out {
+    --dot: calc(100cqi / var(--paper-dots));
+  }
+}
+.paper-slot {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 28px;
+  margin: 0 -16px;
+  /* The desk shows above the slot, so paper scrolling up disappears into the printer. */
+  background: linear-gradient(var(--desk) 0 10px, transparent 10px);
+}
+.paper-slot::before {
+  content: "";
+  position: absolute;
+  inset: 10px 0 0;
+  border-radius: 9px;
+  background: linear-gradient(var(--slot-lip), var(--slot) 55%);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 8%),
+    0 4px 10px rgb(0 0 0 / 18%);
+}
+/* The groove the paper comes out of. */
+.paper-slot::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 55%);
+}
+.paper-run {
+  position: relative;
+  margin-top: -6px;
+}
+/* Millimetres from the first printed row: a tick each mm, a longer one and a label each 10. */
+.ruler {
+  --mm: calc(var(--dpm) * var(--dot));
+  position: absolute;
+  top: calc(16 * var(--dot));
+  right: calc(100% + 6px);
+  width: 34px;
+  height: calc(var(--run-dots) * var(--dot));
+  border-right: 1px solid var(--line-strong);
+  background:
+    repeating-linear-gradient(var(--ink-faint) 0 1px, transparent 1px calc(10 * var(--mm))) right top / 11px 100%
+      no-repeat,
+    repeating-linear-gradient(var(--line-strong) 0 1px, transparent 1px var(--mm)) right top / 5px 100% no-repeat;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.ruler span {
+  position: absolute;
+  right: 14px;
+  top: calc(var(--at) * var(--mm));
+  transform: translateY(-50%);
+}
+.paper-sheet {
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 10%)) drop-shadow(0 8px 14px rgb(0 0 0 / 12%));
+}
+.paper {
+  --tooth: calc(14 * var(--dot));
+  padding: calc(16 * var(--dot)) calc(var(--edge-dots) * var(--dot))
+    calc(var(--feed-dots) * var(--dot) + var(--tooth));
+  background: var(--paper);
+  line-height: 0;
+  /* Torn edge: downward teeth along the bottom. */
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth) 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth) 100%;
+}
+.paper-sheet.is-feeding {
+  animation: feed-out 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes feed-out {
+  from {
+    transform: translateY(-100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .paper-sheet.is-feeding {
+    animation: none;
+  }
+}
+.preview-desk.is-stale .paper {
+  opacity: 0.55;
+}
+/* Where one copy ends and the next begins: marks in the blank edges only, never over the print. */
+.copy-cut {
+  position: relative;
+  height: 0;
+}
+.copy-cut::before,
+.copy-cut::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: calc(var(--edge-dots) * var(--dot) - 4px);
+  border-top: 2px dotted var(--line-strong);
+}
+.copy-cut::before {
+  right: calc(100% + 2px);
+}
+.copy-cut::after {
+  left: calc(100% + 2px);
+}
+.preview-img {
+  display: block;
+  width: calc(var(--img-dots) * var(--dot));
+  height: auto;
+  image-rendering: pixelated;
+  background: #fff;
+}
+.empty {
+  color: var(--ink-muted);
+  text-align: center;
+  padding: 40px 12px;
+  margin: 0;
+}
+.warnings {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+.warnings li {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+
+/* ---- print bar: fixed height, so nothing above it moves as its text changes */
+.print-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex: none;
+  min-height: 84px;
+  padding: 12px 16px 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.print-settings {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex: none;
+}
+.print-settings select {
+  min-width: 100px;
+}
+.print-bar-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  align-self: center;
+}
+.print-bar-note p {
+  margin: 0;
+}
+.print-bar-note.note-warn {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.field-label-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.info-btn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--ink-faint);
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-muted);
+  font: italic 600 11px/1 Georgia, serif;
+  cursor: pointer;
+}
+.info-btn:hover,
+.info-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10;
+  width: 260px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+}
+/* Opens upwards from the print bar, over the desk. */
+.popup-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: auto;
+}
+.popup[hidden] {
+  display: none;
+}
+.print-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: stretch;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+.paper-estimate {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.paper-estimate strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.paper-estimate > *,
+#print-reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.print-btn {
+  flex: none;
+  min-width: 108px;
+  min-height: 40px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+/* ---- lists */
+.job-list,
+.printer-list,
+.device-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.job,
+.printer,
+.device {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+}
+.printer-list .printer,
+.device-list .device {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+/* Like a queue job: everything after the light lines up with the printer's name. */
+.printer-list .printer {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px 12px;
+}
+.printer-list .printer .job-actions {
+  grid-column: 2;
+}
+/* A queued job as its receipt. */
+.receipt-thumb {
+  flex: none;
+  align-self: flex-start;
+  width: 56px;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 12%)) drop-shadow(0 3px 6px rgb(0 0 0 / 10%));
+}
+.receipt-paper {
+  --tooth: 6px;
+  max-height: 92px;
+  overflow: hidden;
+  padding: 3px 3px calc(var(--tooth) + 2px);
+  background: var(--paper);
+  line-height: 0;
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth) 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth) 100%;
+}
+.receipt-paper img {
+  width: 100%;
+  height: auto;
+  image-rendering: auto;
+}
+/* The printer and its status light, from the last connection check. */
+.printer-light {
+  flex: none;
+  align-self: flex-start;
+  width: 40px;
+  height: 40px;
+  --led: var(--line-strong);
+}
+.printer-light svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.pl-paper {
+  fill: var(--paper);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+/* Drawn in the text colour, so the printer stands out on any background in either mode. */
+.pl-body {
+  fill: var(--ink);
+}
+.pl-slot {
+  fill: var(--surface);
+  opacity: 0.55;
+}
+.pl-led {
+  fill: var(--led);
+}
+.printer-light[data-light="good"] {
+  --led: #30b158;
+}
+.printer-light[data-light="warn"] {
+  --led: #f29d0a;
+}
+.printer-light[data-light="bad"] {
+  --led: #e5453b;
+}
+.printer-light[data-light="busy"] {
+  --led: var(--accent);
+}
+.printer-light:not([data-light="idle"]) .pl-led {
+  filter: drop-shadow(0 0 3px var(--led));
+}
+.job-main,
+.printer-main {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+.job-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.job-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.job-meta,
+.job-text {
+  margin: 2px 0 0;
+  color: var(--ink-muted);
+}
+.job-actions {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+progress {
+  width: 100%;
+  max-width: 420px;
+  height: 8px;
+  accent-color: var(--accent);
+}
+.empty-block {
+  text-align: center;
+  padding: 32px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+}
+.check-result {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.check-result p {
+  margin: 0;
+}
+.check-ok {
+  background: var(--good-bg);
+  color: var(--good-ink);
+}
+.check-bad {
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+}
+.support-note {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.profile-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* ---- diagnostics */
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 18px;
+  margin: 0;
+}
+.facts dt {
+  color: var(--ink-muted);
+}
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.indent {
+  padding-left: 16px;
+}
+.log {
+  max-height: 260px;
+  overflow: auto;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+.log-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.log-time,
+.log-level {
+  color: var(--ink-faint);
+}
+.log-error .log-level {
+  color: var(--bad-ink);
+  font-weight: 700;
+}
+.log-warn .log-level {
+  color: var(--warn-ink);
+  font-weight: 700;
+}
+.report {
+  max-height: 320px;
+  overflow: auto;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-size: 12px;
+}
+
+/* ---- modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(8 10 14 / 55%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+  width: min(480px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-wide {
+  width: min(680px, 100%);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-head h2 {
+  margin: 0;
+}
+.modal-body {
+  padding: 16px 18px;
+  overflow: auto;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .segment span,
+  input,
+  select,
+  textarea {
+    transition:
+      background-color 0.12s,
+      border-color 0.12s,
+      box-shadow 0.12s,
+      color 0.12s;
+  }
+}
+
+/* ---- scrollbars: slim, rounded, theme-aware (WebView2, WebKitGTK and WKWebView) */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+  background-clip: content-box;
+}
+
+/* ---- advanced printer settings */
+.quick-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 12px 0;
+}
+.quick-fields input {
+  width: 100%;
+}
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--bad-ink);
+  background: var(--bad-bg);
+}
+input[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus {
+  border-color: var(--bad-ink);
+  box-shadow: 0 0 0 3px var(--bad-bg);
+}
+.field-error {
+  color: var(--bad-ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+.json-editor {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow: auto;
+  resize: vertical;
+}
+
+/* ---- queue panel: slides over the workspace from the right; the toolbar and status bar stay */
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgb(8 10 14 / 22%);
+}
+.drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100%);
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px rgb(0 0 0 / 16%);
+}
+.drawer:focus {
+  outline: none;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.drawer-head .muted {
+  flex: 1;
+  font-size: 12.5px;
+}
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.drawer-body .note {
+  margin: 0;
+}
+.drawer-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 18px;
+  border-top: 1px solid var(--line);
+}
+.drawer-foot .hint {
+  flex: 1;
+}
+.drawer .job {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 6px 12px;
+  padding: 10px;
+  box-shadow: none;
+}
+.drawer .job-actions {
+  grid-column: 2;
+}
+.drawer .job-main .note {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+}
+.drawer progress {
+  max-width: 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .drawer {
+    animation: drawer-in 0.18s ease-out;
+  }
+  .drawer-scrim {
+    animation: fade-in 0.18s ease-out;
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---- settings: a window over the dimmed app, sections on the left */
+.settings-window {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  width: min(880px, 100%);
+  height: min(660px, 100%);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+}
+.settings-window:focus {
+  outline: none;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 10px;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+}
+.settings-title {
+  margin: 0;
+  padding: 2px 10px 10px;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-tab:hover {
+  background: var(--surface-3);
+}
+.settings-tab .icon {
+  color: var(--ink-muted);
+}
+.settings-tab.is-current {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.settings-tab.is-current .icon {
+  color: inherit;
+}
+.settings-content {
+  position: relative;
+  min-width: 0;
+  overflow: auto;
+  padding: 20px 24px 28px;
+}
+.settings-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.settings-head {
+  min-height: var(--control-h-small);
+  padding-right: 40px;
+}
+.settings-head h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: var(--control-h-small);
+}
+.settings-page .card {
+  padding: 16px 18px;
+  box-shadow: none;
+}
+
+/* ---- appearance */
+.accent-dot {
+  --swatch-indigo: #4f5bd5;
+  --swatch-coral: #cf4f2c;
+  --swatch-ocean: #1f6fd1;
+  --swatch-teal: #0d8a7c;
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--swatch-indigo);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+}
+:root[data-theme="dark"] .accent-dot {
+  --swatch-indigo: #6470f3;
+  --swatch-coral: #ff7a59;
+  --swatch-ocean: #2f84e8;
+  --swatch-teal: #2dd4bf;
+}
+.accent-dot[data-swatch="coral"] {
+  background: var(--swatch-coral);
+}
+.accent-dot[data-swatch="ocean"] {
+  background: var(--swatch-ocean);
+}
+.accent-dot[data-swatch="teal"] {
+  background: var(--swatch-teal);
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swatch-option,
+.icon-choice {
+  position: relative;
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.swatch-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--control-h);
+  padding: 0 14px 0 9px;
+  border-radius: 999px;
+}
+.icon-choices {
+  display: grid;
+  grid-template-columns: repeat(4, 112px);
+  gap: 10px;
+}
+.icon-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px 10px;
+  border-radius: var(--radius);
+}
+.icon-choice img {
+  width: 56px;
+  height: 56px;
+}
+.swatch-option:hover,
+.icon-choice:hover {
+  background: var(--surface-2);
+}
+.swatch-option.is-on,
+.icon-choice.is-on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.swatch-option:has(input:focus-visible),
+.icon-choice:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.choice-field .hint {
+  margin: 8px 0 0;
+}

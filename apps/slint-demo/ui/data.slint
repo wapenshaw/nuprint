@@ -1,0 +1,189 @@
+// Everything the screens show and every action they can ask for. The Rust side fills the
+// properties and answers the callbacks; the screens hold no logic of their own.
+import { Choice, DeviceItem, Fact, JobItem, LogItem, PrinterItem, QuickField } from "types.slint";
+
+export global Data {
+    // ---- shell
+    // "workspace", "queue", "printers", "appearance" or "diagnostics".
+    in-out property <string> view: "workspace";
+    in property <string> load-error;
+    in-out property <int> brand-icon: 0;
+    // Dialog over everything: "", "save", "remove", "advanced", "inspect" or "clear".
+    in-out property <string> dialog: "";
+    in property <string> dialog-error;
+    in property <bool> dialog-busy;
+
+    // ---- toolbar
+    in property <int> open-jobs: 0;
+    in property <bool> has-printer: false;
+    in property <string> printer-name;
+    in property <string> printer-light-label;
+    in property <int> printer-light: 0;
+    in property <bool> printer-paper: true;
+    in property <string> printer-support;
+    in property <int> printer-support-tone: 2;
+    in property <bool> checking-any: false;
+    in property <[PrinterItem]> printers;
+    in property <string> selected-id;
+
+    // ---- status bar
+    in property <bool> has-status: false;
+    in property <string> status-prefix;
+    in property <string> status-text;
+    in property <int> status-tone: 0;
+    in property <string> status-action-label;
+    in property <bool> has-job: false;
+    in property <string> job-label;
+    in property <int> job-tone: 0;
+    in property <string> job-line;
+    in property <float> job-progress: 0;
+    in property <bool> job-show-progress: false;
+    in property <bool> job-cancellable: false;
+
+    // ---- what to print
+    // 0 text, 1 image, 2 pdf, 3 test pattern.
+    in-out property <int> mode: 0;
+    in-out property <string> text-value;
+    in property <[string]> size-model: ["24"];
+    in-out property <int> size-index: 0;
+    in-out property <int> family-index: 0;
+    in-out property <int> align-index: 0;
+    in-out property <int> margin: 8;
+    in-out property <float> spacing: 1.2;
+    in-out property <bool> bold: false;
+    in-out property <bool> headings: true;
+    in property <bool> has-file: false;
+    in property <string> file-name;
+    in property <string> file-detail;
+    in-out property <int> tone-index: 0;
+    in-out property <int> rotation-index: 0;
+    in-out property <float> brightness: 0;
+    in-out property <float> contrast: 0;
+    in-out property <int> pdf-page: 1;
+    in property <int> pdf-pages: 1;
+    in-out property <string> pdf-password;
+    in property <bool> ask-password: false;
+    in property <string> pdf-note;
+
+    // ---- preview
+    // 0 message only, 1 result.
+    in property <int> preview-kind: 0;
+    in property <string> preview-message;
+    in property <bool> preview-error: false;
+    in property <bool> rendering: false;
+    in property <image> preview-image;
+    in property <int> img-w: 384;
+    in property <int> img-h: 100;
+    in property <string> meta-strong;
+    in property <string> meta-rest;
+    in property <[string]> warnings;
+    in property <bool> can-save: false;
+    in property <float> dpm: 8;
+    in property <int> feed-dots: 0;
+    in property <[int]> ruler-ticks;
+    in property <[int]> tear-teeth;
+
+    // ---- print bar
+    in property <bool> profile-ok: false;
+    in property <[string]> density-model: ["Light", "Normal", "Dark"];
+    in-out property <int> density-index: 1;
+    in-out property <int> copies: 1;
+    in property <int> max-copies: 20;
+    in-out property <int> feed-mm: 12;
+    in property <int> feed-min: 0;
+    in property <int> feed-max: 12;
+    in property <string> feed-info;
+    in property <string> estimate-main;
+    in property <string> estimate-sub;
+    in property <string> reason;
+    in property <bool> printing: false;
+    in property <bool> can-print: false;
+
+    // ---- queue
+    in property <[JobItem]> jobs;
+    in property <bool> queue-held: false;
+    in property <bool> has-held-jobs: false;
+    in property <string> waiting-text;
+    in property <bool> can-clear: false;
+
+    // ---- settings: printers
+    in property <[DeviceItem]> devices;
+    in property <bool> scanning: false;
+    in property <string> adapter-label;
+    in property <string> adapter-text;
+    in property <int> adapter-tone: 0;
+    in property <string> scan-error;
+    in-out property <bool> include-unknown: false;
+
+    // ---- settings: diagnostics
+    in property <[Fact]> app-facts;
+    in property <bool> has-check: false;
+    in property <[Fact]> check-facts;
+    in property <[LogItem]> logs;
+    in-out property <bool> include-ids: false;
+    in property <string> report-text;
+    in property <string> report-error;
+    in property <bool> exporting: false;
+
+    // ---- dialogs
+    in property <string> remove-name;
+    in property <string> save-title;
+    in property <[Choice]> save-choices;
+    in-out property <int> save-choice: 0;
+    in property <string> save-note;
+    in property <bool> save-experimental: false;
+    in-out property <bool> save-ack: false;
+    in property <bool> save-can: false;
+    in property <string> adv-title;
+    in-out property <string> adv-json;
+    in property <[QuickField]> adv-quick;
+    in property <bool> adv-customized: false;
+    in property <bool> adv-changed: false;
+    in property <bool> adv-invalid: false;
+    in property <int> inspect-state: 0;
+    in property <string> inspect-title;
+    in property <string> inspect-text;
+
+    // ---- actions
+    callback source-changed();
+    callback adjust-changed();
+    callback mode-changed(int);
+    callback settings-changed();
+    callback open-file();
+    callback save-png();
+    callback print();
+    callback show-view(string);
+    callback close-view();
+    callback dismiss-status();
+    callback status-action();
+    callback cancel-latest-job();
+    callback select-printer(string);
+    callback check-printer(string);
+    callback find-printers();
+    callback stop-scan();
+    callback recheck-adapter();
+    callback ask-save(string);
+    callback ask-inspect(string);
+    callback ask-remove(string);
+    callback ask-advanced(string);
+    callback confirm-save();
+    callback confirm-remove();
+    callback save-choice-changed(int);
+    callback adv-json-edited(string);
+    callback adv-quick-edited(int, string);
+    callback adv-save();
+    callback adv-reset();
+    callback close-dialog();
+    callback toggle-hold();
+    callback cancel-job(string);
+    callback retry-job(string);
+    callback remove-job(string);
+    callback ask-clear();
+    callback confirm-clear();
+    callback export-report();
+    callback preview-report();
+    callback set-mode-pref(int);
+    callback set-accent(int);
+    callback set-icon(int);
+    callback make-default(string);
+}

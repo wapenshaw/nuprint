@@ -1,0 +1,676 @@
+// The main window's body: what to print on the left; on the right the paper preview and, under
+// it, the print bar.
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Icons } from "theme.slint";
+import { Data } from "data.slint";
+import { Body, Btn, Check, Edge, Field, FieldGroup, FieldLabel, Heading, Hint, Muted, Note, NumberField, Segmented, Select, Side, Slide, Small, Strong, TextArea } from "widgets.slint";
+
+component ModeBlock inherits VerticalLayout {
+    spacing: 14px;
+}
+
+component Adjust inherits VerticalLayout {
+    spacing: 14px;
+    FieldGroup {
+        label: "Tone";
+        Segmented {
+            options: ["Photo shading", "High contrast", "Crisp"];
+            current <=> Data.tone-index;
+            selected => {
+                Data.adjust-changed();
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 16px;
+        // The slider's 34px row already leaves room under the label.
+        FieldGroup {
+            label: "Brightness";
+            value: Data.brightness > 0 ? "+" + Math.round(Data.brightness) : Math.round(Data.brightness);
+            spacing: 0px;
+            Slide {
+                value <=> Data.brightness;
+                released => {
+                    Data.adjust-changed();
+                }
+            }
+        }
+
+        FieldGroup {
+            label: "Contrast";
+            value: Data.contrast > 0 ? "+" + Math.round(Data.contrast) : Math.round(Data.contrast);
+            spacing: 0px;
+            Slide {
+                value <=> Data.contrast;
+                released => {
+                    Data.adjust-changed();
+                }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 12px;
+        cross-axis-alignment: center;
+        Btn {
+            icon: Icons.rotate;
+            text: "Rotate 90°";
+            clicked => {
+                Data.rotation-index = Math.mod(Data.rotation-index + 1, 4);
+                Data.adjust-changed();
+            }
+        }
+
+        Hint {
+            text: "Now " + [0, 90, 180, 270][Data.rotation-index] + "°";
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        Btn {
+            kind: 3;
+            small: true;
+            text: "Reset";
+            enabled: Data.rotation-index != 0 || Data.brightness != 0 || Data.contrast != 0;
+            clicked => {
+                Data.rotation-index = 0;
+                Data.brightness = 0;
+                Data.contrast = 0;
+                Data.adjust-changed();
+            }
+        }
+    }
+}
+
+component FileSummary inherits VerticalLayout {
+    spacing: 2px;
+    Strong {
+        text: Data.file-name;
+        overflow: elide;
+    }
+
+    Muted {
+        text: Data.file-detail;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+}
+
+export component Inspector inherits Rectangle {
+    background: Theme.surface;
+    Edge {
+        side: Side.right;
+    }
+
+    ScrollView {
+        VerticalLayout {
+            width: root.width - 1px;
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 18px;
+            padding-bottom: 24px;
+            spacing: 16px;
+            alignment: start;
+            Heading {
+                text: "What to print";
+            }
+
+            Segmented {
+                options: ["Text", "Image", "PDF", "Test pattern"];
+                current: Data.mode;
+                selected(index) => {
+                    Data.mode-changed(index);
+                }
+            }
+
+            if Data.mode == 0: ModeBlock {
+                FieldGroup {
+                    label: "Text";
+                    TextArea {
+                        height: 150px;
+                        text <=> Data.text-value;
+                        edited => {
+                            Data.source-changed();
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 16px;
+                    FieldGroup {
+                        label: "Font";
+                        Segmented {
+                            options: ["Sans", "Mono"];
+                            current <=> Data.family-index;
+                            selected => {
+                                Data.source-changed();
+                            }
+                        }
+                    }
+
+                    FieldGroup {
+                        label: "Size (px)";
+                        Select {
+                            model: Data.size-model;
+                            current-index <=> Data.size-index;
+                            selected => {
+                                Data.source-changed();
+                            }
+                        }
+                    }
+                }
+
+                FieldGroup {
+                    label: "Alignment";
+                    Segmented {
+                        options: ["Left", "Center", "Right"];
+                        current <=> Data.align-index;
+                        selected => {
+                            Data.source-changed();
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 16px;
+                    FieldGroup {
+                        label: "Margin (dots)";
+                        NumberField {
+                            min: 0;
+                            max: 96;
+                            value <=> Data.margin;
+                            edited => {
+                                Data.source-changed();
+                            }
+                        }
+                    }
+
+                    FieldGroup {
+                        label: "Line spacing";
+                        value: Math.round(Data.spacing * 10) / 10 + "×";
+                        spacing: 0px;
+                        Slide {
+                            minimum: 0.8;
+                            maximum: 3;
+                            step: 0.1;
+                            value <=> Data.spacing;
+                            released => {
+                                Data.source-changed();
+                            }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+                    Check {
+                        text: "Bold";
+                        checked <=> Data.bold;
+                        toggled => {
+                            Data.source-changed();
+                        }
+                    }
+
+                    Check {
+                        text: "Lines starting with “# ” are headings";
+                        checked <=> Data.headings;
+                        toggled => {
+                            Data.source-changed();
+                        }
+                    }
+                }
+            }
+
+            if Data.mode == 1 || Data.mode == 2: ModeBlock {
+                if Data.mode == 2 && Data.pdf-note != "": Note {
+                    label: "Note";
+                    text: Data.pdf-note;
+                    tone: 3;
+                }
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+                    cross-axis-alignment: center;
+                    Btn {
+                        icon: Icons.open;
+                        text: "Open…";
+                        clicked => {
+                            Data.open-file();
+                        }
+                    }
+
+                    Hint {
+                        text: Data.mode == 1 ? "PNG, JPEG, BMP, GIF, WebP or TIFF · Ctrl+O" : "One PDF page per print · Ctrl+O";
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                if Data.has-file: FileSummary { }
+                if !Data.has-file: Muted {
+                    text: Data.mode == 1 ? "No image opened yet." : "No PDF opened yet.";
+                }
+                if Data.has-file && Data.mode == 2: VerticalLayout {
+                    spacing: 14px;
+                    VerticalLayout {
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            FieldLabel {
+                                text: "Page";
+                            }
+
+                            FieldLabel {
+                                text: "of " + Data.pdf-pages;
+                                color: Theme.ink-faint;
+                            }
+                        }
+
+                        NumberField {
+                            min: 1;
+                            max: Data.pdf-pages;
+                            value <=> Data.pdf-page;
+                            edited => {
+                                Data.source-changed();
+                            }
+                        }
+                    }
+
+                    if Data.ask-password: FieldGroup {
+                        label: "PDF password";
+                        Field {
+                            password: true;
+                            text <=> Data.pdf-password;
+                            accepted => {
+                                Data.source-changed();
+                            }
+                            edited => {
+                                Data.source-changed();
+                            }
+                        }
+
+                        Hint {
+                            text: "Kept in memory only; never saved.";
+                        }
+                    }
+                }
+                if Data.has-file: Adjust { }
+            }
+
+            if Data.mode == 3: Muted {
+                text: "A small calibration strip: a border, bars and the printable width. Use it to check alignment and darkness before printing real content.";
+            }
+        }
+    }
+}
+
+// The receipt feeds out of a printer slot onto a recessed desk. Sizes are in printer dots times
+// `dot`: one screen pixel at actual size, scaled to the desk width when fitting.
+component PaperDesk inherits Rectangle {
+    in property <bool> fit;
+    private property <length> view-w: sv.visible-width;
+    private property <float> paper-dots: Data.img-w + 32;
+    private property <length> dot: root.fit ?max(0.25px, (root.view-w - 104px) / root.paper-dots) : 1px;
+    private property <length> paper-w: root.dot * root.paper-dots;
+    private property <length> flat-h: root.dot * (16 + Data.img-h * Data.copies + Data.feed-dots);
+    private property <length> tooth: 14 * root.dot;
+    private property <length> paper-x: max(52px, (root.view-w - root.paper-w) / 2);
+    private property <length> paper-y: 22px;
+    private property <length> mm: Data.dpm * root.dot;
+    private property <length> content-w: max(sv.visible-width, root.paper-x + root.paper-w + 52px);
+    private property <length> content-h: root.paper-y + root.flat-h + root.tooth + 28px;
+
+    if Data.preview-kind == 0: Body {
+        y: 72px;
+        width: parent.width;
+        text: Data.preview-message;
+        color: Data.preview-error ? Theme.bad-ink : Theme.ink-muted;
+        horizontal-alignment: center;
+        wrap: word-wrap;
+    }
+
+    sv := ScrollView {
+        visible: Data.preview-kind == 1;
+        content-width: root.content-w;
+        content-height: root.content-h;
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: root.content-w;
+            height: root.content-h;
+            opacity: Data.rendering ? 0.55 : 1;
+            // Millimetres from the first printed row: a tick each mm, a longer one and a label each 10.
+            Rectangle {
+                x: root.paper-x - 6px - 34px;
+                y: root.paper-y + 16 * root.dot;
+                width: 34px;
+                height: root.mm * Data.ruler-ticks.length;
+                Rectangle {
+                    x: 33px;
+                    width: 1px;
+                    background: Theme.line-strong;
+                }
+
+                for tick in Data.ruler-ticks: Rectangle {
+                    x: 33px - (Math.mod(tick, 10) == 0 ? 11px : 5px);
+                    y: tick * root.mm;
+                    width: Math.mod(tick, 10) == 0 ? 11px : 5px;
+                    height: 1px;
+                    background: Math.mod(tick, 10) == 0 ? Theme.ink-faint : Theme.line-strong;
+                }
+
+                for tick in Data.ruler-ticks: Text {
+                    visible: Math.mod(tick, 10) == 0 && tick > 0;
+                    x: 0px;
+                    y: tick * root.mm - 6px;
+                    width: 19px;
+                    text: tick;
+                    font-size: 10px;
+                    color: Theme.ink-faint;
+                    horizontal-alignment: right;
+                }
+            }
+
+            // The sheet.
+            Rectangle {
+                x: root.paper-x;
+                y: root.paper-y;
+                width: root.paper-w;
+                height: root.flat-h;
+                background: Theme.paper;
+                drop-shadow-blur: 14px;
+                drop-shadow-color: #0000001f;
+                drop-shadow-offset-y: 6px;
+            }
+
+            for copy in Data.copies: Image {
+                x: root.paper-x + 16 * root.dot;
+                y: root.paper-y + (16 + Data.img-h * copy) * root.dot;
+                width: Data.img-w * root.dot;
+                height: Data.img-h * root.dot;
+                source: Data.preview-image;
+                image-rendering: pixelated;
+            }
+
+            // Where one copy ends and the next begins: marks in the blank edges only.
+            for copy in Data.copies: Rectangle {
+                visible: copy > 0;
+                x: root.paper-x + 2px;
+                y: root.paper-y + (16 + Data.img-h * copy) * root.dot - 1px;
+                width: 16 * root.dot - 4px;
+                height: 2px;
+                background: Theme.line-strong;
+            }
+
+            for copy in Data.copies: Rectangle {
+                visible: copy > 0;
+                x: root.paper-x + root.paper-w - 16 * root.dot + 2px;
+                y: root.paper-y + (16 + Data.img-h * copy) * root.dot - 1px;
+                width: 16 * root.dot - 4px;
+                height: 2px;
+                background: Theme.line-strong;
+            }
+
+            // The torn edge: downward teeth along the bottom.
+            for k in Data.tear-teeth: Path {
+                x: root.paper-x + k * (root.paper-w / Data.tear-teeth.length);
+                y: root.paper-y + root.flat-h;
+                width: root.paper-w / Data.tear-teeth.length;
+                height: root.tooth;
+                viewbox-width: 14;
+                viewbox-height: 14;
+                commands: "M0 0 L14 0 L7 14 Z";
+                fill: Theme.paper;
+            }
+        }
+    }
+
+    // The slot the paper comes out of; the desk above it hides paper scrolling up into the printer.
+    Rectangle {
+        y: 0px;
+        height: 10px;
+        background: Theme.desk;
+    }
+
+    if Data.preview-kind == 1: Rectangle {
+        x: root.paper-x - 16px;
+        y: 10px;
+        width: root.paper-w + 32px;
+        height: 18px;
+        border-radius: 9px;
+        background: @linear-gradient(180deg, Theme.slot-lip 0%, Theme.slot 55%);
+        drop-shadow-blur: 10px;
+        drop-shadow-color: #0000002e;
+        drop-shadow-offset-y: 4px;
+        Rectangle {
+            x: 10px;
+            y: parent.height - 7px;
+            width: parent.width - 20px;
+            height: 3px;
+            border-radius: 2px;
+            background: #0000008c;
+        }
+    }
+}
+
+export component PreviewPane inherits Rectangle {
+    property <bool> zoom-fit: false;
+    background: Theme.desk;
+    VerticalLayout {
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 16px;
+            padding-top: 12px;
+            padding-bottom: 8px;
+            spacing: 8px;
+            cross-axis-alignment: center;
+            Heading {
+                text: "Paper preview";
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                width: 4px;
+            }
+
+            Segmented {
+                fill: false;
+                options: ["Actual size", "Fit width"];
+                current: root.zoom-fit ? 1 : 0;
+                selected(index) => {
+                    root.zoom-fit = index == 1;
+                }
+            }
+
+            Btn {
+                icon: Icons.save;
+                text: "as PNG";
+                enabled: Data.can-save;
+                clicked => {
+                    Data.save-png();
+                }
+            }
+        }
+
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 16px;
+            padding-bottom: 8px;
+            spacing: 6px;
+            height: 28px;
+            if Data.rendering: Strong {
+                text: "Rendering…";
+                color: Theme.accent-text;
+                vertical-alignment: center;
+            }
+            if !Data.rendering && Data.meta-strong != "": Strong {
+                text: Data.meta-strong;
+                vertical-alignment: center;
+            }
+            if !Data.rendering && Data.meta-strong != "": Muted {
+                text: Data.meta-rest;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+                wrap: no-wrap;
+            }
+            if Data.rendering || Data.meta-strong == "": Rectangle {
+                horizontal-stretch: 1;
+            }
+        }
+
+        if Data.warnings.length > 0: VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-bottom: 8px;
+            spacing: 4px;
+            for warning in Data.warnings: Note {
+                label: "Warning";
+                text: warning;
+                tone: 3;
+            }
+        }
+
+        PaperDesk {
+            fit: root.zoom-fit;
+            vertical-stretch: 1;
+            clip: true;
+        }
+    }
+}
+
+export component PrintBar inherits Rectangle {
+    background: Theme.surface;
+    min-height: 84px;
+    Edge { }
+
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 12px;
+        padding-bottom: 14px;
+        spacing: 14px;
+        alignment: stretch;
+        if !Data.has-printer: HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            cross-axis-alignment: center;
+            HorizontalLayout {
+                spacing: 4px;
+                Strong {
+                    text: "No printer yet.";
+                }
+
+                Body {
+                    text: "Turn the printer on, then find and save it.";
+                }
+            }
+
+            Btn {
+                icon: Icons.search;
+                text: "Find printers…";
+                clicked => {
+                    Data.show-view("printers");
+                    Data.find-printers();
+                }
+            }
+        }
+        if Data.has-printer && !Data.profile-ok: Note {
+            width: 300px;
+            label: "Unavailable";
+            text: "This printer's profile is not available in this version of NuPrint. Review it in Settings → Printers.";
+            tone: 3;
+        }
+        if Data.has-printer && Data.profile-ok: HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+            FieldGroup {
+                label: "Darkness";
+                alignment: end;
+                Select {
+                    min-width: 110px;
+                    model: Data.density-model;
+                    current-index <=> Data.density-index;
+                    selected => {
+                        Data.settings-changed();
+                    }
+                }
+            }
+
+            FieldGroup {
+                label: "Copies";
+                alignment: end;
+                NumberField {
+                    min: 1;
+                    max: Data.max-copies;
+                    value <=> Data.copies;
+                    edited => {
+                        Data.settings-changed();
+                    }
+                }
+            }
+
+            FieldGroup {
+                label: "Extra feed (mm)";
+                info: Data.feed-info;
+                alignment: end;
+                NumberField {
+                    min: Data.feed-min;
+                    max: Data.feed-max;
+                    value <=> Data.feed-mm;
+                    edited => {
+                        Data.settings-changed();
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            Edge {
+                side: Side.left;
+            }
+
+            VerticalLayout {
+                padding-left: 14px;
+                alignment: center;
+                Strong {
+                    text: Data.estimate-main;
+                    overflow: elide;
+                }
+
+                Small {
+                    text: Data.estimate-sub;
+                    overflow: elide;
+                }
+
+                Hint {
+                    text: Data.reason;
+                    overflow: elide;
+                    wrap: no-wrap;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: end;
+            width: max(108px, print-btn.min-width);
+            print-btn := Btn {
+                kind: 1;
+                large: true;
+                grow: true;
+                text: Data.printing ? "Adding to queue…" : "Print";
+                enabled: Data.can-print;
+                clicked => {
+                    Data.print();
+                }
+            }
+        }
+    }
+}

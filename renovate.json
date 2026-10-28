@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 6am on the first day of the month"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Everything arrives together in one pull request, so a week of updates costs one CI run. Lock file maintenance, which moves transitive crates, comes monthly on its own.",
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch",
+        "digest",
+        "pin"
+      ],
+      "groupName": "dependencies"
+    },
+    {
+      "description": "The Python PoC is a frozen parity reference.",
+      "matchFileNames": [
+        "poc/python/**"
+      ],
+      "enabled": false
+    }
+  ]
+}

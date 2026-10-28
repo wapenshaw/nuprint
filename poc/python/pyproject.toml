@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nuprint"
+version = "0.1.0"
+description = "Direct Bluetooth LE printing for the ZEITEL SC03h on Windows"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["bleak==3.0.2", "Pillow==12.3.0", "pypdfium2==5.14.0"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "pyinstaller==6.22.3"]
+
+[project.scripts]
+nuprint-cli = "nuprint.cli:main"
+
+[project.gui-scripts]
+nuprint = "nuprint.gui:main"
+
+[tool.setuptools.packages.find]
+include = ["nuprint*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

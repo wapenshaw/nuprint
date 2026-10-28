@@ -1,0 +1,48 @@
+name: Printer report
+description: Results from an experimental printer, or details of a model NuPrint doesn't list yet.
+labels: [printer]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing. Print **one short strip** at most, and please don't retry a failed job repeatedly. A wrong setting can waste paper.
+  - type: input
+    id: name
+    attributes:
+      label: Bluetooth name prefix
+      description: The start of the name the printer advertises, with its exact capitalisation. You can leave out the last characters, which are unique to your unit.
+      placeholder: X6h-
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Brand and model printed on the device
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What you tried
+      options:
+        - Printed with an experimental profile
+        - Inspected an unlisted model (nuprint inspect)
+        - Connection check only
+    validations:
+      required: true
+  - type: textarea
+    id: paper
+    attributes:
+      label: What came out of the printer
+      description: Was the paper correct, too light, too dark, stretched or blank? A photo helps. Say "not printed" if you only inspected or checked the connection.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Diagnostics export or inspect.json
+      description: Settings → Diagnostics in the app, or `nuprint inspect --device NAME --output inspect.json`. Neither sends print commands for an unlisted model.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and NuPrint version
