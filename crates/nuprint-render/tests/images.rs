@@ -1,5 +1,7 @@
 mod common;
 
+use std::assert_matches;
+
 use common::{ink_bounds, png_bytes, workspace_root};
 use image::{DynamicImage, GrayImage, ImageEncoder, Luma, Rgba, RgbaImage};
 use nuprint_protocol::MonoBitmap;
@@ -116,12 +118,12 @@ fn exif_orientation_is_applied() {
 fn too_long_images_are_rejected_with_advice() {
     let image = DynamicImage::ImageLuma8(GrayImage::from_pixel(100, 5000, Luma([0])));
     let err = render_image(&png_bytes(&image), &ImageParams::default(), &target()).unwrap_err();
-    assert!(matches!(err, RenderError::TooLong { rows: 19200, max_rows: 4000 }), "{err:?}");
+    assert_matches!(err, RenderError::TooLong { rows: 19200, max_rows: 4000 });
     assert!(err.to_string().contains("Shorten or crop"));
     // Rotating a wide picture can make it too long too.
     let image = DynamicImage::ImageLuma8(GrayImage::from_pixel(5000, 100, Luma([0])));
     let params = ImageParams { rotation: Rotation::R90, ..ImageParams::default() };
-    assert!(matches!(render_image(&png_bytes(&image), &params, &target()).unwrap_err(), RenderError::TooLong { .. }));
+    assert_matches!(render_image(&png_bytes(&image), &params, &target()).unwrap_err(), RenderError::TooLong { .. });
 }
 
 #[test]
@@ -129,7 +131,7 @@ fn oversize_source_is_rejected_before_decoding() {
     // Not an image at all: the size check must fire first.
     let bytes = vec![0u8; MAX_SOURCE_BYTES as usize + 1];
     let err = render_image(&bytes, &ImageParams::default(), &target()).unwrap_err();
-    assert!(matches!(err, RenderError::SourceTooLarge { .. }), "{err:?}");
+    assert_matches!(err, RenderError::SourceTooLarge { .. });
 }
 
 #[test]
@@ -146,32 +148,32 @@ fn decoded_pixel_limit_is_enforced_from_the_header() {
         writer.finish().unwrap();
     }
     let err = render_image(&out, &ImageParams::default(), &target()).unwrap_err();
-    assert!(matches!(err, RenderError::TooManyPixels { pixels: 50_000_000, .. }), "{err:?}");
+    assert_matches!(err, RenderError::TooManyPixels { pixels: 50_000_000, .. });
 }
 
 #[test]
 fn unsupported_and_corrupt_input() {
-    assert!(matches!(
+    assert_matches!(
         render_image(b"definitely not a picture", &ImageParams::default(), &target()),
         Err(RenderError::UnsupportedFormat)
-    ));
+    );
     let mut truncated = png_bytes(&DynamicImage::ImageLuma8(GrayImage::from_pixel(64, 64, Luma([9]))));
     truncated.truncate(40);
-    assert!(matches!(render_image(&truncated, &ImageParams::default(), &target()), Err(RenderError::Decode(_))));
+    assert_matches!(render_image(&truncated, &ImageParams::default(), &target()), Err(RenderError::Decode(_)));
     // PDFs are routed through PdfEngine, not render_image.
-    assert!(matches!(
+    assert_matches!(
         render_image(b"%PDF-1.4 ...", &ImageParams::default(), &target()),
         Err(RenderError::UnsupportedFormat)
-    ));
+    );
 }
 
 #[test]
 fn invalid_image_params_are_rejected() {
     let bytes = png_bytes(&DynamicImage::ImageLuma8(GrayImage::from_pixel(8, 8, Luma([0]))));
     let params = ImageParams { brightness: 101, ..ImageParams::default() };
-    assert!(matches!(render_image(&bytes, &params, &target()), Err(RenderError::InvalidParam(_))));
+    assert_matches!(render_image(&bytes, &params, &target()), Err(RenderError::InvalidParam(_)));
     let narrow = RenderTarget { width_dots: 10, ..target() };
-    assert!(matches!(render_image(&bytes, &ImageParams::default(), &narrow), Err(RenderError::InvalidParam(_))));
+    assert_matches!(render_image(&bytes, &ImageParams::default(), &narrow), Err(RenderError::InvalidParam(_)));
 }
 
 #[test]
@@ -279,7 +281,7 @@ fn png_round_trip_is_exact() {
 
 #[test]
 fn decode_rejects_non_png() {
-    assert!(matches!(decode_png_mono(b"nope"), Err(RenderError::UnsupportedFormat)));
+    assert_matches!(decode_png_mono(b"nope"), Err(RenderError::UnsupportedFormat));
 }
 
 #[test]
