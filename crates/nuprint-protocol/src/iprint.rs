@@ -88,7 +88,7 @@ impl FrameDecoder {
         self.buffer.extend_from_slice(data);
         let mut frames = Vec::new();
         loop {
-            let Some(start) = self.buffer.windows(2).position(|w| w == MAGIC) else {
+            let Some(start) = self.buffer.array_windows().position(|w| *w == MAGIC) else {
                 // Keep a trailing 0x51 that may begin the next frame.
                 let keep = self.buffer.last() == Some(&MAGIC[0]);
                 self.buffer.clear();

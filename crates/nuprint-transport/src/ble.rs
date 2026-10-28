@@ -43,20 +43,19 @@ enum Permission {
     Denied,
 }
 
-#[cfg(target_os = "macos")]
 fn permission() -> Permission {
-    use objc2_core_bluetooth::{CBManager, CBManagerAuthorization};
-    // SAFETY: a class property with no preconditions, available since macOS 10.15.
-    match unsafe { CBManager::authorization_class() } {
-        CBManagerAuthorization::AllowedAlways => Permission::Allowed,
-        CBManagerAuthorization::NotDetermined => Permission::NotAsked,
-        _ => Permission::Denied,
+    cfg_select! {
+        target_os = "macos" => {
+            use objc2_core_bluetooth::{CBManager, CBManagerAuthorization};
+            // SAFETY: a class property with no preconditions, available since macOS 10.15.
+            match unsafe { CBManager::authorization_class() } {
+                CBManagerAuthorization::AllowedAlways => Permission::Allowed,
+                CBManagerAuthorization::NotDetermined => Permission::NotAsked,
+                _ => Permission::Denied,
+            }
+        }
+        _ => Permission::Allowed,
     }
-}
-
-#[cfg(not(target_os = "macos"))]
-fn permission() -> Permission {
-    Permission::Allowed
 }
 
 /// How long to wait for the user to answer the macOS permission prompt.

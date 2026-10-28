@@ -292,13 +292,15 @@ fn app_icon_png(icon: &str) -> Option<&'static [u8]> {
 #[tauri::command]
 async fn set_app_icon(app: AppHandle, icon: String) -> AppResult<()> {
     let png = app_icon_png(&icon).ok_or_else(|| AppError::new(ErrorCode::InvalidInput, "Unknown app icon."))?;
-    #[cfg(target_os = "macos")]
-    app.run_on_main_thread(move || set_dock_icon(png)).map_err(AppError::internal)?;
-    #[cfg(not(target_os = "macos"))]
-    {
-        let image = tauri::image::Image::from_bytes(png).map_err(AppError::internal)?;
-        for window in app.webview_windows().values() {
-            window.set_icon(image.clone()).map_err(AppError::internal)?;
+    cfg_select! {
+        target_os = "macos" => {
+            app.run_on_main_thread(move || set_dock_icon(png)).map_err(AppError::internal)?;
+        }
+        _ => {
+            let image = tauri::image::Image::from_bytes(png).map_err(AppError::internal)?;
+            for window in app.webview_windows().values() {
+                window.set_icon(image.clone()).map_err(AppError::internal)?;
+            }
         }
     }
     Ok(())

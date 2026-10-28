@@ -183,18 +183,18 @@ fn keep_size_across_monitors(ui: &AppWindow) {
                 };
                 kept.set(Some((size, Instant::now())));
             }
-            WindowEvent::Resized(physical) => {
-                if let Some((size, _)) = kept.get().filter(|(_, at)| at.elapsed() < SETTLE) {
-                    let want = size.to_physical(window.scale_factor());
-                    let off = |a: u32, b: u32| a.abs_diff(b) > 2;
-                    if off(physical.width, want.width) || off(physical.height, want.height) {
-                        let weak = weak.clone();
-                        slint::Timer::single_shot(Duration::ZERO, move || {
-                            if let Some(ui) = weak.upgrade() {
-                                ui.window().set_size(size);
-                            }
-                        });
-                    }
+            WindowEvent::Resized(physical)
+                if let Some((size, _)) = kept.get().filter(|(_, at)| at.elapsed() < SETTLE) =>
+            {
+                let want = size.to_physical(window.scale_factor());
+                let off = |a: u32, b: u32| a.abs_diff(b) > 2;
+                if off(physical.width, want.width) || off(physical.height, want.height) {
+                    let weak = weak.clone();
+                    slint::Timer::single_shot(Duration::ZERO, move || {
+                        if let Some(ui) = weak.upgrade() {
+                            ui.window().set_size(size);
+                        }
+                    });
                 }
             }
             _ => {}
@@ -1246,7 +1246,7 @@ impl Ctx {
                     })
                     .unwrap_or_default();
                 let (lo, hi) = quick_range(i, base.as_ref());
-                let invalid = !shown.is_empty() && shown.parse::<u64>().map_or(true, |n| n < lo || n > hi);
+                let invalid = !shown.is_empty() && shown.parse::<u64>().ok().is_none_or(|n| !(lo..=hi).contains(&n));
                 any_invalid |= invalid;
                 QuickField { label: (*label).into(), value: shown.into(), invalid }
             })
