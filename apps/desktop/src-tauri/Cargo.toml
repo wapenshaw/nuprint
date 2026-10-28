@@ -14,7 +14,7 @@ name = "nuprint_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "=2.6.3", features = [] }
+tauri-build = { version = "=2.7.4", features = [] }
 
 [dependencies]
 nuprint-core.workspace = true
@@ -23,15 +23,15 @@ nuprint-transport.workspace = true
 
 serde.workspace = true
 serde_json.workspace = true
-tauri = { version = "=2.11.6", features = ["image-png"] }
-tauri-plugin-dialog = "=2.7.3"
-# tauri 2.11.6 does not compile against the 2.12-era sibling crates (semver-compatible on
+tauri = { version = "=2.12.5", features = ["image-png"] }
+tauri-plugin-dialog = "=2.8.4"
+# Older tauri releases did not compile against newer sibling crates (semver-compatible on
 # paper, API-incompatible in practice). Pin the exact family it was released with.
-tauri-codegen = "=2.6.3"
-tauri-macros = "=2.6.3"
-tauri-runtime = "=2.11.3"
-tauri-runtime-wry = "=2.11.4"
-tauri-utils = "=2.9.3"
+tauri-codegen = "=2.7.4"
+tauri-macros = "=2.7.4"
+tauri-runtime = "=2.12.2"
+tauri-runtime-wry = "=2.12.3"
+tauri-utils = "=2.10.2"
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

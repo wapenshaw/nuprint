@@ -78,7 +78,7 @@ cd apps\desktop; npm ci; npm run typecheck; npm test
 git diff --check
 ```
 
-`cargo test -p nuprint-core` regenerates `apps/desktop/src/bindings`; commit regenerated bindings with the Rust type change. The desktop crate is not a default workspace member, so plain `cargo build` skips it; use `--workspace` or `-p nuprint-desktop`. The tauri crate family is pinned exactly in `apps/desktop/src-tauri/Cargo.toml` because newer sibling crates break `tauri` 2.11.6; upgrade them together with `@tauri-apps/api`/`@tauri-apps/cli`.
+`cargo test -p nuprint-core` regenerates `apps/desktop/src/bindings`; commit regenerated bindings with the Rust type change. The desktop crate is not a default workspace member, so plain `cargo build` skips it; use `--workspace` or `-p nuprint-desktop`. The tauri crate family is pinned exactly in `apps/desktop/src-tauri/Cargo.toml` because older `tauri` releases broke against newer sibling crates; upgrade them together with `@tauri-apps/api`/`@tauri-apps/cli`.
 
 For UI changes, run `npx tauri dev` in `apps/desktop` and inspect the changed screens at the default window size. `tauri dev` rebuilds and restarts the app when watched crates change, interrupting any job in progress. The frontend never builds packets, sees file paths or reaches raw GATT: native dialogs run in Rust, previews come from the `nupreview` protocol, and capabilities grant only app commands and event listening. Rust owns canonical rendering and printer I/O, and `btleplug` provides BLE only. Validate packaged Bluetooth and native rendering on each claimed OS/model; a library's platform support is not device-level evidence.
 
