@@ -1,5 +1,6 @@
 mod common;
 
+use std::assert_matches;
 use std::path::PathBuf;
 
 use nuprint_render::{ImageParams, PdfEngine, RenderError, RenderTarget, RenderWarning, Rotation, Tone};
@@ -92,7 +93,7 @@ fn page_numbers_are_validated() {
     let pdf = two_page_pdf();
     for page in [0u32, 3, 99] {
         let err = engine.render_page(&pdf, None, page, &threshold(), &target()).unwrap_err();
-        assert!(matches!(err, RenderError::PdfPageOutOfRange { page: p, count: 2 } if p == page), "{err:?}");
+        assert_matches!(err, RenderError::PdfPageOutOfRange { page: p, count: 2 } if p == page);
     }
 }
 
@@ -106,7 +107,7 @@ fn rotation_and_height_limit() {
 
     let tall = pdf_with_pages(&[(100, 6000, "0 g 0 0 50 50 re f")]);
     let err = engine.render_page(&tall, None, 1, &threshold(), &target()).unwrap_err();
-    assert!(matches!(err, RenderError::TooLong { rows: 23040, max_rows: 4000 }), "{err:?}");
+    assert_matches!(err, RenderError::TooLong { rows: 23040, max_rows: 4000 });
 }
 
 #[test]
@@ -125,7 +126,7 @@ fn drawn_content_lands_where_expected() {
 fn garbage_is_a_readable_error() {
     let Some(engine) = engine() else { return };
     let err = engine.page_count(b"%PDF-1.4 this is not really a pdf", None).unwrap_err();
-    assert!(matches!(err, RenderError::Pdf(_)), "{err:?}");
+    assert_matches!(err, RenderError::Pdf(_));
     assert!(engine.render_page(b"", None, 1, &threshold(), &target()).is_err());
 }
 

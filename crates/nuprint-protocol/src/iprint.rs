@@ -425,6 +425,8 @@ impl PrinterDriver for Iprint5178Driver {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches;
+
     use super::*;
     use crate::MonoBitmap;
 
@@ -522,7 +524,7 @@ mod tests {
         for (w, h) in [(380, 2), (384, 4001)] {
             let bitmap = MonoBitmap::new(w, h).unwrap();
             let req = PrintRequest { bitmap: &bitmap, density: Density::Normal, trailing_feed_mm: 12 };
-            assert!(matches!(d.encode_job(&req), Err(ProtocolError::InvalidRaster(_))));
+            assert_matches!(d.encode_job(&req), Err(ProtocolError::InvalidRaster(_)));
         }
         let bitmap = MonoBitmap::new(384, 1).unwrap();
         let req = PrintRequest { bitmap: &bitmap, density: Density::Normal, trailing_feed_mm: 13 };
@@ -535,8 +537,8 @@ mod tests {
         let plan = driver()
             .plan_job(&PrintRequest { bitmap: &bitmap, density: Density::Normal, trailing_feed_mm: 0 })
             .unwrap();
-        assert!(matches!(plan.steps[0], PlanStep::RequireReady { .. }));
-        assert!(matches!(plan.steps.last(), Some(PlanStep::PollUntilReady { .. })));
+        assert_matches!(plan.steps[0], PlanStep::RequireReady { .. });
+        assert_matches!(plan.steps.last(), Some(PlanStep::PollUntilReady { .. }));
         assert_eq!(plan.completion, CompletionPolicy::StatusConfirmedReady);
         assert_eq!(plan.print_bytes(), 9 + 10 + 9 + 9 + 3 * 56); // A4, AF(u16), BE, BD, rows
     }

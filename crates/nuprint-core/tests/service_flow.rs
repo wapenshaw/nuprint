@@ -165,7 +165,7 @@ impl Harness {
     }
 
     async fn wait_terminal(&mut self, job_id: &str) -> JobSummary {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(600);
+        let deadline = tokio::time::Instant::now() + Duration::from_mins(10);
         loop {
             let event = tokio::time::timeout_at(deadline, self.events.recv()).await.expect("job finished").unwrap();
             if let AppEvent::JobChanged { job, .. } = event
@@ -594,7 +594,7 @@ async fn zero_feed_omits_feed_but_still_waits_for_ready() {
     assert_eq!(done.state, JobState::Completed);
     let written = h.print_bytes_written();
     assert_eq!(written, expected_bytes(&png, 0));
-    assert!(!written.windows(3).any(|w| w == [0x51, 0x78, opcode::FEED]));
+    assert!(!written.array_windows().any(|w| *w == [0x51, 0x78, opcode::FEED]));
     // Status queried before printing and polled afterwards.
     let status = iprint::command(opcode::STATUS, &[0]);
     let all = h.transport.log().written_bytes();
@@ -658,7 +658,7 @@ async fn copies_apply_feed_once_after_the_last_copy() {
     let done = h.wait_terminal(&job.id).await;
     assert_eq!(done.state, JobState::Completed);
     let written = h.print_bytes_written();
-    let feeds = written.windows(3).filter(|w| *w == [0x51, 0x78, opcode::FEED]).count();
+    let feeds = written.array_windows().filter(|w| **w == [0x51, 0x78, opcode::FEED]).count();
     assert_eq!(feeds, 2, "two 48-step A1 commands once, not per copy");
 }
 

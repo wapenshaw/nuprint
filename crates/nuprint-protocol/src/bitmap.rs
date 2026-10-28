@@ -150,6 +150,8 @@ impl MonoBitmap {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches;
+
     use super::*;
 
     #[test]
@@ -165,10 +167,10 @@ mod tests {
 
     #[test]
     fn rejects_bad_packed_data() {
-        assert!(matches!(MonoBitmap::from_packed(10, 1, vec![0]), Err(BitmapError::Length { .. })));
+        assert_matches!(MonoBitmap::from_packed(10, 1, vec![0]), Err(BitmapError::Length { .. }));
         assert_eq!(MonoBitmap::from_packed(10, 1, vec![0, 0x20]), Err(BitmapError::DirtyPadding));
         assert!(MonoBitmap::from_packed(10, 1, vec![0xFF, 0xC0]).is_ok());
-        assert!(matches!(MonoBitmap::new(0, 1), Err(BitmapError::Empty { .. })));
-        assert!(matches!(MonoBitmap::new(1 << 16, 1 << 16), Err(BitmapError::TooLarge { .. })));
+        assert_matches!(MonoBitmap::new(0, 1), Err(BitmapError::Empty { .. }));
+        assert_matches!(MonoBitmap::new(1 << 16, 1 << 16), Err(BitmapError::TooLarge { .. }));
     }
 }

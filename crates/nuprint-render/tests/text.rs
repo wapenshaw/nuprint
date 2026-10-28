@@ -1,5 +1,7 @@
 mod common;
 
+use std::assert_matches;
+
 use common::ink_bounds;
 use nuprint_render::{
     FontFamily, MAX_TEXT_CHARS, RenderError, RenderTarget, RenderWarning, TextAlign, TextParams, render_text,
@@ -47,31 +49,31 @@ fn words_wrap_at_spaces() {
 #[test]
 fn empty_and_invalid_input() {
     for text in ["", "   ", "\n\t \n"] {
-        assert!(matches!(render_text(&params(text), &target()), Err(RenderError::EmptyText)), "{text:?}");
+        assert_matches!(render_text(&params(text), &target()), Err(RenderError::EmptyText), "{text:?}");
     }
     for size in [0u16, 11, 97, 1000] {
         let p = TextParams { size_px: size, ..params("x") };
-        assert!(matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_))), "size {size}");
+        assert_matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_)), "size {size}");
     }
     for spacing in [0.5f32, 3.5, f32::NAN, f32::INFINITY] {
         let p = TextParams { line_spacing: spacing, ..params("x") };
-        assert!(matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_))), "spacing {spacing}");
+        assert_matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_)), "spacing {spacing}");
     }
     // 384 - 2*160 = 64 dots is the minimum; 161 leaves 62.
     assert!(render_text(&TextParams { margin_dots: 160, ..params("x") }, &target()).is_ok());
     let p = TextParams { margin_dots: 161, ..params("x") };
-    assert!(matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_))));
+    assert_matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_)));
     let p = params(&"a".repeat(MAX_TEXT_CHARS + 1));
-    assert!(matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_))));
+    assert_matches!(render_text(&p, &target()), Err(RenderError::InvalidParam(_)));
     let narrow = RenderTarget { width_dots: 50, ..target() };
-    assert!(matches!(render_text(&params("x"), &narrow), Err(RenderError::InvalidParam(_))));
+    assert_matches!(render_text(&params("x"), &narrow), Err(RenderError::InvalidParam(_)));
 }
 
 #[test]
 fn too_long_text_is_rejected_not_truncated() {
     let text = "line\n".repeat(400);
     let err = render_text(&params(&text), &target()).unwrap_err();
-    assert!(matches!(err, RenderError::TooLong { max_rows: 4000, rows } if rows > 4000), "{err:?}");
+    assert_matches!(err, RenderError::TooLong { max_rows: 4000, rows } if rows > 4000);
     // The same text fits when the page limit is raised.
     let roomy = RenderTarget { max_height: 100_000, ..target() };
     assert!(render_text(&params(&text), &roomy).is_ok());
