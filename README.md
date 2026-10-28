@@ -56,7 +56,7 @@ Diagnostics can be exported from **Settings → Diagnostics**. Device names, add
 
 ## Building from source
 
-Requirements: Rust 1.98 (installed automatically from `rust-toolchain.toml` by rustup), Node.js 22+, and on Linux the [Tauri system packages](https://tauri.app/start/prerequisites/) plus BlueZ.
+Requirements: Rust 1.99 (installed automatically from `rust-toolchain.toml` by rustup), Node.js 22+, and on Linux the [Tauri system packages](https://tauri.app/start/prerequisites/) plus BlueZ.
 
 ```powershell
 # Once: fetch the pinned PDFium build used for PDF rendering (into ignored vendor/)
