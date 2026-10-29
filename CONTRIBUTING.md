@@ -16,7 +16,7 @@ You need Rust (rustup installs the pinned toolchain from `rust-toolchain.toml`),
 ./scripts/fetch-pdfium.sh        # Windows: .\scripts\fetch-pdfium.ps1
 ```
 
-Then run the app with `cd apps/desktop && npm ci && npx tauri dev`, or the CLI with `cargo run -p nuprint-cli -- --help`. [README.md](README.md) has the full command list. [docs/README.md](docs/README.md) indexes the architecture, protocol and validation documents.
+Then run the app with `cd apps/desktop && npm ci && npx tauri dev`, or the CLI with `cargo run -p nuprint-cli -- --help`. [docs/building.md](docs/building.md) has the full command list. [docs/README.md](docs/README.md) indexes the architecture, protocol and validation documents.
 
 ## Before you open a pull request
 
