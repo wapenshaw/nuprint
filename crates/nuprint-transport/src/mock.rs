@@ -45,6 +45,8 @@ pub struct MockTransport {
     log: Arc<Mutex<MockLog>>,
     injectors: Arc<Mutex<Vec<mpsc::Sender<Notification>>>>,
     connect_delay: Duration,
+    discovery_delay: Duration,
+    hang_connection_state: bool,
 }
 
 impl MockTransport {
@@ -55,6 +57,8 @@ impl MockTransport {
             log: Arc::default(),
             injectors: Arc::default(),
             connect_delay: Duration::ZERO,
+            discovery_delay: Duration::ZERO,
+            hang_connection_state: false,
         }
     }
 
@@ -63,8 +67,22 @@ impl MockTransport {
         self
     }
 
+    /// Wait this long before connecting.
     pub fn with_connect_delay(mut self, delay: Duration) -> Self {
         self.connect_delay = delay;
+        self
+    }
+
+    /// Connect, then spend this long discovering services: a stop during that time finds the
+    /// device already connected, as on real hardware.
+    pub fn with_discovery_delay(mut self, delay: Duration) -> Self {
+        self.discovery_delay = delay;
+        self
+    }
+
+    /// Links never answer whether they are still connected.
+    pub fn with_hanging_connection_state(mut self) -> Self {
+        self.hang_connection_state = true;
         self
     }
 
@@ -119,12 +137,21 @@ impl Transport for MockTransport {
         Ok(())
     }
 
-    async fn connect(&self, backend_id: &str, timeout: Duration) -> Result<Box<dyn Link>, TransportError> {
+    async fn connect(
+        &self,
+        backend_id: &str,
+        timeout: Duration,
+        cancel: &CancellationToken,
+    ) -> Result<Box<dyn Link>, TransportError> {
         self.check_state()?;
         if !self.connect_delay.is_zero() {
-            tokio::time::timeout(timeout, tokio::time::sleep(self.connect_delay))
-                .await
-                .map_err(|_| TransportError::Timeout("connection"))?;
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return Err(TransportError::Cancelled),
+                waited = tokio::time::timeout(timeout, tokio::time::sleep(self.connect_delay)) => {
+                    waited.map_err(|_| TransportError::Timeout("connection"))?;
+                }
+            }
         }
         let device = self
             .devices
@@ -132,6 +159,20 @@ impl Transport for MockTransport {
             .find(|d| d.advertisement.backend_id == backend_id)
             .ok_or_else(|| TransportError::NotFound(backend_id.to_owned()))?;
         self.log.lock().unwrap().connects += 1;
+        if !self.discovery_delay.is_zero() {
+            let failed = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => Some(TransportError::Cancelled),
+                waited = tokio::time::timeout(timeout, tokio::time::sleep(self.discovery_delay)) => {
+                    waited.err().map(|_| TransportError::Timeout("service discovery"))
+                }
+            };
+            if let Some(error) = failed {
+                // Connected already, so the attempt cleans up as the BLE backend does.
+                self.log.lock().unwrap().disconnects += 1;
+                return Err(error);
+            }
+        }
         let (tx, rx) = mpsc::channel(1024);
         self.injectors.lock().unwrap().push(tx.clone());
         Ok(Box::new(MockLink {
@@ -142,6 +183,7 @@ impl Transport for MockTransport {
             tx,
             rx: Some(rx),
             connected: Mutex::new(true),
+            hang_connection_state: self.hang_connection_state,
             log: self.log.clone(),
         }))
     }
@@ -155,6 +197,7 @@ pub struct MockLink {
     tx: mpsc::Sender<Notification>,
     rx: Option<mpsc::Receiver<Notification>>,
     connected: Mutex<bool>,
+    hang_connection_state: bool,
     log: Arc<Mutex<MockLog>>,
 }
 
@@ -206,6 +249,9 @@ impl Link for MockLink {
     }
 
     async fn is_connected(&self) -> bool {
+        if self.hang_connection_state {
+            std::future::pending::<()>().await;
+        }
         *self.connected.lock().unwrap()
     }
 

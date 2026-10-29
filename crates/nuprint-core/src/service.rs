@@ -692,10 +692,8 @@ impl AppService {
         locate(self.inner.transport.as_ref(), Duration::from_secs(12), cancel, |a| a.backend_id == discovery_id)
             .await
             .map_err(failed)?;
-        let link = tokio::select! {
-            _ = cancel.cancelled() => return Err(AppError::cancelled()),
-            link = self.inner.transport.connect(discovery_id, timeout) => link.map_err(|e| failed(e.into()))?,
-        };
+        // Awaited to the end: on cancellation the transport disconnects before it returns.
+        let link = self.inner.transport.connect(discovery_id, timeout, cancel).await.map_err(|e| failed(e.into()))?;
         let services = link.services().to_vec();
         let max_write_len = link.max_write_len(nuprint_transport::WriteMode::WithoutResponse) as u32;
         let _ = tokio::time::timeout(Duration::from_secs(10), link.disconnect()).await;

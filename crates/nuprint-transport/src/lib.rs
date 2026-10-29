@@ -123,6 +123,8 @@ pub enum TransportError {
     Timeout(&'static str),
     #[error("Bluetooth disconnected")]
     Disconnected,
+    #[error("Bluetooth operation cancelled")]
+    Cancelled,
     #[error("Endpoint {0} is not available on this device")]
     EndpointMissing(String),
     #[error("Bluetooth error: {0}")]
@@ -147,7 +149,17 @@ pub trait Transport: Send + Sync + 'static {
 
     /// Connect and enumerate services. The caller owns the link exclusively and must
     /// call [`Link::disconnect`] in every outcome.
-    async fn connect(&self, backend_id: &str, timeout: Duration) -> Result<Box<dyn Link>, TransportError>;
+    ///
+    /// `cancel` stops the attempt with [`TransportError::Cancelled`]. A device can already be
+    /// connected while its services are still being discovered, so every failure, a timeout or
+    /// cancellation included, disconnects before this returns. Await it to the end rather than
+    /// dropping it, so the device is free again when it returns.
+    async fn connect(
+        &self,
+        backend_id: &str,
+        timeout: Duration,
+        cancel: &CancellationToken,
+    ) -> Result<Box<dyn Link>, TransportError>;
 }
 
 /// One connected session with a device.
