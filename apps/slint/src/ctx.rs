@@ -60,7 +60,7 @@ impl Ctx {
     /// Run a reload on a blocking thread: it reads the store (and may encode job thumbnails),
     /// which must not hold up the UI thread or a runtime worker. Its results reach the UI
     /// through `ui`, in the order the reloads finish.
-    pub(crate) fn in_background(&self, load: fn(&Self)) {
+    fn in_background(&self, load: fn(&Self)) {
         let this = self.clone();
         self.rt.spawn_blocking(move || {
             let _serial = this.refreshing.lock().unwrap();

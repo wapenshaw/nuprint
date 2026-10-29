@@ -54,7 +54,7 @@ impl Ctx {
         });
     }
 
-    pub(crate) fn adjust(ui: &AppWindow) -> ImageAdjust {
+    fn adjust(ui: &AppWindow) -> ImageAdjust {
         let d = ui.global::<Data>();
         ImageAdjust {
             tone: match d.get_tone_index() {
@@ -74,7 +74,7 @@ impl Ctx {
     }
 
     /// What to render for the current controls, or why there is nothing to show yet.
-    pub(crate) fn spec(&self, ui: &AppWindow) -> Result<SourceSpec, String> {
+    fn spec(&self, ui: &AppWindow) -> Result<SourceSpec, String> {
         let d = ui.global::<Data>();
         let st = self.state.lock().unwrap();
         match d.get_mode() {
@@ -124,7 +124,7 @@ impl Ctx {
         }
     }
 
-    pub(crate) fn show_message(&self, ui: &AppWindow, message: String, error: bool) {
+    fn show_message(&self, ui: &AppWindow, message: String, error: bool) {
         {
             let mut st = self.state.lock().unwrap();
             st.preview = None;
