@@ -341,8 +341,17 @@ impl Store {
             if version > 0
                 && let Some(db) = &backup_from
             {
-                // Back up before any transactional migration of an existing store.
-                fs::copy(db, db.with_extension(format!("v{version}.bak")))?;
+                // Back up before any transactional migration of an existing store. Copying the file
+                // would miss changes still held in the write-ahead log after a crash, so SQLite
+                // writes the backup from this connection's view instead.
+                let backup = db.with_extension(format!("v{version}.bak"));
+                if backup.exists() {
+                    fs::remove_file(&backup)?;
+                }
+                let target = backup.to_str().ok_or_else(|| {
+                    AppError::new(ErrorCode::Internal, "The data folder path cannot be used for a backup.")
+                })?;
+                conn.execute("VACUUM INTO ?1", [target])?;
             }
             let migrations = [MIGRATION_1, MIGRATION_2, MIGRATION_3];
             conn.execute_batch("BEGIN")?;
@@ -1042,11 +1051,42 @@ mod tests {
             store.conn.pragma_update(None, "user_version", 2).unwrap();
         }
         let store = Store::open(dir.path()).unwrap();
-        assert!(dir.path().join("state.v2.bak").exists());
+        let backup = Connection::open(dir.path().join("state.v2.bak")).unwrap();
+        let version: i64 = backup.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+        let jobs: i64 = backup.query_row("SELECT COUNT(*) FROM jobs", [], |r| r.get(0)).unwrap();
+        assert_eq!((version, jobs), (2, 2), "the backup holds the store as it was");
         let text = store.get_job("j1").unwrap().unwrap().settings_json;
         let pdf = store.get_job("j2").unwrap().unwrap().settings_json;
         assert!(!text.contains("secret") && text.contains("size_px"), "{text}");
         assert!(!pdf.contains("hunter2") && pdf.contains("source_id"), "{pdf}");
+    }
+
+    #[test]
+    fn the_upgrade_backup_includes_changes_still_in_the_write_ahead_log() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("state.sqlite3");
+        // Kept open, so its committed changes stay in the log, as after a crash.
+        let writer = Connection::open(&db).unwrap();
+        writer.pragma_update(None, "journal_mode", "WAL").unwrap();
+        writer.pragma_update(None, "wal_autocheckpoint", 0).unwrap();
+        writer.execute_batch(MIGRATION_1).unwrap();
+        writer
+            .execute(
+                "INSERT INTO printers (id, name, backend_kind, backend_id, profile_id, profile_revision, density,
+                                       feed_mm, created_ms)
+                 VALUES ('p1', 'SC03h-TEST', 'ble_gatt', 'dev', 'sc03h-iprint-384', 1, 'normal', 12, 1)",
+                [],
+            )
+            .unwrap();
+        writer.pragma_update(None, "user_version", 1).unwrap();
+        // A stale backup from an earlier attempt is replaced.
+        fs::write(dir.path().join("state.v1.bak"), b"stale").unwrap();
+
+        let _store = Store::open(dir.path()).unwrap();
+        let backup = Connection::open(dir.path().join("state.v1.bak")).unwrap();
+        let version: i64 = backup.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+        let printers: i64 = backup.query_row("SELECT COUNT(*) FROM printers", [], |r| r.get(0)).unwrap();
+        assert_eq!((version, printers), (1, 1));
     }
 
     #[test]
