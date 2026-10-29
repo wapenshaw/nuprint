@@ -221,7 +221,9 @@ One pass of the logging section at `bb6e479`.
 | file, ordinary volume | about 115 | 0.4 | about 500 | 1.9 | | |
 | file, burst crossing rotation | about 115 | 0.4 | about 500 | 0.7 | 8 to 9.5 s | 27 ms |
 
-The calling thread no longer opens the file, so the occasional 8 to 10 ms stalls are gone (the largest single call in this pass was 28 µs). The harness does not report how many lines the bounded buffer dropped during the burst.
+The calling thread no longer opens the file, so the occasional 8 to 10 ms stalls are gone (the largest single call in this pass was 28 µs). These times are the producer's cost of handing a line to the writer thread, not the time to write it to disk.
+
+A later pass (two runs, after the review fixes of 2026-10-29) also counted what reached the file. Logging in a tight loop outruns the writer: the 1,024-line queue turned away 0 or 857 of the 2,200 lines of the ordinary-volume run, and 1,975 or 2,549 of the 60,200 lines of the burst. Draining what was queued at shutdown took under 1 ms. Turned-away lines stay in the in-memory log, and the file and the in-memory log both record how many were lost. The app logs a few lines per job, far below these rates, so no loss is expected in use; equivalent end-to-end throughput to the old synchronous file writes is not claimed.
 
 ### Compositing pictures onto white (`41a3d8c`)
 
@@ -249,7 +251,7 @@ Before, each line rebuilt all 500 rows (and the facts beside them); Slint only r
 
 ## Decisions from the measurements
 
-- **Step 3, storage boundary: no dedicated store worker.** A single store call measured 0.04 to 2 ms, and admission about 2 ms (6 ms for 20 copies of a 4,000-row page). Only sustained contention on a 2-worker runtime delayed other tasks (p95 6 ms), and moving calls into `spawn_blocking` traded that for 8 to 9 ms of call latency and half the churn throughput, because the store is one serialised connection either way. So store calls stay synchronous behind the mutex. File I/O, which has no such bound (a slow or network disk), moved to blocking threads instead. The Slint UI thread was not profiled; its store reloads now run off that thread, so the remaining UI-thread store work is single calls such as selecting a printer or enqueueing.
+- **Step 3, storage boundary: no dedicated store worker.** A single store call measured 0.04 to 2 ms, and admission about 2 ms (6 ms for 20 copies of a 4,000-row page). Only sustained contention on a 2-worker runtime delayed other tasks (p95 6 ms), and moving calls into `spawn_blocking` traded that for 8 to 9 ms of call latency and half the churn throughput, because the store is one serialised connection either way. So store calls stay synchronous behind the mutex. Offloading would protect the runtime under contention, at the cost of slower calls; the decision is that the expected workload does not justify a dedicated worker, not that offloading gains nothing. These numbers come from one fast Windows PC and do not bound a slow disk or a low-end Linux machine. File I/O, which has no such bound (a slow or network disk), moved to blocking threads instead. The Slint UI thread was not profiled; its store reloads now run off that thread, so the remaining UI-thread store work is single calls such as selecting a printer or enqueueing.
 - **Step 6, reusing page plans across copies: deferred.** An extra copy costs about 5 ms of CPU and 1.3 MiB of short-lived allocation, against roughly 40 s of paced transfer per 4,000-row copy. Sharing plans would not change print time, and the extra ownership rules (prepared variants, final-copy feed, per-copy progress) are not justified by allocation alone. Revisit if a printer with much faster pacing, or memory limits on maximum-copy jobs, makes it measurable.
 
 ## Limits of these results
