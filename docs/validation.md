@@ -6,7 +6,7 @@ NuPrint is implemented in [Rust + Tauri](rust-tauri-spec.md); the Python app in 
 
 | | Status (2026-10-29) |
 | --- | --- |
-| Rust engine | SC03h packets match the Python reference byte-for-byte on 40 golden job vectors. 163 offline Rust tests pass. |
+| Rust engine | SC03h packets match the Python reference byte-for-byte on 40 golden job vectors. 222 offline Rust tests pass, including 18 doctests (2026-10-29, with PDFium required). |
 | Desktop app (Windows, dev build) | Found SC03h-3DE8 and read firmware 3.0.49 with ready status. Printed two short text jobs; the printer reported ready after each and the owner reported them working. |
 | Desktop app (macOS) | Bluetooth permission prompt, discovery and four short text prints on SC03h-3DE8 (dev build and a packaged debug app, Apple silicon); ready status after each, owner reported them working. |
 | Review fixes (2026-10-29) | The owner ran the non-printing checks for the 2026-10-29 review fixes in the Tauri dev build and the Slint app on Windows: edited settings and their limits, a connection check racing an edit and a removal, cancelling a connection, redacted diagnostics and the queue. All were reported working. No paper was used, and which Bluetooth stage a cancellation interrupted was not observed. |
