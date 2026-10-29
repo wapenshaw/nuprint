@@ -617,7 +617,7 @@ async fn burst_section(o: &Opts) {
         "\nEach row is the median of the repetitions. `latest` is the latency of the newest generation (the only \
          one the user sees). `late stale` results rendered fully and were discarded afterwards; `early stale` \
          were rejected within 2 ms. `peak WS` is the process peak working set so far (cumulative; read the increases). \
-         `spawn_blocking` allows up to 512 threads, so nothing bounds concurrent renders.
+         A stale count near zero means newer requests replaced waiting ones before they rendered.
 "
     );
     println!(
