@@ -922,8 +922,10 @@ impl AppService {
 
     /// Go back to the built-in settings. Edited revisions stay stored for jobs that name them.
     pub fn reset_printer_profile(&self, printer_id: &str) -> AppResult<SavedPrinter> {
-        let mut row = self.printer_row(printer_id)?;
+        let store = self.store();
+        let mut row = store.get_printer(printer_id)?.ok_or_else(|| AppError::not_found("Printer"))?;
         if row.base_profile_id.is_none() {
+            drop(store);
             return Ok(self.saved_printer(&row));
         }
         let base = self.base_profile(&row)?;
@@ -931,7 +933,8 @@ impl AppService {
         row.profile_revision = base.profile.revision;
         row.base_profile_id = None;
         Self::fit_settings(&mut row, &base);
-        self.store().upsert_printer(&row)?;
+        store.upsert_printer(&row)?;
+        drop(store);
         self.log(LogLevel::Info, format!("Printer {} uses the built-in settings again", private(&row.name)));
         self.emit(AppEvent::PrintersChanged { seq: self.next_seq() });
         Ok(self.saved_printer(&row))
@@ -962,11 +965,15 @@ impl AppService {
     }
 
     pub fn update_printer_settings(&self, printer_id: &str, settings: PrinterSettings) -> AppResult<SavedPrinter> {
-        let mut row = self.printer_row(printer_id)?;
+        // Read, check and write under one store lock, so a profile saved meanwhile is not undone.
+        let store = self.store();
+        let row = store.get_printer(printer_id)?.ok_or_else(|| AppError::not_found("Printer"))?;
         self.printer_profile(&row)?.check_job_options(settings.density, settings.feed_mm, None)?;
-        row.density = settings.density;
-        row.feed_mm = settings.feed_mm;
-        self.store().upsert_printer(&row)?;
+        if !store.update_printer_settings(&row.id, settings.density, settings.feed_mm)? {
+            return Err(AppError::not_found("Printer"));
+        }
+        drop(store);
+        let row = PrinterRow { density: settings.density, feed_mm: settings.feed_mm, ..row };
         self.emit(AppEvent::PrintersChanged { seq: self.next_seq() });
         Ok(self.saved_printer(&row))
     }
@@ -986,7 +993,7 @@ impl AppService {
 
     /// Connect and query status without printing.
     pub async fn check_printer(&self, printer_id: &str) -> AppResult<PrinterCheck> {
-        let mut row = self.printer_row(printer_id)?;
+        let row = self.printer_row(printer_id)?;
         let resolved = self.printer_profile(&row)?.clone();
         let cancel = self.inner.shutdown.child_token();
         let _hw = self.claim_hardware(HardwareUse::Checking, &cancel).await?;
@@ -1003,11 +1010,8 @@ impl AppService {
         let max_write_len = session.max_write_len() as u32;
         session.close().await;
         let status = result.map_err(failed)?;
-        row.last_seen_ms = Some(now_ms());
-        if firmware.is_some() {
-            row.firmware = firmware.clone();
-        }
-        self.store().upsert_printer(&row)?;
+        // `row` is as it was before the wait; only the check's own findings are written back.
+        self.store().record_printer_seen(&row.id, firmware.as_deref(), now_ms())?;
         let check = PrinterCheck {
             printer_id: row.id.clone(),
             ready: status.is_ready(),

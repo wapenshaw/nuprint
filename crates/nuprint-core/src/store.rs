@@ -457,6 +457,26 @@ impl Store {
         Ok(())
     }
 
+    /// Change only a printer's darkness and extra feed. `false` means it no longer exists.
+    pub fn update_printer_settings(&self, id: &str, density: Density, feed_mm: u16) -> AppResult<bool> {
+        let changed = self.conn.execute(
+            "UPDATE printers SET density = ?2, feed_mm = ?3 WHERE id = ?1",
+            params![id, density.as_str(), feed_mm],
+        )?;
+        Ok(changed > 0)
+    }
+
+    /// Record a connection check on a printer that still exists, leaving everything else as it is
+    /// now: settings may have changed while the check waited for Bluetooth. `false` means the
+    /// printer was removed meanwhile, and it stays removed.
+    pub fn record_printer_seen(&self, id: &str, firmware: Option<&str>, seen_ms: i64) -> AppResult<bool> {
+        let changed = self.conn.execute(
+            "UPDATE printers SET last_seen_ms = ?2, firmware = COALESCE(?3, firmware) WHERE id = ?1",
+            params![id, seen_ms, firmware],
+        )?;
+        Ok(changed > 0)
+    }
+
     // ------------------------------------------------------------ custom profiles
 
     pub fn insert_custom_profile(&self, row: &CustomProfileRow, base_profile_id: &str) -> AppResult<()> {
