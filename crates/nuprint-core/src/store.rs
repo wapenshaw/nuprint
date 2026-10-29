@@ -3,6 +3,13 @@
 //! Layout under the data directory:
 //! `state.sqlite3` (jobs, pages, attempts, events, printers, preferences) and
 //! `jobs/<job-id>/page-<n>.bin` (canonical packed rows, written atomically).
+//!
+//! # Errors
+//!
+//! Every function here that returns an [`AppResult`] can fail on SQLite or the file system. A
+//! full disk is [`ErrorCode::StorageFull`]; anything else, including a row that cannot be
+//! decoded, is [`ErrorCode::Internal`]. The `# Errors` sections of the functions name only what
+//! they add to that.
 
 use std::collections::HashMap;
 use std::fs;
@@ -275,6 +282,11 @@ fn page_from_row(r: &Row<'_>) -> rusqlite::Result<PageRow> {
 }
 
 /// Write `data` to `path` via a flushed temporary file and atomic rename.
+///
+/// # Errors
+///
+/// An I/O error creating, writing, syncing or renaming the file, with the same codes as the
+/// [module docs](crate::store) give.
 pub fn write_atomic(path: &Path, data: &[u8]) -> AppResult<()> {
     let tmp = path.with_extension("tmp");
     {
@@ -308,9 +320,14 @@ fn lock_data_dir(data_dir: &Path) -> AppResult<fs::File> {
 }
 
 impl Store {
-    /// Open (creating/migrating) the store in `data_dir`. Fails with [`ErrorCode::DataDirInUse`]
-    /// while another process (or store) has it open.
+    /// Open (creating or migrating) the store in `data_dir`.
     ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::DataDirInUse`] while another process (or store) has the folder open.
+    /// [`ErrorCode::Internal`] when the data was written by a newer NuPrint, when the folder path
+    /// cannot be used for the pre-migration backup, or when a migration fails; the database and
+    /// file errors of the [module docs](crate::store) otherwise.
     pub fn open(data_dir: &Path) -> AppResult<Self> {
         fs::create_dir_all(data_dir.join("jobs"))?;
         let db_path = data_dir.join("state.sqlite3");
@@ -321,6 +338,11 @@ impl Store {
     }
 
     /// Non-persistent store (CLI one-shot use); assets go to `assets_dir`.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`Self::open`] except that [`ErrorCode::DataDirInUse`] cannot happen: nothing is
+    /// locked.
     pub fn open_in_memory(assets_dir: &Path) -> AppResult<Self> {
         fs::create_dir_all(assets_dir.join("jobs"))?;
         Self::init(Connection::open_in_memory()?, assets_dir.to_path_buf(), None, None)
@@ -410,12 +432,24 @@ impl Store {
 
     // ------------------------------------------------------------ preferences
 
+    /// A stored preference, or `None` when it was never set.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store). A stored value that does not decode as
+    /// `T` reads as `None`, not as an error.
     pub fn get_pref<T: DeserializeOwned>(&self, key: &str) -> AppResult<Option<T>> {
         let value: Option<String> =
             self.conn.query_row("SELECT value FROM preferences WHERE key = ?1", [key], |r| r.get(0)).optional()?;
         Ok(value.and_then(|v| serde_json::from_str(&v).ok()))
     }
 
+    /// Store a preference, replacing any earlier value.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`] when `value` cannot be serialized, otherwise a database error; see the
+    /// [module docs](crate::store).
     pub fn set_pref<T: Serialize>(&self, key: &str, value: &T) -> AppResult<()> {
         let json = serde_json::to_string(value).map_err(AppError::internal)?;
         self.conn.execute(
@@ -427,17 +461,31 @@ impl Store {
 
     // ------------------------------------------------------------ printers
 
+    /// Every saved printer, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn list_printers(&self) -> AppResult<Vec<PrinterRow>> {
         let mut stmt = self.conn.prepare("SELECT * FROM printers ORDER BY created_ms")?;
         let rows = stmt.query_map([], printer_from_row)?.collect::<rusqlite::Result<_>>()?;
         Ok(rows)
     }
 
+    /// A saved printer by ID, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn get_printer(&self, id: &str) -> AppResult<Option<PrinterRow>> {
         Ok(self.conn.query_row("SELECT * FROM printers WHERE id = ?1", [id], printer_from_row).optional()?)
     }
 
     /// The saved printer for a device and built-in profile, including one whose settings were edited.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn find_printer_by_backend(&self, backend_id: &str, profile_id: &str) -> AppResult<Option<PrinterRow>> {
         Ok(self
             .conn
@@ -449,12 +497,21 @@ impl Store {
             .optional()?)
     }
 
+    /// Insert a printer, or update the one with the same ID.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn upsert_printer(&self, p: &PrinterRow) -> AppResult<()> {
         upsert_printer_row(&self.conn, p)?;
         Ok(())
     }
 
     /// Change only a printer's darkness and extra feed. `false` means it no longer exists.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn update_printer_settings(&self, id: &str, density: Density, feed_mm: u16) -> AppResult<bool> {
         let changed = self.conn.execute(
             "UPDATE printers SET density = ?2, feed_mm = ?3 WHERE id = ?1",
@@ -466,6 +523,10 @@ impl Store {
     /// Record a connection check on a printer that still exists, leaving everything else as it is
     /// now: settings may have changed while the check waited for Bluetooth. `false` means the
     /// printer was removed meanwhile, and it stays removed.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn record_printer_seen(&self, id: &str, firmware: Option<&str>, seen_ms: i64) -> AppResult<bool> {
         let changed = self.conn.execute(
             "UPDATE printers SET last_seen_ms = ?2, firmware = COALESCE(?3, firmware) WHERE id = ?1",
@@ -476,6 +537,12 @@ impl Store {
 
     // ------------------------------------------------------------ custom profiles
 
+    /// Store one revision of a printer's edited profile.
+    ///
+    /// # Errors
+    ///
+    /// A database error, including a revision of that profile ID that is already stored; see the
+    /// [module docs](crate::store).
     pub fn insert_custom_profile(&self, row: &CustomProfileRow, base_profile_id: &str) -> AppResult<()> {
         insert_custom_profile_row(&self.conn, row, base_profile_id)?;
         Ok(())
@@ -483,6 +550,11 @@ impl Store {
 
     /// Store a new revision of a printer's edited profile and point the printer at it, in one
     /// transaction: either both are saved or neither is.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::insert_custom_profile`] or [`Self::upsert_printer`] would; on failure neither is
+    /// saved.
     pub fn save_custom_profile(
         &mut self,
         row: &CustomProfileRow,
@@ -498,6 +570,10 @@ impl Store {
 
     /// The newest stored revision of a custom profile, including one the registry skipped
     /// because it no longer validates; 0 when there is none.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn max_custom_revision(&self, id: &str) -> AppResult<u32> {
         Ok(self
             .conn
@@ -505,6 +581,10 @@ impl Store {
     }
 
     /// Every stored revision, oldest first, so the registry can resolve queued jobs exactly.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn list_custom_profiles(&self) -> AppResult<Vec<CustomProfileRow>> {
         let mut stmt =
             self.conn.prepare("SELECT id, revision, json FROM custom_profiles ORDER BY created_ms, revision")?;
@@ -514,6 +594,11 @@ impl Store {
         Ok(rows)
     }
 
+    /// Delete a saved printer. `false` means there was no such printer.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn delete_printer(&self, id: &str) -> AppResult<bool> {
         Ok(self.conn.execute("DELETE FROM printers WHERE id = ?1", [id])? > 0)
     }
@@ -526,6 +611,11 @@ impl Store {
 
     /// Persist page assets, then commit job + page rows in one transaction. If anything fails the
     /// job's folder is removed again, so a refused job leaves no print data behind.
+    ///
+    /// # Errors
+    ///
+    /// An I/O error writing the page files, or a database error such as a job ID or idempotency key
+    /// that is already stored; see the [module docs](crate::store). Nothing is left behind.
     pub fn insert_job(&mut self, job: &JobRow, pages: &[(u32, MonoBitmap)], encoded_bytes: &[i64]) -> AppResult<()> {
         let dir = self.job_dir(&job.id);
         self.write_job(&dir, job, pages, encoded_bytes).inspect_err(|_| {
@@ -563,14 +653,29 @@ impl Store {
         Ok(())
     }
 
+    /// The job admitted under an idempotency key, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn find_job_by_key(&self, key: &str) -> AppResult<Option<JobRow>> {
         Ok(self.conn.query_row("SELECT * FROM jobs WHERE idempotency_key = ?1", [key], job_from_row).optional()?)
     }
 
+    /// A job by ID, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn get_job(&self, id: &str) -> AppResult<Option<JobRow>> {
         Ok(self.conn.query_row("SELECT * FROM jobs WHERE id = ?1", [id], job_from_row).optional()?)
     }
 
+    /// The newest `limit` jobs, newest first.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn list_jobs(&self, limit: usize) -> AppResult<Vec<JobRow>> {
         let mut stmt = self.conn.prepare("SELECT * FROM jobs ORDER BY created_ms DESC, rowid DESC LIMIT ?1")?;
         let rows = stmt.query_map([limit as i64], job_from_row)?.collect::<rusqlite::Result<_>>()?;
@@ -578,6 +683,10 @@ impl Store {
     }
 
     /// [`Self::list_jobs`] with each job's pages, read in one query rather than one per job.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn list_jobs_with_pages(&self, limit: usize) -> AppResult<Vec<(JobRow, Vec<PageRow>)>> {
         let jobs = self.list_jobs(limit)?;
         let mut stmt = self.conn.prepare(
@@ -599,6 +708,11 @@ impl Store {
             .collect())
     }
 
+    /// The oldest queued job, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn next_queued(&self) -> AppResult<Option<JobRow>> {
         Ok(self
             .conn
@@ -610,6 +724,11 @@ impl Store {
     /// attempt record, in one transaction. `None` means the job is no longer queued (cancelled or
     /// held in the meantime), so nothing may be sent. An error means the claim was not saved and
     /// nothing may be sent either; a claim that is saved survives a restart as an uncertain job.
+    ///
+    /// # Errors
+    ///
+    /// A database error, including an attempt ID that already exists; see the
+    /// [module docs](crate::store). Nothing is claimed then.
     pub fn claim_queued(&mut self, job_id: &str, attempt_id: &str) -> AppResult<Option<JobRow>> {
         let revision = self.next_revision();
         let now = now_ms();
@@ -632,6 +751,10 @@ impl Store {
 
     /// Cancel a job that has not started printing: a checked transition, so it cannot overwrite a
     /// job that was claimed first. `None` means the job was not queued or held.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn cancel_unstarted(&mut self, job_id: &str) -> AppResult<Option<JobRow>> {
         let revision = self.next_revision();
         let changed = self.conn.execute(
@@ -642,6 +765,11 @@ impl Store {
         if changed == 0 { Ok(None) } else { self.get_job(job_id) }
     }
 
+    /// A job's page rows in print order.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn pages(&self, job_id: &str) -> AppResult<Vec<PageRow>> {
         let mut stmt = self.conn.prepare("SELECT * FROM pages WHERE job_id = ?1 ORDER BY idx")?;
         let rows = stmt.query_map([job_id], page_from_row)?.collect::<rusqlite::Result<_>>()?;
@@ -649,11 +777,20 @@ impl Store {
     }
 
     /// Every page of a job, verified, as (1-based source page, bitmap).
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Self::pages`] and [`Self::load_page`].
     pub fn load_pages(&self, job_id: &str) -> AppResult<Vec<(u32, MonoBitmap)>> {
         self.pages(job_id)?.iter().map(|page| Ok((page.source_page, self.load_page(page)?))).collect()
     }
 
     /// Load and verify a page's canonical bitmap against its recorded hash.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::RenderInvalid`] when the saved file is missing, unreadable, the wrong size for
+    /// its dimensions or fails the hash check, or when its path leaves the data folder.
     pub fn load_page(&self, page: &PageRow) -> AppResult<MonoBitmap> {
         let corrupt = || {
             AppError::new(
@@ -674,6 +811,12 @@ impl Store {
         Ok(bitmap)
     }
 
+    /// Save a job's state, progress, error and retention flags, bumping its revision.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store). Updating a job ID that is not stored
+    /// changes nothing and is not an error.
     pub fn update_job(&mut self, job: &mut JobRow) -> AppResult<()> {
         job.revision = self.next_revision();
         job.updated_ms = now_ms();
@@ -698,6 +841,11 @@ impl Store {
     /// Delete a job's raster content but keep its metadata row.
     /// Delete a job's print data. `thumbnail` (a PNG of its first page) is the one thing kept, so
     /// the queue can still show what was printed; it goes with the job when the job is deleted.
+    ///
+    /// # Errors
+    ///
+    /// An I/O error removing the job's folder or writing the thumbnail, or a database error saving
+    /// the job; see the [module docs](crate::store).
     pub fn drop_content(&mut self, job: &mut JobRow, thumbnail: Option<&[u8]>) -> AppResult<()> {
         let dir = self.job_dir(&job.id);
         if dir.exists() {
@@ -719,6 +867,12 @@ impl Store {
         fs::read(self.job_dir(job_id).join(THUMBNAIL_FILE)).ok()
     }
 
+    /// Delete a job's print data and its row. An unknown job is not an error.
+    ///
+    /// # Errors
+    ///
+    /// An I/O error removing the job's folder, or a database error; see the
+    /// [module docs](crate::store).
     pub fn delete_job(&mut self, id: &str) -> AppResult<()> {
         let dir = self.job_dir(id);
         if dir.exists() {
@@ -728,6 +882,11 @@ impl Store {
         Ok(())
     }
 
+    /// Bytes of print data kept for jobs that still hold their content.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn retained_content_bytes(&self) -> AppResult<i64> {
         Ok(self.conn.query_row(
             "SELECT COALESCE(SUM((p.width + 7) / 8 * p.height), 0) FROM pages p JOIN jobs j ON j.id = p.job_id
@@ -737,12 +896,22 @@ impl Store {
         )?)
     }
 
+    /// How many jobs still hold their print data.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn count_jobs_with_content(&self) -> AppResult<i64> {
         Ok(self.conn.query_row("SELECT COUNT(*) FROM jobs WHERE content_retained = 1", [], |r| r.get(0))?)
     }
 
     // ------------------------------------------------------------ attempts & events
 
+    /// Record where an attempt has got to. An unknown attempt ID changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn update_attempt(
         &self,
         attempt_id: &str,
@@ -760,6 +929,11 @@ impl Store {
         Ok(())
     }
 
+    /// Close an attempt with its outcome. An unknown attempt ID changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn finish_attempt(&self, attempt_id: &str, outcome: JobState, error_code: Option<ErrorCode>) -> AppResult<()> {
         let code = error_code.map(|c| serde_json::to_value(c).ok().and_then(|v| v.as_str().map(str::to_owned)));
         self.conn.execute(
@@ -770,6 +944,10 @@ impl Store {
     }
 
     /// Content-free operational event.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn add_event(&self, attempt_id: &str, kind: &str, details: &str) -> AppResult<()> {
         self.conn.execute(
             "INSERT INTO events (attempt_id, at_ms, kind, details) VALUES (?1, ?2, ?3, ?4)",
@@ -781,6 +959,10 @@ impl Store {
     // ------------------------------------------------------------ lifecycle
 
     /// Test seam: leave a transaction open, as a panic mid-transaction without rollback would.
+    ///
+    /// # Panics
+    ///
+    /// When a transaction is already open, because SQLite then refuses the second `BEGIN`.
     #[cfg(feature = "fault-injection")]
     pub fn inject_open_transaction(&self) {
         self.conn.execute_batch("BEGIN").expect("begin");
@@ -795,6 +977,10 @@ impl Store {
     /// Mark a job that was claimed when its worker failed as uncertain, and close its newest
     /// attempt the same way. A checked transition: `None` means the job is not active (never
     /// claimed, or already finished), so there is nothing to reconcile. Never requeues.
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn mark_active_uncertain(&mut self, job_id: &str, message: &str) -> AppResult<Option<JobRow>> {
         let Some(mut job) = self.get_job(job_id)? else { return Ok(None) };
         if !job.state.is_active() {
@@ -814,6 +1000,10 @@ impl Store {
 
     /// Conservative restart recovery: active attempts become Uncertain (never replayed);
     /// queued jobs become Held until the user resumes. Returns (uncertain, held).
+    ///
+    /// # Errors
+    ///
+    /// A database error; see the [module docs](crate::store).
     pub fn recover_after_restart(&mut self) -> AppResult<(usize, usize)> {
         let jobs = self.list_jobs(10_000)?;
         let (mut uncertain, mut held) = (0, 0);
@@ -843,6 +1033,11 @@ impl Store {
     /// Apply retention: completed content is deleted on completion (by the job service);
     /// failed/uncertain/cancelled content is kept for recovery up to 7 days; terminal
     /// metadata is kept for 30 days.
+    ///
+    /// # Errors
+    ///
+    /// A database error, or an I/O error removing a job's folder; see the
+    /// [module docs](crate::store).
     pub fn apply_retention(&mut self, now: i64) -> AppResult<()> {
         for mut job in self.list_jobs(100_000)? {
             if !job.state.is_terminal() {

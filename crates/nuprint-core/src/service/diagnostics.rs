@@ -27,6 +27,12 @@ impl AppService {
 
     // ------------------------------------------------------------ diagnostics
 
+    /// Collect the diagnostics report. Without `include_identifiers`, names, device IDs, titles and
+    /// folder paths are replaced.
+    ///
+    /// # Errors
+    ///
+    /// A storage error from listing printers or jobs.
     pub async fn diagnostics_report(&self, include_identifiers: bool) -> AppResult<DiagnosticsReport> {
         let mut app = self.app_info();
         let mut printers = self.list_printers()?;
@@ -77,6 +83,13 @@ impl AppService {
         })
     }
 
+    /// Write the diagnostics report to `path` as JSON.
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Self::diagnostics_report`], [`crate::ErrorCode::Internal`] when the report cannot be
+    /// serialized, and an I/O error writing `path` ([`crate::ErrorCode::StorageFull`] on a full disk,
+    /// otherwise [`crate::ErrorCode::Internal`]).
     pub async fn export_diagnostics(&self, path: &Path, include_identifiers: bool) -> AppResult<()> {
         self.flush_log_file().await;
         let report = self.diagnostics_report(include_identifiers).await?;

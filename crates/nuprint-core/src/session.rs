@@ -60,6 +60,12 @@ async fn sleep(cancel: &CancellationToken, duration: Duration) -> AppResult<()> 
 
 /// Scan until a device satisfying `matches` advertises, or `timeout` elapses. The scan is
 /// always allowed to finish its own cleanup (the BLE backend stops scanning) before returning.
+///
+/// # Errors
+///
+/// [`ErrorCode::Cancelled`] when `cancel` fires first and [`ErrorCode::DeviceNotFound`] when the
+/// scan ends without a match. The scan's own failure (adapter off or absent, permission
+/// denied) is returned when nothing matched. A match wins over a later scan error.
 pub async fn locate(
     transport: &dyn Transport,
     timeout: Duration,
@@ -118,6 +124,14 @@ pub struct PrinterSession {
 
 impl PrinterSession {
     /// Connect, bind the profile's endpoints and subscribe to status notifications.
+    ///
+    /// # Errors
+    ///
+    /// Connection errors from the transport (such as [`ErrorCode::DeviceNotFound`],
+    /// [`ErrorCode::ConnectionFailed`] or [`ErrorCode::Cancelled`]). [`ErrorCode::ServiceMismatch`]
+    /// when the device lacks the profile's print service or enough status notification channels.
+    /// [`ErrorCode::ConnectionFailed`] when subscribing times out or the link reports a write size of
+    /// zero. The link is disconnected again after any failure.
     pub async fn open(
         transport: &dyn Transport,
         resolved: &ResolvedProfile,
@@ -336,6 +350,12 @@ impl PrinterSession {
     }
 
     /// Send the profile's status query and require a fresh, valid reply.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::StatusTimeout`] when the model has no status query or no fresh, valid reply
+    /// arrives within `timeout` (or the notification stream closes), [`ErrorCode::Cancelled`] when
+    /// `cancel` fires, and transport errors from sending the query.
     pub async fn query_status(&mut self, timeout: Duration, cancel: &CancellationToken) -> AppResult<StatusReport> {
         let Some(query) = self.resolved.driver.status_query() else {
             return Err(AppError::new(ErrorCode::StatusTimeout, "This printer model does not report status"));
@@ -363,8 +383,11 @@ impl PrinterSession {
     ///
     /// [`ErrorCode::Cancelled`] when `cancel` fires, a printer fault code (paper out, cover open,
     /// overheated, low power or busy) from a status check or between chunks,
-    /// [`ErrorCode::BufferTimeout`] when flow control stays paused too long, and transport
-    /// failures such as a disconnect or write timeout. A plan is never replayed after an error.
+    /// [`ErrorCode::BufferTimeout`] when flow control stays paused too long,
+    /// [`ErrorCode::StatusTimeout`] when a status query goes unanswered,
+    /// [`ErrorCode::OutcomeUncertain`] when the printer is not ready again by the end of a
+    /// ready wait, and transport failures such as a disconnect or write timeout. A plan is never
+    /// replayed after an error.
     pub async fn execute(
         &mut self,
         plan: &ExchangePlan,
@@ -421,6 +444,11 @@ impl PrinterSession {
     }
 
     /// Read-only diagnostics: driver queries (best effort) plus a required fresh status.
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Self::query_status`], and the send error of a diagnostic query the driver
+    /// marks as required. Failures of optional queries are ignored.
     pub async fn diagnose(&mut self, cancel: &CancellationToken) -> AppResult<StatusReport> {
         for query in self.resolved.driver.diagnostic_queries() {
             if let Err(error) = self.send(&query.bytes, false, cancel, &mut |_| {}).await

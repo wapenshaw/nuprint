@@ -127,6 +127,10 @@ impl Default for CleanupGate {
 #[cfg(feature = "fault-injection")]
 impl CleanupGate {
     /// Resolves once the dispatcher is held at the gate.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: the gate's semaphore is never closed.
     pub async fn wait_reached(&self) {
         self.reached.acquire().await.expect("gate is never closed").forget();
     }
@@ -391,6 +395,11 @@ impl AppService {
 
     /// Test seam: a thread panics while holding the store lock with a transaction left open,
     /// the one state `Store::is_consistent` rejects.
+    ///
+    /// # Panics
+    ///
+    /// The injected panic happens on a helper thread that this call joins, so it does not
+    /// propagate; the caller returns normally.
     #[cfg(feature = "fault-injection")]
     pub fn inject_store_corruption(&self) {
         let inner = self.inner.clone();

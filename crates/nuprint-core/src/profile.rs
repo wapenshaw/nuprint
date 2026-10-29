@@ -219,6 +219,12 @@ pub struct BoundEndpoints {
 }
 
 impl ModelProfile {
+    /// Parse and validate a profile document.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`] when the JSON is not a profile (unknown or missing fields) or fails
+    /// [`Self::validate`].
     pub fn parse(json: &str) -> AppResult<Self> {
         let profile: ModelProfile = serde_json::from_str(json)
             .map_err(|e| AppError::new(ErrorCode::Internal, "Printer profile is invalid").with_detail(e.to_string()))?;
@@ -231,6 +237,15 @@ impl ModelProfile {
             .with_detail(why.to_owned())
     }
 
+    /// Check that a profile is internally consistent and that its driver accepts it.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`], with the first problem in `detail`: an unsupported schema version, a
+    /// missing ID, revision or name prefix, inconsistent transport endpoints or chunk ceiling, raster
+    /// dimensions that are zero or beyond what can be rendered, no copies allowed, driver
+    /// parameters the driver rejects or that disagree with the raster, or a default density the
+    /// driver does not offer.
     pub fn validate(&self) -> AppResult<()> {
         if self.schema_version != SCHEMA_VERSION {
             return Err(self.invalid("unsupported schema_version"));
@@ -287,7 +302,8 @@ impl ModelProfile {
     /// # Errors
     ///
     /// [`ErrorCode::InvalidInput`] when `doc` is not an object, names a key outside the
-    /// editable set, or produces values that fail validation or the edit limits.
+    /// editable set, or produces values that fail validation or the edit limits, and
+    /// [`ErrorCode::Internal`] if `base` itself cannot be serialized.
     pub fn customized(base: &ModelProfile, doc: &serde_json::Value, id: String, revision: u32) -> AppResult<Self> {
         let invalid = |msg: String| AppError::new(ErrorCode::InvalidInput, msg);
         let serde_json::Value::Object(edits) = doc else {
@@ -381,6 +397,11 @@ impl ModelProfile {
     }
 
     /// Instantiate the built-in driver named by `protocol.id`.
+    ///
+    /// # Errors
+    ///
+    /// A message when there is no built-in driver for the profile's protocol and version, or the
+    /// driver rejects its `driver` parameters.
     pub fn driver(&self) -> Result<Arc<dyn PrinterDriver>, String> {
         match self.protocol.id.as_str() {
             iprint::PROTOCOL_ID if self.protocol.version == iprint::PROTOCOL_VERSION => {
@@ -419,6 +440,11 @@ impl ModelProfile {
     }
 
     /// Check required endpoints on a connected device without writing anything.
+    ///
+    /// # Errors
+    ///
+    /// A message naming the services when none of the profile's services has its write
+    /// characteristic with a property that can be written.
     pub fn bind(&self, services: &[ServiceInfo]) -> Result<BoundEndpoints, String> {
         let t = &self.transport;
         for service in services.iter().filter(|s| t.services.contains(&s.uuid)) {
@@ -492,6 +518,11 @@ impl ResolvedProfile {
     }
 
     /// Reject darkness, extra feed or copies this printer does not accept.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::InvalidInput`] when the density is not offered, the feed is outside the
+    /// driver's range, or `copies` is zero or above the profile's limit.
     pub fn check_job_options(&self, density: Density, feed_mm: u16, copies: Option<u16>) -> AppResult<()> {
         if !self.driver.densities().contains(&density) {
             return Err(AppError::invalid("That darkness setting is not available for this printer."));
@@ -529,10 +560,21 @@ pub struct ProfileRegistry {
 }
 
 impl ProfileRegistry {
+    /// The registry of the profiles embedded at build time.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`] when an embedded profile is invalid, two share an ID, or two name
+    /// prefixes overlap. That is a broken build, which the tests catch.
     pub fn builtin() -> AppResult<Self> {
         Self::from_json(BUILTIN_PROFILES.iter().copied(), std::env::consts::OS)
     }
 
+    /// A registry built from profile documents, for tests and the built-in set.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::builtin`], for the given documents.
     pub fn from_json<'a>(sources: impl IntoIterator<Item = &'a str>, os: &str) -> AppResult<Self> {
         let mut profiles = BTreeMap::new();
         for json in sources {
