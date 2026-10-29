@@ -110,7 +110,7 @@ fn decode_gray(
     decoder.set_limits(limits).map_err(decode_err)?;
     let mut image = DynamicImage::from_decoder(decoder).map_err(decode_err)?;
     image.apply_orientation(orientation);
-    Ok(composite_on_white(&image))
+    Ok(composite_on_white(image))
 }
 
 /// Render a picture file (PNG, JPEG, BMP, GIF, WebP, TIFF) at the target width.
@@ -183,7 +183,7 @@ pub fn decode_png_mono(bytes: &[u8]) -> Result<MonoBitmap, RenderError> {
     let (width, height) = decoder.dimensions();
     check_pixels(width, height)?;
     let image = DynamicImage::from_decoder(decoder).map_err(decode_err)?;
-    let gray = composite_on_white(&image);
+    let gray = composite_on_white(image);
     MonoBitmap::from_fn(width, height, |x, y| gray.get_pixel(x, y).0[0] < 128)
         .map_err(|e| RenderError::Decode(e.to_string()))
 }

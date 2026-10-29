@@ -2,7 +2,7 @@
 //! brightness/contrast, then reduce to the canonical bitmap.
 
 use image::imageops::{self, FilterType};
-use image::{DynamicImage, GrayImage, RgbaImage};
+use image::{DynamicImage, GrayImage};
 use nuprint_protocol::MonoBitmap;
 
 use crate::{ImageParams, RenderError, RenderOutput, RenderTarget, RenderWarning, Rotation, Tone};
@@ -98,18 +98,32 @@ fn atkinson(gray: &GrayImage) -> MonoBitmap {
     bitmap
 }
 
-/// Rec. 601 luma of each pixel composited over white.
-pub(crate) fn composite_on_white(image: &DynamicImage) -> GrayImage {
-    let rgba: RgbaImage = image.to_rgba8();
-    let (width, height) = rgba.dimensions();
-    let mut out = Vec::with_capacity(width as usize * height as usize);
-    for pixel in rgba.pixels() {
-        let [r, g, b, a] = pixel.0;
-        let luma = (299 * u32::from(r) + 587 * u32::from(g) + 114 * u32::from(b)) / 1000;
-        let alpha = u32::from(a);
-        out.push(((luma * alpha + 255 * (255 - alpha) + 127) / 255) as u8);
-    }
+/// Rec. 601 luma of each pixel composited over white. Eight-bit images are read where they are
+/// and an opaque grey one is returned as is; other formats are converted to RGBA first. Every
+/// path gives the same value the RGBA conversion would.
+pub(crate) fn composite_on_white(image: DynamicImage) -> GrayImage {
+    let (width, height) = (image.width(), image.height());
+    let out: Vec<u8> = match image {
+        DynamicImage::ImageLuma8(gray) => return gray,
+        DynamicImage::ImageLumaA8(image) => image.pixels().map(|p| over_white(u32::from(p.0[0]), p.0[1])).collect(),
+        DynamicImage::ImageRgb8(image) => image.pixels().map(|p| luma(p.0) as u8).collect(),
+        DynamicImage::ImageRgba8(image) => image.pixels().map(|p| rgba_over_white(p.0)).collect(),
+        other => other.to_rgba8().pixels().map(|p| rgba_over_white(p.0)).collect(),
+    };
     GrayImage::from_raw(width, height, out).expect("buffer length matches dimensions")
+}
+
+fn luma([r, g, b]: [u8; 3]) -> u32 {
+    (299 * u32::from(r) + 587 * u32::from(g) + 114 * u32::from(b)) / 1000
+}
+
+fn rgba_over_white([r, g, b, a]: [u8; 4]) -> u8 {
+    over_white(luma([r, g, b]), a)
+}
+
+fn over_white(luma: u32, alpha: u8) -> u8 {
+    let alpha = u32::from(alpha);
+    ((luma * alpha + 255 * (255 - alpha) + 127) / 255) as u8
 }
 
 pub(crate) fn rotate(gray: GrayImage, rotation: Rotation) -> GrayImage {
@@ -179,4 +193,53 @@ pub(crate) fn with_blank_warning(bitmap: MonoBitmap, mut warnings: Vec<RenderWar
         warnings.push(RenderWarning::BlankOutput);
     }
     RenderOutput { bitmap, warnings }
+}
+
+#[cfg(test)]
+mod tests {
+    use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
+
+    use super::composite_on_white;
+
+    /// The conversion every format went through before eight-bit images were read in place.
+    fn through_rgba(image: &DynamicImage) -> Vec<u8> {
+        let rgba: RgbaImage = image.to_rgba8();
+        rgba.pixels()
+            .map(|p| {
+                let [r, g, b, a] = p.0;
+                let luma = (299 * u32::from(r) + 587 * u32::from(g) + 114 * u32::from(b)) / 1000;
+                let alpha = u32::from(a);
+                ((luma * alpha + 255 * (255 - alpha) + 127) / 255) as u8
+            })
+            .collect()
+    }
+
+    #[test]
+    fn every_pixel_format_composites_like_the_rgba_conversion() {
+        // Every channel value against a spread of alpha values, including 0 and 255.
+        let source = ImageBuffer::from_fn(256, 16, |x, y| {
+            let v = x as u8;
+            Rgba([v, v.wrapping_mul(7), v.wrapping_add(91), (y * 17) as u8])
+        });
+        let rgba = DynamicImage::ImageRgba8(source);
+        let formats = [
+            rgba.clone(),
+            DynamicImage::ImageRgb8(rgba.to_rgb8()),
+            DynamicImage::ImageLuma8(rgba.to_luma8()),
+            DynamicImage::ImageLumaA8(rgba.to_luma_alpha8()),
+            DynamicImage::ImageRgba16(rgba.to_rgba16()),
+            DynamicImage::ImageRgb16(rgba.to_rgb16()),
+            DynamicImage::ImageLuma16(rgba.to_luma16()),
+            DynamicImage::ImageLumaA16(rgba.to_luma_alpha16()),
+            DynamicImage::ImageRgb32F(rgba.to_rgb32f()),
+            DynamicImage::ImageRgba32F(rgba.to_rgba32f()),
+        ];
+        for image in formats {
+            let expected = through_rgba(&image);
+            let color = image.color();
+            let gray = composite_on_white(image);
+            assert_eq!(gray.dimensions(), (256, 16), "{color:?}");
+            assert_eq!(gray.into_raw(), expected, "{color:?}");
+        }
+    }
 }

@@ -213,7 +213,7 @@ impl PdfEngine {
             .render_form_data(true);
         let bitmap = page.render_with_config(&config).map_err(pdf_err)?;
         let image: DynamicImage = bitmap.as_image().map_err(pdf_err)?;
-        Ok((composite_on_white(&image), view_w))
+        Ok((composite_on_white(image), view_w))
     }
 }
 
