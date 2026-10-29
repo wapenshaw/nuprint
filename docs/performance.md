@@ -192,6 +192,37 @@ These are inferences from the numbers above, not verified outcomes. Set workload
 - Those costs are small beside the physical transfer. The SC03h profile sets 25 ms between chunks of at most 180 bytes plus 250 ms every 4,096 bytes; for one 4,000-row page (192 KB) that works out to roughly 40 s per copy (derived from the profile values, not measured). A saving of 5 ms per copy would not change print time.
 - So step 6 is worth doing for allocation and retained-memory hygiene only if a target is set on bytes or allocation counts (for example, allocations scaling with unique page variants rather than copies), and the plan's rule applies: if that target is not worth the added complexity, record the optimisation as measured and deferred.
 
+## Measured after steps 2 and 4
+
+The plan merges a slice only if it clearly beats the baseline above. Both did. Same machine and toolchain, release builds, PDFium as above. Each side was built in its own target directory: an earlier attempt that shared one target directory between two worktrees ran the same binary twice, and showed no difference.
+
+### Step 2, bounded rendering (`74b64f7`)
+
+Two passes of the burst section, the baseline binary and the render-queue binary run alternately. Values are the two passes' medians.
+
+| Burst | latest ms, before | latest ms, after | late stale, before | late stale, after | peak WS MiB, before | peak WS MiB, after |
+| --- | --- | --- | --- | --- | --- | --- |
+| text 2,000 chars, 20 at once | 11.4 / 7.40 | 1.98 / 1.97 | 12 / 11 | 0 / 0 | 31 | 29 to 31 |
+| text 2,000 chars, 100 at once | 39.7 / 42.8 | 1.79 / 1.84 | 57 / 63 | 0 / 0 | 31 | 29 to 31 |
+| text 2,000 chars, 100 at 5 ms spacing | 1.30 / 2.69 | 1.20 / 1.22 | 0 / 0 | 0 / 0 | 31 | 29 to 31 |
+| image 4 MP, 20 at once | 107 / 101 | 127 / 127 | 12 / 11 | 1 / 1 | 280 / 301 | 45 / 45 |
+| image 4 MP, 100 at once | 178 / 155 | 129 / 127 | 35 / 32 | 1 / 1 | 806 / 665 | 45 / 45 |
+| image 36 MP, 20 at once | 790 / 808 | 1,046 / 529 | 12 / 10 | 1 / 0 | 2,505 / 2,113 | 227 / 227 |
+
+- Peak memory for a burst of large images now stays at one render's footprint: 227 MiB for twenty 36 MP images, against 2.1 to 2.5 GB before. Full renders that were thrown away dropped from up to 63 per burst to at most one.
+- The newest preview can now wait for the one render already running. For one 4 MP burst that made it slower (about 104 ms before, 127 ms after); for 36 MP the newest preview took 529 or 1,046 ms depending on how far the running render had got, against about 800 ms before. The step 1 target of "one render plus queueing" (about 0.5 s for 36 MP) is met only when no render is in flight.
+
+### Step 4, persistent log writer (`cb0a401`)
+
+One pass of the logging section at `bb6e479`.
+
+| Case | median µs, before | median µs, after | p99 µs, before | p99 µs, after | 60,000-line burst, before | after |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| file, ordinary volume | about 115 | 0.4 | about 500 | 1.9 | | |
+| file, burst crossing rotation | about 115 | 0.4 | about 500 | 0.7 | 8 to 9.5 s | 27 ms |
+
+The calling thread no longer opens the file, so the occasional 8 to 10 ms stalls are gone (the largest single call in this pass was 28 µs). The harness does not report how many lines the bounded buffer dropped during the burst.
+
 ## Limits of these results
 
 - One machine, one OS, two passes, with other processes active. Treat differences below about 20% as noise.

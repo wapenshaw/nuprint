@@ -199,16 +199,18 @@ Completion means the selected slices meet their acceptance criteria and remainin
 
 ## Progress
 
-Updated as slices land. Steps 1, 2, 4, 5 (increment A) and the doctest half of step 8 started in parallel on 2026-10-29, each on its own branch from the baseline, to be merged one slice at a time.
+Updated as slices land. Steps 1, 2, 4, 5 (increment A) and the doctest half of step 8 started in parallel on 2026-10-29, each on its own branch from the baseline, and were merged one slice at a time. Steps 2 and 4 started before the step 1 baseline existed, so each was merged only after it clearly beat that baseline ([results](performance.md#measured-after-steps-2-and-4)).
 
 | Step | Status | Commits |
 | --- | --- | --- |
-| 0 | Owner smoke tests recorded; backlog reconciliation and validation entry in progress | — |
-| 1 | In progress | — |
-| 2 | In progress | — |
-| 3 | Not started; waits for step 1 measurements | — |
-| 4 | In progress | — |
-| 5 | Increment A in progress; increment B not started | — |
-| 6 | Not started; waits for steps 1 and 3 | — |
-| 7 | Not started; waits for steps 2–6 | — |
-| 8 | Doctests in progress; lints wait for step 7 | — |
+| 0 | Done: owner smoke tests, backlog reconciliation and validation entries recorded | `6ee98e3` |
+| 1 | Done: release harness and baseline | `c85a4b3`, `15efde6` |
+| 2 | Done: one active and one pending render; peak memory for a large-image burst fell about tenfold. The newest image can wait for the render in flight | `74b64f7` |
+| 3 | Not started. Measured store calls are short; the open question is the Slint UI thread, which was not measured | — |
+| 4 | Done: persistent writer; about 0.4 µs per line on the caller, against about 115 µs | `cb0a401`, `da36b85` |
+| 5 | Increment A done (the queue stops and says so when the dispatcher fails); increment B not started. Untested: the `DispatcherStopped` and `StorageInvalid` paths, and a timed-out shutdown keeping ownership | `0d9e58c`, `a69f437` |
+| 6 | Not started. Likely deferred: an extra copy costs about 5 ms of CPU against roughly 40 s of paced transfer | — |
+| 7 | Not started; ownership from steps 2–5 is now settled | — |
+| 8 | Doctests done (18 run, 1 compile-only); lints wait for step 7 | `acb4eb3`, `ba2dc3f`, `f7f99e2`, `fc05b4b`, `e178d5d` |
+
+Poisoned-lock recovery now also covers the log ring (`da36b85`) and the PDF engine slot (`bb6e479`).
