@@ -136,9 +136,15 @@ function applyScanEvent(scan: ScanState, event: AppEvent): ScanState {
   return { ...scan, status: "finished", found: event.found, error: event.error ?? null };
 }
 
-function appendLog(logs: LogLine[], line: LogLine): LogLine[] {
-  if (logs.some((l) => l.seq === line.seq)) return logs;
-  const next = [...logs, line];
+/**
+ * Add a log line in sequence order. Two threads logging at once can deliver the later line first,
+ * so a late line is placed by its sequence number, and a line already in the log is skipped.
+ */
+export function appendLog(logs: LogLine[], line: LogLine): LogLine[] {
+  let at = logs.length;
+  while (at > 0 && logs[at - 1]!.seq > line.seq) at--;
+  if (logs[at - 1]?.seq === line.seq) return logs;
+  const next = [...logs.slice(0, at), line, ...logs.slice(at)];
   return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
 }
 
