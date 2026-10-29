@@ -210,7 +210,9 @@ Updated as slices land. Steps 1, 2, 4, 5 (increment A) and the doctest half of s
 | 4 | Done: persistent writer; about 0.4 µs per line on the caller, against about 115 µs | `cb0a401`, `da36b85` |
 | 5 | Increment A done and tested, including a stopped dispatcher, invalid storage and a timed-out shutdown keeping the data folder. Increment B deferred: no session owner yet outlives a failed job task to prove the connection closed, so recovery stays "restart the app" | `0d9e58c`, `a69f437`, `044ceb4` |
 | 6 | Measured and deferred: an extra copy costs about 5 ms of CPU against roughly 40 s of paced transfer ([why](performance.md#decisions-from-the-measurements)) | — |
-| 7 | Not started; ownership from steps 2–6 is now settled | — |
-| 8 | Doctests done (18 run, 1 compile-only); lints wait for step 7 | `acb4eb3`, `ba2dc3f`, `f7f99e2`, `fc05b4b`, `e178d5d` |
+| 7 | Done as pure moves: `service.rs` went from about 2,280 lines to 470, with previews, printers, queue, dispatch, logging, diagnostics and lifecycle in private `service/` modules; the Slint `main.rs` went from about 1,830 lines to 24, split into bootstrap, state, view, context, sync, preview, events and per-feature callbacks. Native Tauri and Slint smoke checks after the moves are pending | `9efe11a`…`350e79e`, `1ea8114`…`a8e1f83` |
+| 8 | Done in stages. Doctests: 18 run, 1 compile-only. All seven members inherit `[workspace.lints]` (`await_holding_lock`, `large_enum_variant`, `needless_collect`, `redundant_clone`, rustdoc broken links), with one stated exception in the PDF concurrency test. `missing_errors_doc` and `missing_panics_doc` are enforced in protocol, render and transport; core (about 80 missing sections, mostly store and service) and the apps are the next stage | `acb4eb3`…`e178d5d`, `de2fd16`, `a7ed136`, `ae3a130` |
 
-Poisoned-lock recovery now also covers the log ring (`da36b85`) and the PDF engine slot (`bb6e479`).
+Poisoned-lock recovery now also covers the log ring (`da36b85`), the PDF engine slot (`bb6e479`), and the log writer and BLE device cache (`053a9f1`); no production lock in core or transport unwraps.
+
+Still open after these slices, by design or for lack of hardware: step 0's macOS and Linux preview installers and the non-printing cancellation session on hardware; step 2's optional `composite_on_white` copy; step 4's Slint log-model batching, which was not measured; step 5 increment B; step 6; and the core/app stage of the documentation lints.
