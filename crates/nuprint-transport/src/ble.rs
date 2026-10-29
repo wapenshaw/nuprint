@@ -24,6 +24,13 @@ use crate::{
     ServiceInfo, Transport, TransportError, TransportKind, WriteMode,
 };
 
+/// On Windows, a scan started just after one that was stopped within its first 100 ms or so can
+/// stay silent, with no error, until it is stopped again: on hardware it heard nothing from any
+/// device for 30 s, where a working scan hears its first device within a second. A scan that has
+/// heard nothing at all by this point is restarted.
+const SILENT_SCAN_RESTART: Duration = Duration::from_secs(2);
+const SCAN_RESTART_PAUSE: Duration = Duration::from_millis(250);
+
 fn map_err(error: btleplug::Error) -> TransportError {
     match error {
         btleplug::Error::PermissionDenied => TransportError::PermissionDenied,
@@ -187,12 +194,27 @@ impl Transport for BleTransport {
         adapter.start_scan(ScanFilter::default()).await.map_err(map_err)?;
         let deadline = tokio::time::sleep(duration);
         tokio::pin!(deadline);
+        let silent = tokio::time::sleep(SILENT_SCAN_RESTART);
+        tokio::pin!(silent);
+        let mut heard = !cfg!(windows);
         let result = loop {
             tokio::select! {
                 _ = &mut deadline => break Ok(()),
                 _ = cancel.cancelled() => break Ok(()),
+                _ = &mut silent, if !heard => {
+                    warn!("no advertisements in {SILENT_SCAN_RESTART:?}; restarting the scan");
+                    if let Err(error) = adapter.stop_scan().await {
+                        warn!("stop_scan failed: {error}");
+                    }
+                    tokio::time::sleep(SCAN_RESTART_PAUSE).await;
+                    if let Err(error) = adapter.start_scan(ScanFilter::default()).await {
+                        break Err(map_err(error));
+                    }
+                    silent.as_mut().reset(tokio::time::Instant::now() + SILENT_SCAN_RESTART);
+                }
                 event = events.next() => {
                     let Some(event) = event else { break Ok(()) };
+                    heard = true;
                     let id = match event {
                         CentralEvent::DeviceDiscovered(id)
                         | CentralEvent::DeviceUpdated(id)
