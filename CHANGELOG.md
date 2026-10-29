@@ -5,6 +5,16 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.1.0](https://github.com/wapenshaw/nuprint/compare/v1.0.1...v1.1.0) (2026-10-29)
+
+
+### Features
+
+* **core:** describe newer releases for the update check ([63240ef](https://github.com/wapenshaw/nuprint/commit/63240ef519eb61cde9cff7285c929d041bc354ba))
+* **core:** guard job dispatch during update installation ([d2cd283](https://github.com/wapenshaw/nuprint/commit/d2cd283dd1d36244fa33845f7a9a2b4b982dece5))
+* **slint:** check and install version-bound signed updates ([ab9f236](https://github.com/wapenshaw/nuprint/commit/ab9f236855381184ad4f7aa68e5057fc82e354ab))
+* **tauri:** check and install signed updates ([d490585](https://github.com/wapenshaw/nuprint/commit/d4905854bc9f6904aad75e4df782ae15afcaa045))
+
 ## [1.0.1](https://github.com/wapenshaw/nuprint/compare/v1.0.0...v1.0.1) (2026-10-29)
 
 
