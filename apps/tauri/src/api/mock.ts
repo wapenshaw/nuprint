@@ -25,7 +25,18 @@ import type { ProfileSummary } from "../bindings/ProfileSummary";
 import type { QueueSnapshot } from "../bindings/QueueSnapshot";
 import type { SavedPrinter } from "../bindings/SavedPrinter";
 import type { SourceInfo } from "../bindings/SourceInfo";
+import type { UpdateInfo } from "../bindings/UpdateInfo";
+import { isActive } from "../lib/labels";
 import type { Backend } from "./types";
+
+/** A newer release, as a check finds it (`?mock=update` in the browser). */
+export const SAMPLE_UPDATE: UpdateInfo = {
+  version: "1.2.0",
+  current_version: "1.0.0-mock",
+  notes: "Features\n• Check for updates and install them from Settings\n\nBug fixes\n• Keep log lines that arrive out of order",
+  release_url: "https://github.com/wapenshaw/nuprint/releases/tag/v1.2.0",
+  can_install: true,
+};
 
 export interface MockOptions {
   /** Start with one saved, selected printer (default true). */
@@ -47,6 +58,8 @@ export interface MockOptions {
   openPath?: string | null;
   /** Path returned by the save dialog (null simulates cancel). */
   savePath?: string | null;
+  /** What a check for updates finds (default: nothing newer). */
+  update?: UpdateInfo | null;
 }
 
 export interface MockBackend extends Backend {
@@ -67,6 +80,9 @@ export interface MockBackend extends Backend {
     cancel: string[];
     savePng: { snapshotId: string; path: string }[];
     exportDiagnostics: { includeIdentifiers: boolean }[];
+    checkForUpdate: number;
+    installUpdate: number;
+    openReleasePage: number;
   };
   readonly options: Required<Omit<MockOptions, "previewLatencyMs">> & Pick<MockOptions, "previewLatencyMs">;
   /** Insert a job directly into the queue and notify subscribers. */
@@ -153,6 +169,7 @@ export function createMockBackend(opts: MockOptions = {}): MockBackend {
     openPath: opts.openPath === undefined ? "C:\\Users\\you\\Pictures\\sample-photo.png" : opts.openPath,
     savePath: opts.savePath === undefined ? "C:\\Users\\you\\Documents\\nuprint-preview.png" : opts.savePath,
     previewLatencyMs: opts.previewLatencyMs,
+    update: opts.update ?? null,
   };
 
   const handlers = new Set<(e: AppEvent) => void>();
@@ -181,6 +198,9 @@ export function createMockBackend(opts: MockOptions = {}): MockBackend {
     cancel: [],
     savePng: [],
     exportDiagnostics: [],
+    checkForUpdate: 0,
+    installUpdate: 0,
+    openReleasePage: 0,
   };
 
   let printers: SavedPrinter[] = [];
@@ -912,6 +932,23 @@ export function createMockBackend(opts: MockOptions = {}): MockBackend {
       if (!options.savePath) return false;
       calls.exportDiagnostics.push({ includeIdentifiers });
       return true;
+    },
+
+    async checkForUpdate() {
+      await sleep(options.latencyMs);
+      calls.checkForUpdate += 1;
+      return options.update;
+    },
+    async installUpdate() {
+      await sleep(options.latencyMs);
+      if (!options.update) throw err("not_found", "Check for updates first.");
+      if (jobs.some((j) => isActive(j.state))) {
+        throw err("printer_busy", "A job is printing. Install the update when it has finished.");
+      }
+      calls.installUpdate += 1;
+    },
+    async openReleasePage() {
+      calls.openReleasePage += 1;
     },
 
     async subscribe(handler) {

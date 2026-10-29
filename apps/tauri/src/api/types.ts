@@ -19,6 +19,7 @@ import type { SavedPrinter } from "../bindings/SavedPrinter";
 import type { ScanStarted } from "../bindings/ScanStarted";
 import type { SourceInfo } from "../bindings/SourceInfo";
 import type { StartScanRequest } from "../bindings/StartScanRequest";
+import type { UpdateInfo } from "../bindings/UpdateInfo";
 
 export type Unsubscribe = () => void;
 
@@ -85,6 +86,13 @@ export interface Backend {
   diagnosticsReport(includeIdentifiers: boolean): Promise<DiagnosticsReport>;
   /** Rust shows the native save dialog; false when cancelled. */
   exportDiagnostics(includeIdentifiers: boolean): Promise<boolean>;
+
+  /** Asks for the newest release; null when this is it. Only ever called because the user asked. */
+  checkForUpdate(): Promise<UpdateInfo | null>;
+  /** Downloads the update the last check found, installs it and restarts. Refused while a job prints. */
+  installUpdate(): Promise<void>;
+  /** Opens the release page of the update the last check found in the browser. */
+  openReleasePage(): Promise<void>;
 
   /** Single event channel `nuprint://event`. */
   subscribe(handler: (event: AppEvent) => void): Promise<Unsubscribe>;

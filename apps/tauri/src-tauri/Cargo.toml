@@ -28,6 +28,7 @@ serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "=2.12.5", features = ["image-png"] }
 tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-updater = { version = "=2.14.1", default-features = false, features = ["rustls-tls", "zip"] }
 # Older tauri releases did not compile against newer sibling crates (semver-compatible on
 # paper, API-incompatible in practice). Pin the exact family it was released with.
 tauri-codegen = "=2.7.4"
@@ -38,6 +39,7 @@ tauri-utils = "=2.10.2"
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+webbrowser = "1.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # AppKit, to show the app icon chosen in the header in the Dock. The versions tauri already uses.

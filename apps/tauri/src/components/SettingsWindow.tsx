@@ -3,12 +3,14 @@ import { shortcut } from "../lib/format";
 import { useApp, type SettingsSection } from "../state/AppStore";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { DiagnosticsView } from "./DiagnosticsView";
-import { CloseIcon, PaletteIcon, PrinterIcon, PulseIcon } from "./icons";
+import { CloseIcon, PaletteIcon, PrinterIcon, PulseIcon, UpdateIcon } from "./icons";
 import { PrintersView } from "./PrintersView";
+import { UpdatesSettings } from "./UpdatesSettings";
 
 const SECTIONS: { id: SettingsSection; label: string; icon: () => ReactElement }[] = [
   { id: "printers", label: "Printers", icon: PrinterIcon },
   { id: "appearance", label: "Appearance", icon: PaletteIcon },
+  { id: "updates", label: "Updates", icon: UpdateIcon },
   { id: "diagnostics", label: "Diagnostics", icon: PulseIcon },
 ];
 
@@ -17,7 +19,7 @@ const FOCUSABLE =
 
 /**
  * Settings, over the dimmed window (Ctrl+, or ⌘,): saved printers and finding new ones,
- * appearance, and diagnostics. Modal. Escape closes it unless a dialog inside it is open; those
+ * appearance, updates, and diagnostics. Modal. Escape closes it unless a dialog inside it is open; those
  * dialogs stop the key before it gets here.
  */
 export function SettingsWindow({ section }: { section: SettingsSection }) {
@@ -92,6 +94,7 @@ export function SettingsWindow({ section }: { section: SettingsSection }) {
           </button>
           {section === "printers" ? <PrintersView /> : null}
           {section === "appearance" ? <AppearanceSettings /> : null}
+          {section === "updates" ? <UpdatesSettings /> : null}
           {section === "diagnostics" ? <DiagnosticsView /> : null}
         </div>
       </div>

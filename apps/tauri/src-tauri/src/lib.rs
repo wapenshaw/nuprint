@@ -16,6 +16,8 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, Window};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tokio::sync::oneshot;
 
+mod update;
+
 pub const EVENT_CHANNEL: &str = "nuprint://event";
 
 /// How many NuPrint windows can run at once, each with its own data folder.
@@ -385,6 +387,8 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(update::PendingUpdate::default())
         .register_asynchronous_uri_scheme_protocol(PREVIEW_SCHEME, |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_owned();
@@ -469,6 +473,9 @@ pub fn run() {
             get_logs,
             diagnostics_report,
             export_diagnostics,
+            update::check_for_update,
+            update::install_update,
+            update::open_release_page,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build the NuPrint application");

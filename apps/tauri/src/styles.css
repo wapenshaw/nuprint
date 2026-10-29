@@ -1636,6 +1636,16 @@ progress {
   color: var(--warn-ink);
   font-weight: 700;
 }
+.update-notes {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  white-space: pre-line;
+  line-height: 1.5;
+}
 .report {
   max-height: 320px;
   overflow: auto;
