@@ -768,7 +768,7 @@ impl AppService {
     // ------------------------------------------------------------ app & profiles
 
     fn pdf_engine(&self) -> AppResult<PdfEngine> {
-        let mut pdf = self.inner.pdf.lock().unwrap();
+        let mut pdf = relock(&self.inner.pdf);
         pdf.get_or_insert_with(|| {
             PdfEngine::load(&self.inner.config.pdfium_dirs).map_err(|e| {
                 AppError::new(ErrorCode::PdfUnavailable, "PDF support is unavailable in this build.")
