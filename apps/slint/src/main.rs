@@ -1381,7 +1381,7 @@ fn wire(ui: &AppWindow, ctx: &Ctx) {
             .ok()
             .flatten();
             let Some(path) = picked else { return };
-            match c2.service.save_preview_png(&snapshot, &path) {
+            match c2.service.save_preview_png(&snapshot, &path).await {
                 Ok(()) => c2.notify("Saved the preview as a PNG.", 2, None),
                 Err(e) => c2.fail(&e),
             }

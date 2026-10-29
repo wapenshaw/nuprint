@@ -3,6 +3,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::fs;
+use std::io::Read;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -116,6 +117,32 @@ pub(crate) fn relock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         mutex.clear_poison();
         poisoned.into_inner()
     })
+}
+
+/// Run file I/O on a blocking thread, so a slow or network disk stalls neither the runtime's
+/// workers nor a UI thread awaiting the result.
+async fn blocking_io<T: Send + 'static>(work: impl FnOnce() -> AppResult<T> + Send + 'static) -> AppResult<T> {
+    tokio::task::spawn_blocking(work).await.map_err(AppError::internal)?
+}
+
+/// Read a user-chosen file, never more than the accepted source size, even if the file grew
+/// after its size was checked.
+fn read_source(path: &Path) -> AppResult<Vec<u8>> {
+    let unreadable = |e: std::io::Error| AppError::invalid("That file could not be opened.").with_detail(e.to_string());
+    let meta = fs::metadata(path).map_err(unreadable)?;
+    if !meta.is_file() {
+        return Err(AppError::invalid("Choose a file, not a folder."));
+    }
+    let limit = nuprint_render::MAX_SOURCE_BYTES;
+    if meta.len() > limit {
+        return Err(RenderError::SourceTooLarge { bytes: meta.len(), limit }.into());
+    }
+    let mut bytes = Vec::with_capacity(usize::try_from(meta.len()).unwrap_or(0));
+    fs::File::open(path).map_err(unreadable)?.take(limit + 1).read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit {
+        return Err(RenderError::SourceTooLarge { bytes: bytes.len() as u64, limit }.into());
+    }
+    Ok(bytes)
 }
 
 struct ActiveJob {
@@ -1264,9 +1291,10 @@ impl AppService {
     }
 
     /// Write [`Self::export_printer_profile`] to a file the user chose.
-    pub fn save_printer_profile_file(&self, printer_id: &str, path: &Path) -> AppResult<()> {
-        fs::write(path, self.export_printer_profile(printer_id)?)?;
-        Ok(())
+    pub async fn save_printer_profile_file(&self, printer_id: &str, path: &Path) -> AppResult<()> {
+        let json = self.export_printer_profile(printer_id)?;
+        let path = path.to_path_buf();
+        blocking_io(move || Ok(fs::write(path, json)?)).await
     }
 
     /// Reject darkness, extra feed or copies the profile does not accept, before any work.
@@ -1345,17 +1373,8 @@ impl AppService {
 
     /// Copy a user-selected file into app-managed memory. Only the file name is kept.
     pub async fn import_source(&self, path: &Path) -> AppResult<SourceInfo> {
-        let meta = fs::metadata(path)
-            .map_err(|e| AppError::invalid("That file could not be opened.").with_detail(e.to_string()))?;
-        if !meta.is_file() {
-            return Err(AppError::invalid("Choose a file, not a folder."));
-        }
-        if meta.len() > nuprint_render::MAX_SOURCE_BYTES {
-            return Err(
-                RenderError::SourceTooLarge { bytes: meta.len(), limit: nuprint_render::MAX_SOURCE_BYTES }.into()
-            );
-        }
-        let bytes = Arc::new(fs::read(path)?);
+        let owned = path.to_path_buf();
+        let bytes = Arc::new(blocking_io(move || read_source(&owned)).await?);
         let format = nuprint_render::sniff_format(&bytes).ok_or(RenderError::UnsupportedFormat)?;
         let name = path.file_name().map_or_else(|| "file".into(), |n| n.to_string_lossy().into_owned());
         let (kind, page_count) = if format == SourceFormat::Pdf {
@@ -1378,7 +1397,7 @@ impl AppService {
             (SourceKind::Image, None)
         };
         let info =
-            SourceInfo { source_id: Uuid::new_v4().to_string(), kind, name, bytes: meta.len() as f64, page_count };
+            SourceInfo { source_id: Uuid::new_v4().to_string(), kind, name, bytes: bytes.len() as f64, page_count };
         self.inner.sources.insert(info.source_id.clone(), Source { format, bytes });
         Ok(info)
     }
@@ -1513,10 +1532,10 @@ impl AppService {
         Some(nuprint_render::encode_png(&bitmap))
     }
 
-    pub fn save_preview_png(&self, snapshot_id: &str, path: &Path) -> AppResult<()> {
-        let snapshot = self.snapshot(snapshot_id)?;
-        fs::write(path, snapshot.png.as_slice())?;
-        Ok(())
+    pub async fn save_preview_png(&self, snapshot_id: &str, path: &Path) -> AppResult<()> {
+        let png = self.snapshot(snapshot_id)?.png.clone();
+        let path = path.to_path_buf();
+        blocking_io(move || Ok(fs::write(path, png.as_slice())?)).await
     }
 
     // ------------------------------------------------------------ jobs
@@ -2103,8 +2122,8 @@ impl AppService {
         self.flush_log_file().await;
         let report = self.diagnostics_report(include_identifiers).await?;
         let json = serde_json::to_string_pretty(&report).map_err(AppError::internal)?;
-        fs::write(path, json)?;
-        Ok(())
+        let path = path.to_path_buf();
+        blocking_io(move || Ok(fs::write(path, json)?)).await
     }
 }
 
@@ -2133,6 +2152,50 @@ mod tests {
         let saved = persisted_settings(&text).unwrap();
         assert!(!saved.contains("private note"), "{saved}");
         assert!(saved.contains("size_px"), "{saved}");
+    }
+
+    #[test]
+    fn a_source_is_read_whole_and_never_beyond_the_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(read_source(dir.path()).unwrap_err().message, "Choose a file, not a folder.");
+
+        let small = dir.path().join("small.png");
+        fs::write(&small, b"0123456789").unwrap();
+        assert_eq!(read_source(&small).unwrap(), b"0123456789");
+
+        // Sparse, so this costs no disk space; refused from its size before anything is read.
+        let large = dir.path().join("large.png");
+        fs::File::create(&large).unwrap().set_len(nuprint_render::MAX_SOURCE_BYTES + 1).unwrap();
+        let err = read_source(&large).unwrap_err();
+        assert_eq!(err.code, ErrorCode::RenderInvalid, "{err:?}");
+    }
+
+    #[tokio::test]
+    async fn imports_and_saves_run_off_the_async_workers_with_the_same_results() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ServiceConfig { data_dir: None, pdfium_dirs: vec![], version: "test".into() };
+        let transport = Arc::new(nuprint_transport::mock::MockTransport::new(vec![]));
+        let service = AppService::start(config, transport, Arc::new(|_| {})).unwrap();
+
+        let png = nuprint_render::encode_png(&MonoBitmap::new(8, 8).unwrap());
+        let path = dir.path().join("dot.png");
+        fs::write(&path, &png).unwrap();
+        let info = service.import_source(&path).await.unwrap();
+        assert_eq!((info.kind, info.bytes, info.name.as_str()), (SourceKind::Image, png.len() as f64, "dot.png"));
+
+        let profile_id = service.profiles()[0].id.clone();
+        let preview = service
+            .render_preview(PreviewRequest { generation: 1.0, profile_id, source: SourceSpec::TestPattern })
+            .await
+            .unwrap();
+        let saved = dir.path().join("preview.png");
+        service.save_preview_png(&preview.snapshot_id, &saved).await.unwrap();
+        assert_eq!(fs::read(&saved).unwrap(), *service.preview_png(&preview.snapshot_id).unwrap());
+
+        let report = dir.path().join("report.json");
+        service.export_diagnostics(&report, false).await.unwrap();
+        assert!(fs::read_to_string(&report).unwrap().contains("\"includes_identifiers\""));
+        service.shutdown(Duration::from_secs(5)).await;
     }
 }
 

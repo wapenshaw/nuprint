@@ -439,7 +439,7 @@ impl Runner {
         if let Some(path) = &job.preview {
             let profile = self.preview_profile(&job.target)?;
             let preview = self.render(&profile.id, spec).await?;
-            self.service.save_preview_png(&preview.snapshot_id, path)?;
+            self.service.save_preview_png(&preview.snapshot_id, path).await?;
             if job.target.profile.is_none() {
                 eprintln!("Previewing for {} (choose another with --profile)", profile.display_name);
             }

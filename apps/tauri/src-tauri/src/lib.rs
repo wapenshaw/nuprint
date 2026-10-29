@@ -156,7 +156,7 @@ async fn export_printer_profile(window: Window, svc: State<'_, AppService>, prin
     let Some(path) = pick_save(&window, "Export printer profile", &name, "Printer profile", "json").await? else {
         return Ok(false);
     };
-    svc.save_printer_profile_file(&printer_id, &path).map(|()| true)
+    svc.save_printer_profile_file(&printer_id, &path).await.map(|()| true)
 }
 
 #[tauri::command]
@@ -206,7 +206,7 @@ async fn save_preview_png(window: Window, svc: State<'_, AppService>, snapshot_i
     let Some(path) = pick_save(&window, "Save preview", "nuprint-preview.png", "PNG image", "png").await? else {
         return Ok(false);
     };
-    svc.save_preview_png(&snapshot_id, &path).map(|()| true)
+    svc.save_preview_png(&snapshot_id, &path).await.map(|()| true)
 }
 
 #[tauri::command]
