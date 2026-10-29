@@ -129,7 +129,7 @@ impl LogWriter {
     /// A full queue drops work instead of blocking: an incoming information/debug line is turned
     /// away; an incoming warning or error evicts the oldest information/debug line, or the oldest
     /// line when everything queued is important. Every loss is added to a counter that the writer
-    /// reports in the file and in the in-memory log.
+    /// reports in the file and in the in-memory log (and so the diagnostics export).
     pub(crate) fn submit(&self, level: LogLevel, mut text: String) {
         let important = matches!(level, LogLevel::Warn | LogLevel::Error);
         if text.len() > MAX_LINE_BYTES {
@@ -261,6 +261,12 @@ fn run(shared: Arc<Shared>, mut sink: impl LogSink) {
                 s = shared.work.wait(s).unwrap_or_else(|p| p.into_inner());
             }
             if s.queue.is_empty() && s.dropped == 0 && s.closed {
+                drop(s);
+                // Losses the file never got to report, because it was failing until the end.
+                if unreported > 0 {
+                    notify(&shared, LogLevel::Warn, lost_lines(unreported));
+                }
+                let mut s = lock(&shared.state);
                 s.finished = true;
                 drop(s);
                 shared.progress.notify_all();
@@ -280,13 +286,18 @@ fn run(shared: Arc<Shared>, mut sink: impl LogSink) {
         } else {
             write_batch(&mut sink, &batch, unreported)
         };
-        let mut transition = None;
+        let mut notices = Vec::new();
         match &result {
             Ok(()) if !backing_off => {
-                unreported = 0;
                 if retry_at.take().is_some() {
-                    transition = Some((LogLevel::Info, "The log file is writable again.".to_string()));
+                    notices.push((LogLevel::Info, "The log file is writable again.".to_string()));
                 }
+                // The file now says how many lines it lacks; the in-memory log and diagnostics
+                // get the same count. At most one notice per batch, and it is not filed again.
+                if unreported > 0 {
+                    notices.push((LogLevel::Warn, lost_lines(unreported)));
+                }
+                unreported = 0;
             }
             Ok(()) => {}
             Err(e) => {
@@ -294,15 +305,15 @@ fn run(shared: Arc<Shared>, mut sink: impl LogSink) {
                 let first = retry_at.is_none();
                 retry_at = Some(Instant::now() + shared.retry_after);
                 if first {
-                    transition = Some((
+                    notices.push((
                         LogLevel::Warn,
                         format!("The log file cannot be written ({e}); file logging is paused and lines are dropped."),
                     ));
                 }
             }
         }
-        // Report before marking the batch complete so a flush sees the notice.
-        if let Some((level, message)) = transition {
+        // Report before marking the batch complete so a flush sees the notices.
+        for (level, message) in notices {
             notify(&shared, level, message);
         }
         {
@@ -312,6 +323,10 @@ fn run(shared: Arc<Shared>, mut sink: impl LogSink) {
         }
         shared.progress.notify_all();
     }
+}
+
+fn lost_lines(count: u64) -> String {
+    format!("{count} log line(s) were not written to the log file")
 }
 
 fn write_batch(sink: &mut impl LogSink, batch: &VecDeque<Entry>, unreported: u64) -> io::Result<()> {
@@ -505,6 +520,9 @@ mod tests {
         *probe.entered.lock().unwrap() = Some(entered_tx);
         *probe.gate.lock().unwrap() = Some(release_rx);
         let writer = LogWriter::with_sink(probe.clone(), 4, Duration::from_secs(60));
+        let notices = Arc::new(Mutex::new(Vec::new()));
+        let sink = notices.clone();
+        writer.set_notifier(Arc::new(move |level, message| sink.lock().unwrap().push((level, message))));
 
         // The writer takes this line and blocks inside the sink, so the queue is ours to fill.
         writer.submit(LogLevel::Info, line("first"));
@@ -531,6 +549,9 @@ mod tests {
         assert_eq!(lines[0], "first");
         assert!(lines[1].contains("7 log line(s) were not written"), "{lines:?}");
         assert_eq!(lines[2..], ["warn0", "error1", "error2", "error3"]);
+        // The in-memory log, and so the diagnostics export, gets the same count.
+        let notices = notices.lock().unwrap();
+        assert_eq!(*notices, [(LogLevel::Warn, "7 log line(s) were not written to the log file".to_string())]);
     }
 
     #[test]
@@ -574,8 +595,27 @@ mod tests {
         assert!(lines[0].contains("1 log line(s) were not written"), "{lines:?}");
         assert_eq!(lines[1], "kept");
         assert!(writer.stats().healthy);
-        let levels: Vec<_> = notices.lock().unwrap().iter().map(|n| n.0).collect();
-        assert_eq!(levels, [LogLevel::Warn, LogLevel::Info]);
+        let notices = notices.lock().unwrap();
+        let levels: Vec<_> = notices.iter().map(|n| n.0).collect();
+        assert_eq!(levels, [LogLevel::Warn, LogLevel::Info, LogLevel::Warn]);
+        assert!(notices[2].1.starts_with("1 log line(s)"), "{notices:?}");
+    }
+
+    #[test]
+    fn losses_a_failing_file_never_reported_are_noticed_at_close() {
+        let probe = Probe::default();
+        let notices = Arc::new(Mutex::new(Vec::new()));
+        let writer = LogWriter::with_sink(probe.clone(), 100, Duration::from_secs(3600));
+        let sink = notices.clone();
+        writer.set_notifier(Arc::new(move |level, message| sink.lock().unwrap().push((level, message))));
+        probe.fail.store(true, Ordering::SeqCst);
+        for i in 0..3 {
+            writer.submit(LogLevel::Info, line(&format!("lost{i}")));
+            assert!(writer.flush(Duration::from_secs(30)));
+        }
+        assert!(writer.close(Duration::from_secs(30)));
+        let notices = notices.lock().unwrap();
+        assert_eq!(notices.last().unwrap(), &(LogLevel::Warn, "3 log line(s) were not written to the log file".into()));
     }
 
     #[test]
