@@ -54,6 +54,16 @@ For an experimental printer, or the SC03h, **Settings → Printers → Advanced*
 
 ![Settings → Appearance in dark mode with the teal accent](images/settings-appearance-dark.png)
 
+### Updates
+
+**Settings → Updates** checks whether a newer NuPrint has been released. NuPrint checks only when you press **Check for updates**, or each time it starts if you turn on **Check for updates when NuPrint starts**, which is off until you do. A check asks GitHub, where NuPrint is published, and sends nothing about you, your printers or your documents. If a check at start finds a release, the status bar says so.
+
+When a newer release exists, the page shows what changed. **Install and restart** downloads it, checks its [signature](code-signing.md#updates), installs it and opens NuPrint again. Waiting jobs are kept, and none starts while the update installs. The button is unavailable while a job is printing, because closing would cancel the job. On Windows the installer shows its progress, and if it cannot start, NuPrint says so and prints again once you restart it; on Linux the system asks for your password to install the new package. **Release page** opens the release on GitHub.
+
+NuPrint Slint updates itself the same way on Windows and macOS. On Linux it shows the new release, and **Download** opens the release page, where you can get the new `.deb`.
+
+Updating from inside the app works from the first release that has this page. Earlier versions update by installing the new release's installer.
+
 ### Diagnostics
 
 Diagnostics can be exported from **Settings → Diagnostics**. Device names, addresses, job titles, names you gave edited printer settings, and backend error details (including in the log) are redacted unless you choose to include them. Documents are never uploaded anywhere.
