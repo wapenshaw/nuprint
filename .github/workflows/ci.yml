@@ -64,11 +64,11 @@ jobs:
         with:
           node-version: 26
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: apps/tauri/package-lock.json
 
       # The Tauri host embeds the built frontend, so it must exist before Clippy compiles it.
       - name: Build frontend
-        working-directory: apps/desktop
+        working-directory: apps/tauri
         run: |
           npm ci
           npm run build
@@ -97,7 +97,7 @@ jobs:
       # ts-rs regenerates the bindings during the tests; they must match what is committed.
       - name: Generated bindings are committed
         if: runner.os == 'Linux'
-        run: git diff --exit-code -- apps/desktop/src/bindings
+        run: git diff --exit-code -- apps/tauri/src/bindings
 
       - name: Whitespace
         if: runner.os == 'Linux'
@@ -110,14 +110,14 @@ jobs:
     runs-on: ubuntu-26.04
     defaults:
       run:
-        working-directory: apps/desktop
+        working-directory: apps/tauri
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: apps/tauri/package-lock.json
       - run: npm ci
       - run: npm run typecheck
       - run: npm test

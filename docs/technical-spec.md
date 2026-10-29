@@ -1,6 +1,6 @@
 # NuPrint technical specification
 
-Status: section 1 describes the Python PoC (`poc/python`); later sections describe the Rust application, now implemented in `crates/` and `apps/desktop` except where marked proposed. Updated 2026-10-12. [rust-tauri-spec.md](rust-tauri-spec.md) defines the selected stack and migration; [printer-support.md](printer-support.md) defines model/protocol extensibility.
+Status: section 1 describes the Python PoC (`poc/python`); later sections describe the Rust application, now implemented in `crates/` and `apps/tauri` except where marked proposed. Updated 2026-10-12. [rust-tauri-spec.md](rust-tauri-spec.md) defines the selected stack and migration; [printer-support.md](printer-support.md) defines model/protocol extensibility.
 
 ## 1. Implemented baseline
 

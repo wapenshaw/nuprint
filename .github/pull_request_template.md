@@ -36,7 +36,7 @@ them before.
 
 - [ ] `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`
       and `cargo test --workspace --locked` pass locally.
-- [ ] `npm run typecheck` and `npm test` pass in `apps/desktop` (frontend changes).
+- [ ] `npm run typecheck` and `npm test` pass in `apps/tauri` (frontend changes).
 - [ ] One logical change per commit, Conventional Commits, no co-author
       trailer. **PRs are rebased, never squashed or merged**, so the commit
       messages are what lands in the history and in the changelog.

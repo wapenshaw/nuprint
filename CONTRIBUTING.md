@@ -16,7 +16,7 @@ You need Rust (rustup installs the pinned toolchain from `rust-toolchain.toml`),
 ./scripts/fetch-pdfium.sh        # Windows: .\scripts\fetch-pdfium.ps1
 ```
 
-Then run the app with `cd apps/desktop && npm ci && npx tauri dev`, or the CLI with `cargo run -p nuprint-cli -- --help`. [docs/building.md](docs/building.md) has the full command list. [docs/README.md](docs/README.md) indexes the architecture, protocol and validation documents.
+Then run the app with `cd apps/tauri && npm ci && npx tauri dev`, or the CLI with `cargo run -p nuprint-cli -- --help`. [docs/building.md](docs/building.md) has the full command list. [docs/README.md](docs/README.md) indexes the architecture, protocol and validation documents.
 
 ## Before you open a pull request
 
@@ -26,11 +26,11 @@ Run the offline checks from the repository root. None of them needs a printer.
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
-(cd apps/desktop && npm ci && npm run typecheck && npm test)
+(cd apps/tauri && npm ci && npm run typecheck && npm test)
 git diff --check
 ```
 
-- `cargo test -p nuprint-core` regenerates the TypeScript bindings in `apps/desktop/src/bindings`. Commit them together with the Rust type change.
+- `cargo test -p nuprint-core` regenerates the TypeScript bindings in `apps/tauri/src/bindings`. Commit them together with the Rust type change.
 - For UI changes, run `npx tauri dev` and look at the screens you changed at the default window size. Include a screenshot in the pull request.
 - Update the documentation that describes current behaviour in the same pull request as the behaviour change. Keep planned work clearly marked as planned.
 
@@ -46,7 +46,7 @@ git diff --check
 
 ## Versions and releases
 
-[release-please](https://github.com/googleapis/release-please) owns versions, tags and `CHANGELOG.md`. Do not edit any of them by hand. From the Conventional Commits on `master` it keeps a release pull request open that bumps the version in `Cargo.toml`, `Cargo.lock`, `apps/desktop/package.json`, `package-lock.json` and `tauri.conf.json`; a `feat` bumps the minor version, a `fix` or `perf` the patch, and a `!` or `BREAKING CHANGE:` footer the major. Merging it tags `vX.Y.Z` and opens a draft release. The [release workflow](.github/workflows/release.yml) then builds the installers (Windows NSIS setup, macOS disk images for Apple silicon and Intel, Linux `.deb`), attaches them with `SHA256SUMS` and publishes the release.
+[release-please](https://github.com/googleapis/release-please) owns versions, tags and `CHANGELOG.md`. Do not edit any of them by hand. From the Conventional Commits on `master` it keeps a release pull request open that bumps the version in `Cargo.toml`, `Cargo.lock`, `apps/tauri/package.json`, `package-lock.json` and `tauri.conf.json`; a `feat` bumps the minor version, a `fix` or `perf` the patch, and a `!` or `BREAKING CHANGE:` footer the major. Merging it tags `vX.Y.Z` and opens a draft release. The [release workflow](.github/workflows/release.yml) then builds the installers (Windows NSIS setup, macOS disk images for Apple silicon and Intel, Linux `.deb`), attaches them with `SHA256SUMS` and publishes the release.
 
 ## Printer and protocol changes
 

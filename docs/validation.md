@@ -38,7 +38,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 cargo run -p nuprint-cli -- test --preview output\test-preview.png
-cd apps\desktop; npm run typecheck; npm test; cd ..\..
+cd apps\tauri; npm run typecheck; npm test; cd ..\..
 
 # Python reference, from poc\python
 uv sync --extra dev --locked

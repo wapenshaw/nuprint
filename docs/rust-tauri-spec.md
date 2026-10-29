@@ -48,8 +48,8 @@ Proposed paths, created only when implementation begins:
 
 ```text
 Cargo.toml / Cargo.lock / rust-toolchain.toml
-apps/desktop/                  React frontend and its npm lockfile
-apps/desktop/src-tauri/         Tauri host, permissions and packaging
+apps/tauri/                  React frontend and its npm lockfile
+apps/tauri/src-tauri/         Tauri host, permissions and packaging
 crates/nuprint-core/           Jobs, domain types, storage, profile resolution
 crates/nuprint-protocol/       Pure framing, codecs and protocol state machines
 crates/nuprint-transport/      Transport traits and btleplug backend

@@ -4344,7 +4344,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nuprint-slint-demo"
+name = "nuprint-slint"
 version = "1.0.0"
 dependencies = [
  "image",
