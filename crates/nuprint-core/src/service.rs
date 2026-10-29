@@ -149,7 +149,9 @@ pub enum ShutdownOutcome {
     /// Everything ended, but the service had failed (see [`ServiceFault`]).
     Faulted,
     /// The deadline passed. The dispatcher still owns the Bluetooth session and the data folder,
-    /// and keeps them until its cleanup ends; call `shutdown` again to keep waiting.
+    /// and keeps them until its cleanup ends, or the log file could not be finished (a stalled
+    /// disk) and its writer keeps the data folder until it does; call `shutdown` again to keep
+    /// waiting.
     TimedOut,
 }
 
@@ -274,6 +276,9 @@ impl AppService {
             }
         }
         let held = store.get_pref::<bool>("queue_held")?.unwrap_or(false);
+        // The writer thread shares the folder lock: a writer stuck on the disk at shutdown keeps
+        // the folder until it ends, so a new NuPrint cannot rotate the same file under it.
+        let log_writer = log_path.map(|path| Arc::new(LogWriter::to_file(path, store.owner_lock())));
         let inner = Arc::new(Inner {
             config,
             registry,
@@ -282,7 +287,7 @@ impl AppService {
             events,
             seq: AtomicU64::new(0),
             logs: Mutex::new(VecDeque::new()),
-            log_writer: log_path.map(|path| Arc::new(LogWriter::to_file(path))),
+            log_writer,
             pdf: Mutex::new(None),
             sources: Recent::new(MAX_SOURCES),
             snapshots: Recent::new(MAX_SNAPSHOTS),

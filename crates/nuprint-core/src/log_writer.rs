@@ -10,6 +10,7 @@ use std::collections::VecDeque;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -25,6 +26,8 @@ pub(crate) const MAX_LINE_BYTES: usize = 4096;
 pub(crate) const ROTATE_BYTES: u64 = 2_000_000;
 /// After a write fails, lines are discarded (and counted) for this long before the file is retried.
 const RETRY_AFTER: Duration = Duration::from_secs(5);
+/// How long dropping a writer that was never closed waits for its thread.
+const DROP_WAIT: Duration = Duration::from_secs(2);
 
 /// Where lines end up. Implemented by the file and, in tests, by controllable fakes.
 pub(crate) trait LogSink: Send + 'static {
@@ -81,15 +84,23 @@ pub(crate) struct WriterStats {
 pub(crate) struct LogWriter {
     shared: Arc<Shared>,
     thread: Mutex<Option<JoinHandle<()>>>,
+    /// A close stopped waiting for the thread, so dropping the writer must not wait for it either.
+    abandoned: AtomicBool,
 }
 
 impl LogWriter {
-    /// Write to `path`, rotating to `path.1`.
-    pub(crate) fn to_file(path: PathBuf) -> Self {
-        Self::with_sink(FileSink::new(path), QUEUE_LINES, RETRY_AFTER)
+    /// Write to `path`, rotating to `path.1`. The thread keeps `hold` until it ends, so the data
+    /// folder's owner lock outlives a writer that is stuck on the disk at shutdown.
+    pub(crate) fn to_file(path: PathBuf, hold: impl Send + 'static) -> Self {
+        Self::start(FileSink::new(path), QUEUE_LINES, RETRY_AFTER, hold)
     }
 
+    #[cfg(test)]
     pub(crate) fn with_sink(sink: impl LogSink, capacity: usize, retry_after: Duration) -> Self {
+        Self::start(sink, capacity, retry_after, ())
+    }
+
+    fn start(sink: impl LogSink, capacity: usize, retry_after: Duration, hold: impl Send + 'static) -> Self {
         let shared = Arc::new(Shared {
             state: Mutex::new(State { healthy: true, ..State::default() }),
             work: Condvar::new(),
@@ -101,9 +112,12 @@ impl LogWriter {
         let worker = shared.clone();
         let thread = thread::Builder::new()
             .name("nuprint-log".into())
-            .spawn(move || run(worker, sink))
+            .spawn(move || {
+                run(worker, sink);
+                drop(hold);
+            })
             .expect("spawn the log writer thread");
-        Self { shared, thread: Mutex::new(Some(thread)) }
+        Self { shared, thread: Mutex::new(Some(thread)), abandoned: AtomicBool::new(false) }
     }
 
     pub(crate) fn set_notifier(&self, notifier: Notifier) {
@@ -174,14 +188,18 @@ impl LogWriter {
     }
 
     /// Stop accepting lines, write what is queued and end the thread. Returns false if the writer
-    /// did not finish in time (it is then left to finish on its own).
+    /// did not finish in time: it is then left to finish on its own, and dropping the writer no
+    /// longer waits for it. A later close can still wait again.
     pub(crate) fn close(&self, timeout: Duration) -> bool {
         let deadline = Instant::now() + timeout;
         let mut s = lock(&self.shared.state);
         s.closed = true;
         self.shared.work.notify_all();
         while !s.finished {
-            let Some(left) = deadline.checked_duration_since(Instant::now()) else { return false };
+            let Some(left) = deadline.checked_duration_since(Instant::now()) else {
+                self.abandoned.store(true, Ordering::Relaxed);
+                return false;
+            };
             s = self.shared.progress.wait_timeout(s, left).unwrap().0;
         }
         drop(s);
@@ -195,24 +213,29 @@ impl LogWriter {
         WriterStats { queued: s.queue.len(), dropped_total: s.dropped_total, healthy: s.healthy }
     }
 
+    /// Reap the thread once it has finished.
     fn join(&self) {
-        let thread = relock(&self.thread).take();
-        if let Some(thread) = thread
-            && thread.thread().id() != thread::current().id()
-        {
+        if let Some(thread) = relock(&self.thread).take() {
             let _ = thread.join();
         }
+    }
+
+    fn on_own_thread(&self) -> bool {
+        relock(&self.thread).as_ref().is_some_and(|t| t.thread().id() == thread::current().id())
     }
 }
 
 impl Drop for LogWriter {
+    /// Never waits without a bound: a stalled disk must not hang the app's exit. A thread still
+    /// writing is detached and keeps what it holds until it ends.
     fn drop(&mut self) {
-        {
-            let mut s = lock(&self.shared.state);
-            s.closed = true;
+        // The thread itself can drop the last owner (through its notifier); it ends right after.
+        if self.abandoned.load(Ordering::Relaxed) || self.on_own_thread() {
+            lock(&self.shared.state).closed = true;
+            self.shared.work.notify_all();
+        } else {
+            self.close(DROP_WAIT);
         }
-        self.shared.work.notify_all();
-        self.join();
     }
 }
 
@@ -401,7 +424,7 @@ impl LogSink for FileSink {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::atomic::AtomicUsize;
     use std::sync::mpsc;
 
     /// Records lines; `gate` blocks the first write until released, `fail` makes writes error.
@@ -605,6 +628,39 @@ mod tests {
         sink.write_line("third\n").unwrap();
         sink.flush().unwrap();
         assert!(fs::read_to_string(&path).unwrap().ends_with("second\nthird\n"));
+    }
+
+    #[test]
+    fn dropping_after_a_timed_out_close_does_not_wait_and_keeps_the_hold() {
+        let probe = Probe::default();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *probe.entered.lock().unwrap() = Some(entered_tx);
+        *probe.gate.lock().unwrap() = Some(release_rx);
+        // Stands in for the data folder's owner lock.
+        let hold = Arc::new(());
+        let held = Arc::downgrade(&hold);
+        let writer = LogWriter::start(probe.clone(), 100, Duration::from_secs(60), hold);
+        writer.submit(LogLevel::Info, line("stuck"));
+        entered_rx.recv().unwrap();
+        assert!(!writer.close(Duration::from_millis(10)));
+
+        // The last owner goes away while the sink is still blocked: the drop returns at once.
+        let (dropped_tx, dropped_rx) = mpsc::channel();
+        thread::spawn(move || {
+            drop(writer);
+            dropped_tx.send(()).unwrap();
+        });
+        dropped_rx.recv_timeout(Duration::from_secs(1)).expect("the drop waited for the stuck writer");
+        // The detached thread keeps the folder until its write completes, then lets it go.
+        assert!(held.upgrade().is_some());
+        release_tx.send(()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while held.upgrade().is_some() {
+            assert!(Instant::now() < deadline, "the finished thread still holds the folder");
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(written(&probe), ["stuck"]);
     }
 
     #[test]
