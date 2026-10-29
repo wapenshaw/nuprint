@@ -4,7 +4,8 @@ name: Release
 # Merging it tags vX.Y.Z and opens a draft release; the jobs below build the
 # desktop installers, attach them with SHA256SUMS and publish the draft, so a
 # release is never visible without its installers. Each runner builds the Tauri
-# app's installer and, as a preview, the Slint app's (apps/slint).
+# app's installer and, as a preview, the Slint app's (apps/slint), and signs the
+# files the apps' updaters install (see "Updater files").
 #
 # A manual run builds every installer without releasing anything; give it a
 # tag to rebuild and replace the installers of that existing release.
@@ -181,6 +182,56 @@ jobs:
           esac
           ls -l dist
 
+      # Each app checks a manifest on the latest release (latest.json for the Tauri
+      # app, latest-slint.json for the Slint app) and installs a file it lists only
+      # when that file's signature matches the public key built into the app. The key
+      # pair is the maintainer's; its private half is in the repository's secrets.
+      # The installer is the update file, except on macOS, where the updaters replace
+      # the .app bundle and so get an archive of it. The Slint app cannot install a
+      # .deb; its Linux entry only tells it a release exists. This writes each app's
+      # entry for this platform to updates/, and the publish job joins them.
+      - name: Updater files
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          test -n "$TAURI_SIGNING_PRIVATE_KEY" || { echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is not set"; exit 1; }
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          release="target/$TARGET/release"
+          arch=${TARGET%%-*}
+          mkdir updates
+          case "$RUNNER_OS" in
+            Windows)
+              os=windows; slint_os=windows; slint_format=nsis
+              tauri=$(ls dist/NuPrint_*-setup.exe); slint=$(ls dist/nuprint-slint_*-setup.exe) ;;
+            Linux)
+              os=linux; slint_os=linux; slint_format=appimage
+              tauri=$(ls dist/NuPrint_*.deb); slint=$(ls dist/nuprint-slint_*.deb) ;;
+            macOS)
+              os=darwin; slint_os=macos; slint_format=app
+              short=$arch; [ "$short" = x86_64 ] && short=x64
+              tauri="dist/NuPrint_${version}_${short}.app.tar.gz"
+              slint="dist/nuprint-slint_${version}_${short}.app.tar.gz"
+              COPYFILE_DISABLE=1 tar -czf "$tauri" -C "$release/bundle/macos" NuPrint.app
+              COPYFILE_DISABLE=1 tar -czf "$slint" -C "$release" "NuPrint Slint.app" ;;
+          esac
+          for file in "$tauri" "$slint"; do
+            (cd apps/tauri && npx tauri signer sign --app-version "$version" "$GITHUB_WORKSPACE/$file")
+          done
+          node -e '
+            const fs = require("fs");
+            const [, tauri, slint, os, slintOs, arch, format] = process.argv;
+            const entry = (file) => ({ file: file.split("/").pop(), signature: fs.readFileSync(file + ".sig", "utf8").trim() });
+            fs.writeFileSync(`updates/${os}-${arch}.json`, JSON.stringify({
+              tauri: { key: `${os}-${arch}`, ...entry(tauri) },
+              slint: { key: `${slintOs}-${arch}`, format, ...entry(slint) },
+            }));
+          ' "$tauri" "$slint" "$os" "$slint_os" "$arch" "$slint_format"
+          rm dist/*.sig
+          cat updates/*.json
+
       # Signed build provenance, free for public repositories: anyone can check that an
       # installer was built by this workflow from this repository with
       # `gh attestation verify <file> --repo wapenshaw/nuprint`.
@@ -190,8 +241,13 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.target }}
+          name: installers-${{ matrix.target }}
           path: dist/*
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: updates-${{ matrix.target }}
+          path: updates/*
 
   publish:
     needs: [release-please, build]
@@ -205,8 +261,35 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
+          pattern: installers-*
           path: dist
           merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: updates-*
+          path: updates
+          merge-multiple: true
+      # The update manifests the apps check, with each platform's file and signature
+      # and the release notes release-please wrote, which the apps show.
+      - name: Update manifests
+        run: |
+          gh release view "$TAG" --json body --jq .body --repo "$GITHUB_REPOSITORY" > notes.md
+          node -e '
+            const fs = require("fs");
+            const { TAG, GITHUB_REPOSITORY } = process.env;
+            const base = `https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/`;
+            const manifest = { version: TAG.replace(/^v/, ""), notes: fs.readFileSync("notes.md", "utf8"), pub_date: new Date().toISOString() };
+            const apps = { tauri: { ...manifest, platforms: {} }, slint: { ...manifest, platforms: {} } };
+            for (const name of fs.readdirSync("updates")) {
+              const platform = JSON.parse(fs.readFileSync(`updates/${name}`, "utf8"));
+              for (const [app, { key, file, ...rest }] of Object.entries(platform)) {
+                apps[app].platforms[key] = { ...rest, url: base + encodeURIComponent(file) };
+              }
+            }
+            fs.writeFileSync("dist/latest.json", JSON.stringify(apps.tauri, null, 2));
+            fs.writeFileSync("dist/latest-slint.json", JSON.stringify(apps.slint, null, 2));
+          '
+          cat dist/latest.json dist/latest-slint.json
       - name: Checksums
         working-directory: dist
         run: sha256sum -- * > SHA256SUMS && cat SHA256SUMS
