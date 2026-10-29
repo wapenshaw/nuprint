@@ -146,11 +146,19 @@ impl MockTransport {
     }
 
     /// A snapshot of everything the transport and its links have been asked to do.
+    ///
+    /// # Panics
+    ///
+    /// If a thread panicked while recording into the log, which means a test has already failed.
     pub fn log(&self) -> MockLog {
         self.log.lock().unwrap().clone()
     }
 
     /// Deliver an unsolicited notification to every open link (e.g. a delayed flow resume).
+    ///
+    /// # Panics
+    ///
+    /// If a thread panicked while opening or closing a link, which means a test has already failed.
     pub async fn inject(&self, notification: Notification) {
         let senders = self.injectors.lock().unwrap().clone();
         for sender in senders {

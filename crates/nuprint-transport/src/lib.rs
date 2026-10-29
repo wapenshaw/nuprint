@@ -4,6 +4,8 @@
 //! (docs/printer-support.md). BLE/GATT through `btleplug` is the first backend;
 //! Classic/SPP or USB would be separate implementations of the same traits.
 
+#![warn(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+
 use std::fmt;
 use std::time::Duration;
 

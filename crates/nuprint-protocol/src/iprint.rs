@@ -328,6 +328,13 @@ impl Iprint5178Params {
         }
     }
 
+    /// Check that these settings can drive the protocol at all.
+    ///
+    /// # Errors
+    ///
+    /// A message naming the first problem: a width that is zero or not a whole number of
+    /// bytes, no height bound or normal heat, inconsistent feed bounds, or a feed distance
+    /// that does not fit the command's 16-bit field.
     pub fn validate(&self) -> Result<(), String> {
         if self.width_dots == 0 || !self.width_dots.is_multiple_of(8) {
             return Err("iprint-5178 width must be a non-zero multiple of 8 dots".into());
@@ -352,6 +359,10 @@ impl Iprint5178Params {
     /// reviewed values the edit started from. Each limit rules out a value that stalls the job,
     /// prints nothing, or can only waste paper or overheat the head; none of them is a claim
     /// that every value inside the limits is good.
+    ///
+    /// # Errors
+    ///
+    /// A message, written for the person editing, naming the first value outside its limit.
     pub fn check_edit(&self, base: &Self) -> Result<(), String> {
         let normal = u32::from(base.energy.get(&Density::Normal).copied().unwrap_or(0));
         let (lowest, highest) = (normal / HEAT_FLOOR_DIVISOR, normal * HEAT_CEILING_FACTOR);

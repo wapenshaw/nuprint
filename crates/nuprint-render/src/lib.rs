@@ -34,6 +34,8 @@
 //! compile-checked only; the behavior is exercised by `tests/pdf.rs`, which CI runs with
 //! `NUPRINT_REQUIRE_PDFIUM=1` so a missing library fails instead of skipping.
 
+#![warn(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+
 mod codec;
 mod pattern;
 mod pdf;

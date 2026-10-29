@@ -21,6 +21,11 @@ fn text_block(text: &str, align: TextAlign, target: &RenderTarget) -> Option<Mon
 }
 
 /// Print-alignment pattern for any width of at least 96 dots.
+///
+/// # Panics
+///
+/// If `target.width_dots` is so wide that the pattern exceeds the canonical bitmap's pixel
+/// limit (64 Mi pixels: hundreds of thousands of dots wide). Printer widths are a few hundred.
 pub fn test_pattern(target: &RenderTarget) -> RenderOutput {
     let width = target.width_dots.max(crate::MIN_TARGET_WIDTH);
     let target = RenderTarget { width_dots: width, ..*target };
