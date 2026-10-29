@@ -9,6 +9,8 @@ mod preview;
 mod printers;
 mod queue;
 
+pub use queue::UpdateHold;
+
 use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::path::PathBuf;
@@ -174,6 +176,9 @@ struct Inner {
     wake: Notify,
     held: AtomicBool,
     active: Mutex<Option<ActiveJob>>,
+    /// Set while an update installs, so no job starts. Changed only with `active` locked, which
+    /// the dispatcher also holds to start a job.
+    updating: AtomicBool,
     /// Serializes Bluetooth sessions across devices until adapter concurrency is measured.
     hardware: tokio::sync::Mutex<()>,
     /// What currently holds `hardware`, so a refusal can say what to wait for.
@@ -298,6 +303,7 @@ impl AppService {
             wake: Notify::new(),
             held: AtomicBool::new(held),
             active: Mutex::new(None),
+            updating: AtomicBool::new(false),
             hardware: tokio::sync::Mutex::new(()),
             hardware_use: Mutex::new(None),
             shutdown: CancellationToken::new(),

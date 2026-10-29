@@ -27,4 +27,4 @@ pub mod store;
 pub mod update;
 
 pub use error::{AppError, AppResult, ErrorCode};
-pub use service::{AppService, EventSink, ServiceConfig, ShutdownOutcome};
+pub use service::{AppService, EventSink, ServiceConfig, ShutdownOutcome, UpdateHold};

@@ -877,6 +877,29 @@ async fn busy_refusal_says_a_print_is_in_progress() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn an_update_waits_for_the_print_and_jobs_wait_for_the_update() {
+    let mut h = start_on(slow_to_connect(), None);
+    let printer = h.save_first_printer().await;
+    let preview = h.preview("Update").await;
+    let first = h.enqueue(&preview, &printer, "a", 12);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(h.service.hold_for_update().err().map(|e| e.code), Some(ErrorCode::PrinterBusy));
+    assert_eq!(h.wait_terminal(&first.id).await.state, JobState::Completed);
+
+    let hold = h.service.hold_for_update().unwrap();
+    assert_eq!(h.service.hold_for_update().err().map(|e| e.code), Some(ErrorCode::InvalidInput));
+    let connects = h.transport.log().connects;
+    let second = h.enqueue(&preview, &printer, "b", 12);
+    tokio::time::sleep(Duration::from_mins(1)).await;
+    assert_eq!(h.service.get_job(&second.id).unwrap().state, JobState::Queued);
+    assert_eq!(h.transport.log().connects, connects, "no job starts while the update installs");
+
+    // A failed install releases the queue.
+    drop(hold);
+    assert_eq!(h.wait_terminal(&second.id).await.state, JobState::Completed);
+}
+
+#[tokio::test(start_paused = true)]
 async fn preview_for_other_profile_revision_or_stale_generation_is_rejected() {
     let h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
     let newer = PreviewRequest { generation: 5.0, profile_id: PROFILE.into(), source: SourceSpec::TestPattern };
