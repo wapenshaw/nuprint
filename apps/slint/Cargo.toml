@@ -21,7 +21,9 @@ nuprint-render.workspace = true
 nuprint-transport.workspace = true
 
 image.workspace = true
-rfd = "0.17"
+# GTK dialogs on Linux, as the Tauri app's dialog plugin uses: rfd refuses to build with both GTK and
+# its default XDG portal backend, which a workspace-wide build would otherwise ask for.
+rfd = { version = "0.17", default-features = false, features = ["gtk3"] }
 serde.workspace = true
 serde_json.workspace = true
 # Skia rasterises text with the platform's own engine (DirectWrite, Core Text, FreeType), as the
@@ -56,4 +58,4 @@ minimum-system-version = "14.0"
 info-plist-path = "../tauri/src-tauri/Info.plist"
 
 [package.metadata.packager.deb]
-depends = ["bluez", "libdbus-1-3", "libfontconfig1", "libfreetype6", "libxkbcommon0", "libxkbcommon-x11-0"]
+depends = ["bluez", "libdbus-1-3", "libfontconfig1", "libfreetype6", "libgtk-3-0", "libxkbcommon0", "libxkbcommon-x11-0"]
