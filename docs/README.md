@@ -15,6 +15,7 @@ NuPrint is a **Rust + Tauri app for Windows, macOS and Linux** with extensible p
 | [Printer interaction](printer-interaction.md) | Exact connection/print commands (Rust CLI), Python PoC API and troubleshooting | Implemented |
 | [Validation and release plan](validation.md) | Automated, hardware, usability and packaging acceptance tests | Python and Rust results + planned coverage |
 | [Engineering backlog](backlog.md) | Deferred refactors, performance work, wording decisions and Rust/Tauri best-practice review findings | Proposed |
+| [Rust follow-up plan](rust-follow-up-plan.md) | Sequenced validation, runtime performance, dispatcher recovery, module, lint and doctest work after the completed review fixes | In progress; baseline `5969001` |
 | [Contributing](../CONTRIBUTING.md) | Development setup, checks, printer reports and rules for protocol changes | Active |
 | [Security policy](../SECURITY.md) | How to report vulnerabilities privately | Active |
 | [Agent instructions](../AGENTS.md) | Repository rules for Codex and other coding agents | Active |

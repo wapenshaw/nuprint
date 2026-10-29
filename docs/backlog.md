@@ -2,6 +2,8 @@
 
 Open follow-up work, with resolved and outdated entries explicitly marked. Before acting on an item, check it against [AGENTS.md](../AGENTS.md), especially honest completion wording, never replaying partially sent jobs and the SC03h protocol invariants. This review records work; it does not implement the fixes.
 
+The [Rust follow-up implementation plan](rust-follow-up-plan.md) sequences the remaining work after the 14 local review-fix commits through `202612a`: validation gaps, bounded rendering, blocking I/O, logging, dispatcher supervision, page-plan reuse, module boundaries, lints and doctests. It is in progress, with measurements and acceptance criteria. Older numbered findings below retain their original review context; the plan explicitly calls out status reconciliation where later fixes have superseded an open entry.
+
 Sources:
 
 - **Simplify** — deliberately left out of the post-1.0.0 simplification pass (2026-10-13), because each item would change generated bindings, job-outcome handling or user-facing wording.
