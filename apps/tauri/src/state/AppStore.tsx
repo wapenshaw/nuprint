@@ -14,13 +14,15 @@ import type { AppEvent } from "../bindings/AppEvent";
 import type { PrinterCheck } from "../bindings/PrinterCheck";
 import type { ProfileSummary } from "../bindings/ProfileSummary";
 import type { SavedPrinter } from "../bindings/SavedPrinter";
+import type { UpdateInfo } from "../bindings/UpdateInfo";
 import { errorMessage, toAppError } from "../lib/errors";
 import { isOpenJob } from "../lib/labels";
 import { loadAppIcon, loadModePreference, saveAppIcon, type AppIconId } from "../lib/theme";
+import { loadCheckAtStart } from "../lib/updates";
 import { initialData, reducer, type AppData, type StatusMessage, type StatusTone } from "./reducer";
 
 /** The settings window's sections. */
-export type SettingsSection = "printers" | "appearance" | "diagnostics";
+export type SettingsSection = "printers" | "appearance" | "updates" | "diagnostics";
 
 /**
  * What is open over the workspace, which is always there: nothing, the queue panel, or the
@@ -60,6 +62,13 @@ export interface AppContextValue extends AppActions {
   checkErrors: Record<string, string>;
   appIcon: AppIconId;
   chooseAppIcon: (icon: AppIconId) => void;
+  /** A newer release found by the last check, if any. */
+  update: UpdateInfo | null;
+  setUpdate: (update: UpdateInfo | null) => void;
+  /** An install has started; it stays set while NuPrint restarts, and clears if it fails. */
+  installingUpdate: boolean;
+  /** Install the update found; a failure shows in the status bar. */
+  installUpdate: () => Promise<void>;
 }
 
 const Ctx = createContext<AppContextValue | null>(null);
@@ -78,6 +87,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [checking, setChecking] = useState<string | null>(null);
   const [checkErrors, setCheckErrors] = useState<Record<string, string>>({});
   const [appIcon, setAppIcon] = useState<AppIconId>(loadAppIcon);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  // Here rather than on the Updates page, so leaving the page cannot start a second install.
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+  const installingRef = useRef(false);
   const dataRef = useRef(data);
   dataRef.current = data;
 
@@ -208,6 +221,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setPrinter = useCallback((printer: SavedPrinter) => dispatch({ type: "printer_updated", printer }), []);
 
+  const installUpdate = useCallback(async () => {
+    if (installingRef.current) return;
+    installingRef.current = true;
+    setInstallingUpdate(true);
+    try {
+      // NuPrint restarts into the new version, so a success leaves this installing.
+      await api().installUpdate();
+    } catch (e) {
+      installingRef.current = false;
+      setInstallingUpdate(false);
+      reportError(e);
+    }
+  }, [reportError]);
+
+  // Only when the user turned it on in Settings → Updates. A failed check stays quiet here; it
+  // shows when the user checks there.
+  useEffect(() => {
+    if (!loadCheckAtStart()) return;
+    let cancelled = false;
+    api()
+      .checkForUpdate()
+      .then((found) => {
+        if (cancelled || !found) return;
+        setUpdate(found);
+        notify(`NuPrint ${found.version} is available.`, "info", { label: "See what’s new", target: "updates" });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [notify]);
+
   // Initial load. Subscribe first but hold events back until the durable snapshot is applied;
   // buffered queue events already covered by the snapshot's `seq` are dropped.
   useEffect(() => {
@@ -303,6 +348,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       checkErrors,
       appIcon,
       chooseAppIcon,
+      update,
+      setUpdate,
+      installingUpdate,
+      installUpdate,
       runCheck,
       notify,
       dismissStatus,
@@ -334,6 +383,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     checkErrors,
     appIcon,
     chooseAppIcon,
+    update,
+    installingUpdate,
+    installUpdate,
     runCheck,
   ]);
 

@@ -69,6 +69,12 @@ export const PaletteIcon = () => (
   </Icon>
 );
 
+export const UpdateIcon = () => (
+  <Icon>
+    <path d="M8 2.5v7.5M4.75 6.75 8 10l3.25-3.25M2.5 11v2.5h11V11" />
+  </Icon>
+);
+
 export const PulseIcon = () => (
   <Icon>
     <path d="M1.5 8.5h3l2-5 3 9 2-4h3" />

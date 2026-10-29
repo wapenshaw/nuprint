@@ -20,7 +20,7 @@ export interface StatusMessage {
   text: string;
   /** Job whose live state and progress the status bar shows beneath the message. */
   jobId?: string;
-  action?: { label: string; target: "queue" | "printers" | "workspace" };
+  action?: { label: string; target: "queue" | "printers" | "updates" | "workspace" };
 }
 
 export interface ScanState {
