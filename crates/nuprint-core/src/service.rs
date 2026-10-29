@@ -365,7 +365,61 @@ fn busy(holder: Option<HardwareUse>) -> AppError {
 
 impl AppService {
     /// Open storage, recover interrupted jobs and start the dispatcher.
-    /// Must be called within a Tokio runtime.
+    ///
+    /// The dispatcher is a spawned task, so this must be called from within a Tokio runtime
+    /// (any flavor, with the time driver enabled). The runtime must outlive the service; the
+    /// dispatcher dies with it. `events` is called from service tasks and must not block.
+    ///
+    /// Jobs that were active when the previous process ended are marked uncertain and are never
+    /// replayed; queued jobs stay queued (or held) and resume. With a `data_dir`, one process
+    /// owns the folder at a time through `state.lock`. Without one, state lives in a temporary
+    /// directory for the life of the service.
+    ///
+    /// **Shutdown:** call [`Self::shutdown`] and await it before dropping the service or the
+    /// runtime. Dropping without it neither cancels an active transfer nor releases the Bluetooth
+    /// link in an orderly way, and the data folder stays locked until the dispatcher task is gone.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::DataDirInUse`] when another process holds the data folder, and
+    /// [`ErrorCode::Internal`] or I/O-derived errors when the folder, database or built-in
+    /// profiles cannot be opened.
+    ///
+    /// # Panics
+    ///
+    /// Panics when called outside a Tokio runtime.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::time::Duration;
+    ///
+    /// use nuprint_core::api::AppEvent;
+    /// use nuprint_core::{AppService, ServiceConfig};
+    /// use nuprint_transport::mock::MockTransport;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let service = AppService::start(
+    ///     ServiceConfig { data_dir: None, pdfium_dirs: vec![], version: "doc-example".into() },
+    ///     Arc::new(MockTransport::new(vec![])), // no Bluetooth: an in-memory transport
+    ///     Arc::new(|_event: AppEvent| {}),
+    /// )?;
+    /// assert!(service.list_jobs()?.jobs.is_empty());
+    /// service.shutdown(Duration::from_secs(2)).await; // always, before the runtime ends
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Outside a runtime it panics instead of returning an error:
+    ///
+    /// ```should_panic
+    /// # use std::sync::Arc;
+    /// # use nuprint_core::api::AppEvent;
+    /// # use nuprint_core::{AppService, ServiceConfig};
+    /// # use nuprint_transport::mock::MockTransport;
+    /// let config = ServiceConfig { data_dir: None, pdfium_dirs: vec![], version: "doc-example".into() };
+    /// let _ = AppService::start(config, Arc::new(MockTransport::new(vec![])), Arc::new(|_: AppEvent| {}));
+    /// ```
     pub fn start(config: ServiceConfig, transport: Arc<dyn Transport>, events: Arc<dyn EventSink>) -> AppResult<Self> {
         let registry = ProfileRegistry::builtin()?;
         let (mut store, temp, log_path) = match &config.data_dir {
@@ -448,9 +502,14 @@ impl AppService {
 
     /// Stop accepting work, cancel the active transfer and wait (bounded) for its outcome
     /// to be persisted and the dispatcher to end. Pending jobs stay queued/held for the next
-    /// start. On [`ShutdownOutcome::TimedOut`] nothing is released: the dispatcher (which owns
-    /// the Bluetooth session) and the supervisor keep the service, so the data folder stays
-    /// locked until their cleanup really ends.
+    /// start.
+    ///
+    /// `wait` bounds each of two waits: the active job reaching a terminal state (cancelled, or
+    /// uncertain if print bytes may already have been sent), then the dispatcher's supervisor
+    /// exiting. A job that never settles is left for restart recovery, which marks it uncertain;
+    /// it is never replayed. On [`ShutdownOutcome::TimedOut`] nothing is released: the dispatcher
+    /// (which owns the Bluetooth session) and the supervisor keep the service, so the data folder
+    /// stays locked until their cleanup really ends. Safe to call more than once.
     pub async fn shutdown(&self, wait: Duration) -> ShutdownOutcome {
         self.inner.shutdown.cancel();
         if let Some(active) = relock(&self.inner.active).as_ref() {
@@ -1478,6 +1537,18 @@ impl AppService {
     }
 
     /// Atomically admit a job for the displayed raster snapshot.
+    ///
+    /// The same `idempotency_key` returns the job already admitted for it, so a repeated
+    /// submission never queues a second print. The job is planned completely before it is
+    /// stored, and records the printer's exact profile revision.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::InvalidInput`] for a blank or over-long key or options the profile does not
+    /// allow, [`ErrorCode::NotFound`] for an unknown printer or expired snapshot,
+    /// [`ErrorCode::StalePreview`] when the snapshot was rendered for a different profile or
+    /// revision than the printer now has, [`ErrorCode::QueueFull`] at the job or retained-data
+    /// limit, and the converted protocol error when a page cannot be planned.
     pub fn enqueue(&self, request: EnqueueRequest) -> AppResult<JobSummary> {
         if request.idempotency_key.trim().is_empty() || request.idempotency_key.len() > 128 {
             return Err(AppError::invalid("A submission key is required."));
@@ -1597,6 +1668,18 @@ impl AppService {
 
     /// Acknowledge cancellation intent. An active job reaches its terminal state after
     /// the transfer task unwinds and Bluetooth cleanup completes.
+    ///
+    /// Ownership depends on the phase. A queued or held job is cancelled by the store in one
+    /// checked transition, so it cannot overwrite a job the dispatcher claimed first. The active
+    /// job is only signalled here; the dispatcher alone writes its terminal state after
+    /// Bluetooth cleanup, so this returning `Ok` does not mean the job has already stopped.
+    /// Cancelling after print bytes were sent ends as cancelled with possible partial output.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown job and [`ErrorCode::InvalidInput`] when the job
+    /// is in its final moments and no longer cancellable. Cancelling a job that is already
+    /// finished succeeds without effect.
     pub fn cancel_job(&self, job_id: &str) -> AppResult<()> {
         if self.cancel_active(job_id) {
             self.log(LogLevel::Info, "Cancelling transfer…".into());
