@@ -3,8 +3,8 @@
 use nuprint_core::api::*;
 use slint::{ComponentHandle, Model};
 
-use crate::Ctx;
 use crate::Data;
+use crate::ctx::Ctx;
 use crate::labels::*;
 
 const MAX_LOG_LINES: usize = 500;

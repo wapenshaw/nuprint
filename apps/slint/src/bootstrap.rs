@@ -10,8 +10,11 @@ use nuprint_transport::ble::BleTransport;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use tokio::sync::mpsc;
 
+use crate::callbacks::wire;
+use crate::ctx::Ctx;
 use crate::preview::SIZE_PRESETS;
-use crate::{AppWindow, Ctx, Data, Prefs, State, Theme, wire};
+use crate::state::{Prefs, State};
+use crate::{AppWindow, Data, Theme};
 
 const DEFAULT_TEXT: &str = "Hello from NuPrint!\n\nYour printer is ready.";
 

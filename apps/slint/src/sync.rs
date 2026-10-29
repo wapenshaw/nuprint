@@ -4,9 +4,10 @@
 use nuprint_core::api::*;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::ctx::Ctx;
 use crate::labels::*;
 use crate::view::*;
-use crate::{Ctx, Data, DeviceItem, LogItem, PrinterItem};
+use crate::{Data, DeviceItem, LogItem, PrinterItem};
 
 impl Ctx {
     pub(crate) fn sync_status(&self) {

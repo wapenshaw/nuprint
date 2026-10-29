@@ -7,10 +7,11 @@ use nuprint_core::ErrorCode;
 use nuprint_core::api::*;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::ctx::Ctx;
 use crate::labels::*;
 use crate::state::State;
 use crate::view::*;
-use crate::{AppWindow, Ctx, Data};
+use crate::{AppWindow, Data};
 
 pub(crate) const SIZE_PRESETS: [u16; 15] = [12, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72, 96];
 const PREVIEW_DEBOUNCE: Duration = Duration::from_millis(250);
