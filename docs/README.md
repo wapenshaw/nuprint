@@ -4,6 +4,8 @@ NuPrint is a **Rust + Tauri app for Windows, macOS and Linux** with extensible p
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| [User guide](user-guide.md) | Supported printers, installing, the desktop app and troubleshooting | Implemented |
+| [Building from source](building.md) | Requirements, desktop and CLI builds, checks, the Slint demo and the repository layout | Implemented |
 | [Product specification](app-spec.md) | Cross-platform scope, screens, workflows, milestones and acceptance criteria | V1 scope partly implemented; see validation |
 | [Rust + Tauri specification](rust-tauri-spec.md) | Stack, workspace, frontend/backend contracts, OS requirements and migration gates | Implemented on Windows (dev build) and macOS (dev and packaged debug builds); release packaging and Linux pending |
 | [Printer support architecture](printer-support.md) | Transport/protocol/profile boundaries, discovery, capabilities and new-model acceptance | Implemented for one protocol: SC03h verified, 34 experimental profiles |
@@ -20,7 +22,7 @@ NuPrint is a **Rust + Tauri app for Windows, macOS and Linux** with extensible p
 | [Rust language server for Claude Code](claude-rust-lsp.md) | Native Rust plugin, prerequisites and verification | Configured |
 | [Printer-development skill](../.claude/skills/sc03h-printer/SKILL.md) | Reusable workflow for protocol and hardware work | Active |
 
-Start with [the user guide](../README.md) to build and run the app. Use [the interaction guide](printer-interaction.md) to connect from the CLI. Read [the Rust + Tauri specification](rust-tauri-spec.md) before changing the app and [the printer support architecture](printer-support.md) before adding models.
+Start with [the user guide](user-guide.md) to run the app and [building from source](building.md) to build it. Use [the interaction guide](printer-interaction.md) to connect from the CLI. Read [the Rust + Tauri specification](rust-tauri-spec.md) before changing the app and [the printer support architecture](printer-support.md) before adding models.
 
 Evidence labels used throughout:
 

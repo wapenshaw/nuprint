@@ -4,7 +4,7 @@
 
 NuPrint is a **Rust + Tauri 2** desktop app and CLI for Windows, macOS and Linux that prints directly to Bluetooth LE thermal printers. The first supported model is the ZEITEL **lowercase SC03h**; other models are added through protocol drivers and profiles. The original Python app lives in `poc/python` as the verified parity reference.
 
-- Read [README.md](README.md) for supported behavior and commands.
+- Read [docs/user-guide.md](docs/user-guide.md) for supported behavior and [docs/building.md](docs/building.md) for commands. Keep [README.md](README.md) a short product page that links to them.
 - Read [docs/README.md](docs/README.md) to find product, architecture and printer documentation.
 - Follow [docs/rust-tauri-spec.md](docs/rust-tauri-spec.md) and [docs/printer-support.md](docs/printer-support.md). Keep the core independent of Tauri and OS-specific APIs.
 - Use [.claude/skills/sc03h-printer/SKILL.md](.claude/skills/sc03h-printer/SKILL.md) for protocol, Bluetooth, printer diagnosis or hardware validation work.
