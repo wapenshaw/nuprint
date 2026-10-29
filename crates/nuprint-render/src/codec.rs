@@ -114,6 +114,27 @@ fn decode_gray(
 }
 
 /// Render a picture file (PNG, JPEG, BMP, GIF, WebP, TIFF) at the target width.
+///
+/// # Errors
+///
+/// [`RenderError::InvalidParam`] for a bad target or tone settings,
+/// [`RenderError::SourceTooLarge`], [`RenderError::TooManyPixels`] and [`RenderError::TooLong`]
+/// for inputs over the limits (checked before heavy work), [`RenderError::UnsupportedFormat`]
+/// when the leading bytes are not a known picture, and [`RenderError::Decode`] for a corrupt file.
+///
+/// ```
+/// use nuprint_render::{ImageParams, RenderTarget, Tone, decode_png_mono, encode_png, render_image};
+/// use nuprint_protocol::MonoBitmap;
+///
+/// // A 384 x 8 image that is black on its left half only.
+/// let source = MonoBitmap::from_fn(384, 8, |x, _| x < 192)?;
+/// let png = encode_png(&source);
+/// let params = ImageParams { tone: Tone::Threshold, ..ImageParams::default() };
+/// let page = render_image(&png, &params, &RenderTarget::default())?;
+/// assert_eq!(page.bitmap, source); // already at the target width: no resampling
+/// assert_eq!(decode_png_mono(&png)?, source);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub fn render_image(bytes: &[u8], params: &ImageParams, target: &RenderTarget) -> Result<RenderOutput, RenderError> {
     target.validate()?;
     params.validate()?;
@@ -126,6 +147,11 @@ pub fn render_image(bytes: &[u8], params: &ImageParams, target: &RenderTarget) -
 }
 
 /// 1-bit grayscale PNG with black dots as luminance 0; the preview and export format.
+///
+/// # Panics
+///
+/// Never for a valid [`MonoBitmap`]; the internal expectations only restate that writing to
+/// memory cannot fail and that the packed data length matches the header.
 pub fn encode_png(bitmap: &MonoBitmap) -> Vec<u8> {
     let mut out = Vec::new();
     let mut encoder = png::Encoder::new(&mut out, bitmap.width(), bitmap.height());
@@ -142,6 +168,12 @@ pub fn encode_png(bitmap: &MonoBitmap) -> Vec<u8> {
 
 /// Read a PNG back to the canonical bitmap without resampling or dithering: luminance below
 /// 128 is black. [`encode_png`] output round-trips exactly.
+///
+/// # Errors
+///
+/// [`RenderError::SourceTooLarge`] or [`RenderError::TooManyPixels`] over the limits,
+/// [`RenderError::UnsupportedFormat`] unless the bytes are a PNG, and [`RenderError::Decode`]
+/// for a corrupt PNG.
 pub fn decode_png_mono(bytes: &[u8]) -> Result<MonoBitmap, RenderError> {
     check_source_size(bytes.len())?;
     if sniff_format(bytes) != Some(SourceFormat::Png) {
