@@ -1297,10 +1297,10 @@ impl AppService {
         };
         let plans = Self::plan_pages(resolved.driver.as_ref(), &job, &snapshot.pages)?;
         job.bytes_total = plans.iter().map(|(_, _, plan)| plan.print_bytes() as i64).sum();
-        self.admit(job, snapshot.pages.clone())
+        self.admit(job, &snapshot.pages)
     }
 
-    fn admit(&self, mut job: JobRow, pages: Vec<(u32, MonoBitmap)>) -> AppResult<JobSummary> {
+    fn admit(&self, mut job: JobRow, pages: &[(u32, MonoBitmap)]) -> AppResult<JobSummary> {
         let mut store = self.store();
         if store.count_jobs_with_content()? >= MAX_QUEUE_JOBS {
             return Err(AppError::new(
@@ -1324,7 +1324,7 @@ impl AppService {
                 driver.as_ref().and_then(|d| d.plan_job(&request).ok()).map_or(0, |p| p.print_bytes() as i64)
             })
             .collect();
-        store.insert_job(&job, &pages, &per_page)?;
+        store.insert_job(&job, pages, &per_page)?;
         drop(store);
         self.log(
             LogLevel::Info,
@@ -1423,7 +1423,7 @@ impl AppService {
             retry_of: Some(original.id.clone()),
             ..original
         };
-        self.admit(job, pages)
+        self.admit(job, &pages)
     }
 
     pub fn remove_job(&self, job_id: &str) -> AppResult<()> {
