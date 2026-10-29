@@ -207,3 +207,7 @@ Recorded so later reviews don't repeat this work:
 - SQLite `named_params`, an `ensure_ready` helper and `ErrorCode::as_str` (Simplify).
 - **Resolved:** PDFium availability is probed through startup `get_app_info` and cached in `AppService`.
 - Avoid re-encoding images at admission (Simplify).
+
+## Slint app
+
+- **P3 · The settings pages do not scroll with the mouse wheel** (owner report, 2026-10-29). On Windows, in Settings → Diagnostics the wheel scrolls the activity log while the pointer is over it, but nowhere else on the page, so the report panel below it cannot be reached by wheel. The pages sit in a `ScrollView` in `apps/slint/ui/settings.slint`; check whether that view's content height covers the page, then the other settings pages.
