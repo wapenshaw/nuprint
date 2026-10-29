@@ -206,11 +206,11 @@ Updated as slices land. Steps 1, 2, 4, 5 (increment A) and the doctest half of s
 | 0 | Done: owner smoke tests, backlog reconciliation and validation entries recorded | `6ee98e3` |
 | 1 | Done: release harness and baseline | `c85a4b3`, `15efde6` |
 | 2 | Done: one active and one pending render; peak memory for a large-image burst fell about tenfold. The newest image can wait for the render in flight | `74b64f7` |
-| 3 | Not started. Measured store calls are short; the open question is the Slint UI thread, which was not measured | — |
+| 3 | Done. File reads and writes, Tauri job-page previews and Slint reloads run on blocking threads; store calls stay behind the mutex, a measured decision ([why](performance.md#decisions-from-the-measurements)) | `99fc80f`, `d276d56`, `1a71a08` |
 | 4 | Done: persistent writer; about 0.4 µs per line on the caller, against about 115 µs | `cb0a401`, `da36b85` |
-| 5 | Increment A done (the queue stops and says so when the dispatcher fails); increment B not started. Untested: the `DispatcherStopped` and `StorageInvalid` paths, and a timed-out shutdown keeping ownership | `0d9e58c`, `a69f437` |
-| 6 | Not started. Likely deferred: an extra copy costs about 5 ms of CPU against roughly 40 s of paced transfer | — |
-| 7 | Not started; ownership from steps 2–5 is now settled | — |
+| 5 | Increment A done and tested, including a stopped dispatcher, invalid storage and a timed-out shutdown keeping the data folder. Increment B deferred: no session owner yet outlives a failed job task to prove the connection closed, so recovery stays "restart the app" | `0d9e58c`, `a69f437`, `044ceb4` |
+| 6 | Measured and deferred: an extra copy costs about 5 ms of CPU against roughly 40 s of paced transfer ([why](performance.md#decisions-from-the-measurements)) | — |
+| 7 | Not started; ownership from steps 2–6 is now settled | — |
 | 8 | Doctests done (18 run, 1 compile-only); lints wait for step 7 | `acb4eb3`, `ba2dc3f`, `f7f99e2`, `fc05b4b`, `e178d5d` |
 
 Poisoned-lock recovery now also covers the log ring (`da36b85`) and the PDF engine slot (`bb6e479`).
