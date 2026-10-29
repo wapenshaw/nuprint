@@ -665,14 +665,13 @@ export component SettingsWindow inherits Rectangle {
             Rectangle {
                 horizontal-stretch: 1;
                 content := ScrollView {
-                    if Data.view == "printers": PrintersPage {
+                    // A scroll view measures its content only from layouts that are always there,
+                    // not from `if` elements, so the page sits inside one.
+                    VerticalLayout {
                         width: content.visible-width;
-                    }
-                    if Data.view == "appearance": AppearancePage {
-                        width: content.visible-width;
-                    }
-                    if Data.view == "diagnostics": DiagnosticsPage {
-                        width: content.visible-width;
+                        if Data.view == "printers": PrintersPage { }
+                        if Data.view == "appearance": AppearancePage { }
+                        if Data.view == "diagnostics": DiagnosticsPage { }
                     }
                 }
 
