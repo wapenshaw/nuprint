@@ -10,10 +10,10 @@
       "extra-files": [
         { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.package.version" },
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(!@.source)].version" },
-        { "type": "json", "path": "apps/desktop/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "apps/desktop/package-lock.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "apps/desktop/package-lock.json", "jsonpath": "$.packages[''].version" },
-        { "type": "json", "path": "apps/desktop/src-tauri/tauri.conf.json", "jsonpath": "$.version" }
+        { "type": "json", "path": "apps/tauri/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/tauri/package-lock.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/tauri/package-lock.json", "jsonpath": "$.packages[''].version" },
+        { "type": "json", "path": "apps/tauri/src-tauri/tauri.conf.json", "jsonpath": "$.version" }
       ],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },

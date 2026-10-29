@@ -50,7 +50,7 @@ Reproduction: use the existing mock simulator with `disconnect_after_rows: Some(
 
 #### R5 · P1 · Two desktop instances can own the same queue — resolved
 
-[`AppService::start`](../crates/nuprint-core/src/service.rs) opens the configured store, runs restart recovery and starts a dispatcher unconditionally. Its hardware/active-job locks are process-local. The [desktop builder](../apps/desktop/src-tauri/src/lib.rs) has no single-instance guard, and the [store](../crates/nuprint-core/src/store.rs) has neither an exclusive owner lock nor an atomic queued-to-active claim.
+[`AppService::start`](../crates/nuprint-core/src/service.rs) opens the configured store, runs restart recovery and starts a dispatcher unconditionally. Its hardware/active-job locks are process-local. The [desktop builder](../apps/tauri/src-tauri/src/lib.rs) has no single-instance guard, and the [store](../crates/nuprint-core/src/store.rs) has neither an exclusive owner lock nor an atomic queued-to-active claim.
 
 **Fixed:** `Store::open` takes an exclusive `state.lock` (`File::try_lock`, released by the OS on exit or crash) before migrating or recovering, and refuses with `ErrorCode::DataDirInUse`. The desktop app then starts further windows in `window-2`…`window-8` folders next to the main one, each with its own saved printers and queue (title shows `NuPrint (2)`), so two windows for two printers work. They do not share printers or jobs, and two windows must not use the same physical printer at once. On macOS, a second copy needs `open -n`. Tests: `a_data_folder_has_one_owner_at_a_time`, `a_second_service_cannot_share_a_running_data_folder`. `AppService::shutdown` now also waits for the dispatcher to exit. Original finding: a second launch against the same data directory can run recovery over the first instance's live jobs and race its dispatcher; the never-replay guarantee is not protected across processes. Establish exclusive ownership of a persistent data directory before recovery, with a clear second-launch behavior. Test two services/processes sharing a temporary directory: only the owner may recover or dispatch, and a live job must not be relabeled by the second opener. This is about shared desktop state; the CLI currently uses its own in-memory store.
 
@@ -74,13 +74,13 @@ Give connection acquisition cancellation-aware ownership and bounded cleanup, in
 
 #### R9 · P2 · Initial UI snapshot can outrun the event subscription — open, source-traced
 
-[`AppProvider`](../apps/desktop/src/state/AppStore.tsx) starts `subscribe(...)` but does not await its completion before loading the initial queue snapshot. Events emitted after that snapshot but before native listener registration are lost; buffering only helps once registration is complete. Subscription rejection is silently swallowed, leaving an apparently live UI without updates.
+[`AppProvider`](../apps/tauri/src/state/AppStore.tsx) starts `subscribe(...)` but does not await its completion before loading the initial queue snapshot. Events emitted after that snapshot but before native listener registration are lost; buffering only helps once registration is complete. Subscription rejection is silently swallowed, leaving an apparently live UI without updates.
 
 Await listener readiness before snapshot loading, retain buffering/sequence reconciliation, and expose a subscription failure with recovery. Test a delayed/rejected subscribe promise and a job transition in the gap. Also preserve unlisten cleanup when the provider unmounts during registration.
 
 #### R10 · P2 · Debounced feed saves can revert a newer darkness choice — open, source-traced
 
-[`WorkspaceProvider::setFeedText`](../apps/desktop/src/state/WorkspaceStore.tsx) captures the current density in a 400 ms timer. `setDensity` immediately persists the new density but neither clears nor replaces that timer. Changing feed and then darkness within 400 ms lets the old timer write the previous density back; local controls can still display the newer choice until the printer is reselected.
+[`WorkspaceProvider::setFeedText`](../apps/tauri/src/state/WorkspaceStore.tsx) captures the current density in a 400 ms timer. `setDensity` immediately persists the new density but neither clears nor replaces that timer. Changing feed and then darkness within 400 ms lets the old timer write the previous density back; local controls can still display the newer choice until the printer is reselected.
 
 Persist one current settings snapshot per printer, or cancel/rebuild pending saves when either field changes. Use fake timers to change feed then density within the debounce interval and assert the final saved values match both controls. Cover printer/profile switches and clearing the feed field with a pending save.
 
@@ -102,7 +102,7 @@ Earlier pedantic/missing-doc lint counts below are historical estimates from the
 
 ## Restructuring
 
-- **P2 · Merge the duplicate render/API types** (Simplify). `nuprint-render` and `nuprint-core::api` each define overlapping parameter types. Merging them regenerates `apps/desktop/src/bindings`, so commit the bindings in the same change.
+- **P2 · Merge the duplicate render/API types** (Simplify). `nuprint-render` and `nuprint-core::api` each define overlapping parameter types. Merging them regenerates `apps/tauri/src/bindings`, so commit the bindings in the same change.
 - **P2 · Restructure job execution** (Simplify; `crates/nuprint-core/src/service.rs`). `execute_job` runs the plan; `run_job` and `jobs::classify` decide outcomes. Preserve uncertainty and restart rules, and address R3/R4 before cosmetic restructuring.
 - **Resolved · Driver-owned completion policy** (previously P3). `PrinterDriver::plan_job` already supplies `ExchangePlan.completion`; see the reconciliation table above.
 - **P3 · Slim the `Transport` trait** (Simplify; `crates/nuprint-transport/src/lib.rs`): reconsider `kind`, `backend_id`, the `max_write_len` parameter and `manufacturer_ids`.
@@ -122,7 +122,7 @@ The Rust skill's rule is "don't guess, measure": profile a release build before 
 - **P3 · Use one transaction for `clear_history`** (Simplify).
 - **P3 · Preview caching** (Simplify): measure whether decoding the same source again for each preview request costs enough to cache it.
 - **P3 · Reconnect without scanning** (Simplify): reconnect to a saved printer without a fresh scan (`AppService::connect_session`). This needs hardware validation on each OS.
-- **P3 · Avoid copying the PNG for every preview request** (Tauri review): `preview_response` in `apps/desktop/src-tauri/src/lib.rs` clones the whole PNG into each response body. Previews are small, so do this only if profiling shows it matters.
+- **P3 · Avoid copying the PNG for every preview request** (Tauri review): `preview_response` in `apps/tauri/src-tauri/src/lib.rs` clones the whole PNG into each response body. Previews are small, so do this only if profiling shows it matters.
 
 ## Error handling and wording
 

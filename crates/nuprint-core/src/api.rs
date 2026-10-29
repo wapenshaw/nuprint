@@ -1,6 +1,6 @@
 //! Typed frontend/backend contract. TypeScript declarations are generated from these
 //! types by ts-rs (`cargo test -p nuprint-core export_bindings`) into
-//! `apps/desktop/src/bindings/`. Never hand-edit the generated files.
+//! `apps/tauri/src/bindings/`. Never hand-edit the generated files.
 //!
 //! IDs are opaque strings. Times are UTC milliseconds since the Unix epoch.
 

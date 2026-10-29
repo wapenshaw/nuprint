@@ -14,12 +14,12 @@ poc/python/dist/
 # Rust / Tauri
 /target/
 vendor/
-apps/desktop/src-tauri/gen/schemas/
-apps/desktop/src-tauri/resources/pdfium/
+apps/tauri/src-tauri/gen/schemas/
+apps/tauri/src-tauri/resources/pdfium/
 
 # Frontend
 node_modules/
-apps/desktop/dist/
+apps/tauri/dist/
 
 # Serena's machine-local index and memories (share only the project settings).
 /.serena/*

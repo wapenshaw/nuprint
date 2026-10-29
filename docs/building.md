@@ -13,7 +13,7 @@ Rust 1.99 (installed automatically from `rust-toolchain.toml` by rustup), Node.j
 .\scripts\fetch-pdfium.ps1            # macOS (Apple silicon or Intel)/Linux: ./scripts/fetch-pdfium.sh
 
 # Desktop app (dev mode with hot reload)
-cd apps\desktop
+cd apps\tauri
 npm ci
 npx tauri dev
 
@@ -50,31 +50,31 @@ These run without a printer:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
-cd apps\desktop; npm run typecheck; npm test
+cd apps\tauri; npm run typecheck; npm test
 ```
 
 PDF tests skip themselves when PDFium has not been fetched. Set `NUPRINT_REQUIRE_PDFIUM=1` to make them fail instead; CI does.
 
 [Validation](validation.md#routine-offline-checks) adds the Python reference checks, and [CONTRIBUTING.md](../CONTRIBUTING.md) lists what a pull request needs.
 
-## Slint demo
+## Slint app
 
-`apps/slint-demo` is a second front end written in [Slint](https://slint.dev), driving the same `AppService` as the desktop app and CLI. It reproduces the desktop app's screens (toolbar with printer menu, text/image/PDF/test-pattern workspace, paper preview, print bar, queue drawer, settings with printers, appearance and diagnostics, and the save, remove, advanced and inspect dialogs) with its own light/dark themes and accents. It is a demonstration of how the core can sit behind another UI and ships in each release only as a preview; it has not been tried against a printer from an installer. Two things the desktop app has that it lacks: the app-icon choice only changes the header logo, not the window icon, and profile export is not offered in the advanced dialog. It keeps its own data folder (`NuPrint-SlintDemo` under the local app data folder, or `NUPRINT_SLINT_DATA`), so it never touches the installed app's printers or jobs.
+`apps/slint` is a second front end written in [Slint](https://slint.dev), driving the same `AppService` as the desktop app and CLI. It reproduces the desktop app's screens (toolbar with printer menu, text/image/PDF/test-pattern workspace, paper preview, print bar, queue drawer, settings with printers, appearance and diagnostics, and the save, remove, advanced and inspect dialogs) with its own light/dark themes and accents. It shows how the core can sit behind another UI and ships in each release as a preview; it has not been tried against a printer from an installer. Two things the desktop app has that it lacks: the app-icon choice only changes the header logo, not the window icon, and profile export is not offered in the advanced dialog. It keeps its own data folder (`NuPrint-Slint` under the local app data folder, or `NUPRINT_SLINT_DATA`; a `NuPrint-SlintDemo` folder from before the rename is moved there on first start), so it never touches the installed app's printers or jobs.
 
-It draws with Skia on the CPU. Skia's default Direct3D path on Windows let game overlays attach to the window and flickered on an HDR, high-refresh monitor; set `SLINT_BACKEND` to choose another renderer. When the window moves to a monitor with a different scale, the demo restores its previous logical size, because Slint otherwise grows the window during a title-bar drag. This workaround has not yet been confirmed on a real drag. A release build looks for `pdfium.dll` (or `libpdfium`) in `NUPRINT_PDFIUM_DIR`, in the `pdfium` folder its installer puts it in, or beside the executable; without it, PDF support shows as unavailable.
+It draws with Skia on the CPU. Skia's default Direct3D path on Windows let game overlays attach to the window and flickered on an HDR, high-refresh monitor; set `SLINT_BACKEND` to choose another renderer. When the window moves to a monitor with a different scale, the app restores its previous logical size, because Slint otherwise grows the window during a title-bar drag. This workaround has not yet been confirmed on a real drag. A release build looks for `pdfium.dll` (or `libpdfium`) in `NUPRINT_PDFIUM_DIR`, in the `pdfium` folder its installer puts it in, or beside the executable; without it, PDF support shows as unavailable.
 
 ```powershell
-cargo run -p nuprint-slint-demo
+cargo run -p nuprint-slint
 ```
 
-Its installers are built with [cargo-packager](https://github.com/crabnebula-dev/cargo-packager), configured under `[package.metadata.packager]` in `apps/slint-demo/Cargo.toml`. The release workflow builds them beside the Tauri installers. To build one locally, copy the platform's PDFium library and its `LICENSE` into `target/slint-pdfium` first:
+Its installers are built with [cargo-packager](https://github.com/crabnebula-dev/cargo-packager), configured under `[package.metadata.packager]` in `apps/slint/Cargo.toml`. The release workflow builds them beside the Tauri installers. To build one locally, copy the platform's PDFium library and its `LICENSE` into `target/slint-pdfium` first:
 
 ```powershell
 cargo install cargo-packager --version 0.11.8 --locked
 New-Item -ItemType Directory -Force target\slint-pdfium
 Copy-Item vendor\pdfium\win-x64\bin\pdfium.dll, vendor\pdfium\win-x64\LICENSE target\slint-pdfium
-cargo build -p nuprint-slint-demo --release --locked
-cargo packager -p nuprint-slint-demo --release -f nsis   # dmg or deb on the other systems
+cargo build -p nuprint-slint --release --locked
+cargo packager -p nuprint-slint --release -f nsis   # dmg or deb on the other systems
 ```
 
 The installer lands in `target\release`. On macOS the release workflow builds the app bundle (`-f app`), signs it ad hoc and makes the DMG itself; see `.github/workflows/release.yml`.
@@ -88,8 +88,8 @@ The installer lands in `target\release`. On macOS the release workflow builds th
 | `crates/nuprint-render` | Text, image and PDF rendering to the exact print bitmap; bundled Noto fonts |
 | `crates/nuprint-core` | Application service: profiles, sessions, job queue, SQLite storage, typed API |
 | `crates/nuprint-cli` | `nuprint` command-line tool |
-| `apps/desktop` | Tauri 2 host (`src-tauri`) and React frontend |
-| `apps/slint-demo` | Demo front end in Slint over the same service (released as a preview) |
+| `apps/tauri` | Tauri 2 host (`src-tauri`) and React frontend |
+| `apps/slint` | Slint front end over the same service (released as a preview) |
 | `profiles/` | Versioned printer model profiles with evidence |
 | `fixtures/` | Golden protocol vectors generated from the Python reference |
 | `poc/python` | Original Python/Tk app, kept runnable as the parity oracle ([its README](../poc/python/README.md)) |

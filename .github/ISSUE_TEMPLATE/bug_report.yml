@@ -33,7 +33,7 @@ body:
     id: surface
     attributes:
       label: Where
-      options: [Desktop app, CLI, Slint demo, Python reference]
+      options: [Desktop app, CLI, Slint app, Python reference]
     validations:
       required: true
   - type: input

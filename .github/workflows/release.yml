@@ -4,7 +4,7 @@ name: Release
 # Merging it tags vX.Y.Z and opens a draft release; the jobs below build the
 # desktop installers, attach them with SHA256SUMS and publish the draft, so a
 # release is never visible without its installers. Each runner builds the Tauri
-# app's installer and, as a preview, the Slint app's (apps/slint-demo).
+# app's installer and, as a preview, the Slint app's (apps/slint).
 #
 # A manual run builds every installer without releasing anything; give it a
 # tag to rebuild and replace the installers of that existing release.
@@ -105,7 +105,7 @@ jobs:
         with:
           node-version: 26
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: apps/tauri/package-lock.json
 
       - name: Fetch PDFium
         if: runner.os != 'Windows'
@@ -116,7 +116,7 @@ jobs:
         run: ./scripts/fetch-pdfium.ps1 -Platform ${{ matrix.pdfium }}
 
       - name: Build installer
-        working-directory: apps/desktop
+        working-directory: apps/tauri
         shell: bash
         env:
           # No Apple Developer ID yet: sign ad hoc, so Gatekeeper offers "Open Anyway"
@@ -130,7 +130,7 @@ jobs:
         run: cargo install cargo-packager --version 0.11.8 --locked
 
       # The Slint app as a preview. cargo-packager reads its settings from
-      # apps/slint-demo/Cargo.toml, which takes PDFium from target/slint-pdfium. On macOS
+      # apps/slint/Cargo.toml, which takes PDFium from target/slint-pdfium. On macOS
       # it signs only with the identity in that config and there is no Developer ID yet,
       # so the app bundle is signed ad hoc here, as the Tauri build is, then put in a DMG.
       - name: Build Slint installer
@@ -146,13 +146,13 @@ jobs:
           esac
           mkdir -p target/slint-pdfium
           cp "$lib" "$PDFIUM/LICENSE" target/slint-pdfium/
-          cargo build -p nuprint-slint-demo --release --locked --target "$TARGET"
+          cargo build -p nuprint-slint --release --locked --target "$TARGET"
           release="target/$TARGET/release"
           if [ "$RUNNER_OS" != macOS ]; then
-            cargo packager -p nuprint-slint-demo --release --target "$TARGET" -f ${{ matrix.bundle }}
+            cargo packager -p nuprint-slint --release --target "$TARGET" -f ${{ matrix.bundle }}
             exit 0
           fi
-          cargo packager -p nuprint-slint-demo --release --target "$TARGET" -f app
+          cargo packager -p nuprint-slint --release --target "$TARGET" -f app
           codesign --force --deep --sign - "$release/NuPrint Slint.app"
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
           arch=${TARGET%%-*}

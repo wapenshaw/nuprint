@@ -228,7 +228,13 @@ fn data_dir() -> PathBuf {
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local").join("share")))
         .unwrap_or_else(std::env::temp_dir);
-    base.join("NuPrint-SlintDemo")
+    let dir = base.join("NuPrint-Slint");
+    // The folder's name from when this app was called the Slint demo; keep its printers and jobs.
+    let old = base.join("NuPrint-SlintDemo");
+    if !dir.exists() && old.is_dir() {
+        let _ = std::fs::rename(&old, &dir);
+    }
+    dir
 }
 
 /// Development aid: with `NUPRINT_SLINT_SNAPSHOT=<dir>`, save screenshots of the main views to

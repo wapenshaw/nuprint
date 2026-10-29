@@ -6,8 +6,8 @@ members = [
     "crates/nuprint-render",
     "crates/nuprint-core",
     "crates/nuprint-cli",
-    "apps/desktop/src-tauri",
-    "apps/slint-demo",
+    "apps/tauri/src-tauri",
+    "apps/slint",
 ]
 default-members = [
     "crates/nuprint-protocol",

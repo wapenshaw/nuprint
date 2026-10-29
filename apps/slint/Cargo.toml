@@ -1,6 +1,6 @@
 [package]
-name = "nuprint-slint-demo"
-description = "Demo NuPrint front end written in Slint, driving the same application service as the Tauri app and CLI."
+name = "nuprint-slint"
+description = "NuPrint front end written in Slint, driving the same application service as the Tauri app and CLI."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -30,7 +30,7 @@ uuid.workspace = true
 [build-dependencies]
 slint-build = "1.18.1"
 
-# Installers built with cargo-packager (`cargo packager -p nuprint-slint-demo --release`), as a
+# Installers built with cargo-packager (`cargo packager -p nuprint-slint --release`), as a
 # preview beside the Tauri app's. Paths are relative to this folder. The release workflow stages
 # the target's PDFium library and licence in target/slint-pdfium first; see docs/building.md.
 [package.metadata.packager]
@@ -39,18 +39,18 @@ identifier = "com.nuprint.slint"
 description = "Print to small Bluetooth thermal printers (Slint preview)"
 category = "Utility"
 icons = [
-    "../desktop/src-tauri/icons/32x32.png",
-    "../desktop/src-tauri/icons/128x128.png",
-    "../desktop/src-tauri/icons/128x128@2x.png",
-    "../desktop/src-tauri/icons/icon.icns",
-    "../desktop/src-tauri/icons/icon.ico",
+    "../tauri/src-tauri/icons/32x32.png",
+    "../tauri/src-tauri/icons/128x128.png",
+    "../tauri/src-tauri/icons/128x128@2x.png",
+    "../tauri/src-tauri/icons/icon.icns",
+    "../tauri/src-tauri/icons/icon.ico",
 ]
 resources = [{ src = "../../target/slint-pdfium", target = "pdfium" }]
 
 [package.metadata.packager.macos]
 minimum-system-version = "14.0"
 # The Bluetooth permission prompt's wording, shared with the Tauri app.
-info-plist-path = "../desktop/src-tauri/Info.plist"
+info-plist-path = "../tauri/src-tauri/Info.plist"
 
 [package.metadata.packager.deb]
 depends = ["bluez", "libdbus-1-3", "libfontconfig1", "libfreetype6", "libxkbcommon0", "libxkbcommon-x11-0"]
