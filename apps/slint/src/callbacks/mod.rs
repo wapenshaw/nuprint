@@ -21,6 +21,7 @@ mod dialogs;
 mod printers;
 mod queue;
 mod shell;
+mod updates;
 mod workspace;
 
 pub(crate) fn wire(ui: &AppWindow, ctx: &Ctx) {
@@ -31,4 +32,5 @@ pub(crate) fn wire(ui: &AppWindow, ctx: &Ctx) {
     queue::wire(ui, ctx);
     diagnostics::wire(ui, ctx);
     appearance::wire(ui, ctx);
+    updates::wire(ui, ctx);
 }

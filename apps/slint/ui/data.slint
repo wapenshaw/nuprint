@@ -127,6 +127,19 @@ export global Data {
     in property <string> report-error;
     in property <bool> exporting: false;
 
+    // ---- settings: updates
+    in property <string> app-version;
+    in-out property <bool> check-updates-at-start: false;
+    in property <bool> update-checking: false;
+    in property <bool> update-newest: false;
+    // The version the last check found; empty when there is none.
+    in property <string> update-version;
+    in property <string> update-notes;
+    in property <bool> update-can-install: false;
+    in property <bool> update-installing: false;
+    in property <string> update-error;
+    in property <bool> job-active: false;
+
     // ---- dialogs
     in property <string> remove-name;
     in property <string> save-title;
@@ -188,4 +201,8 @@ export global Data {
     callback set-accent(int);
     callback set-icon(int);
     callback make-default(string);
+    callback check-updates();
+    callback set-check-updates(bool);
+    callback install-update();
+    callback open-release-page();
 }

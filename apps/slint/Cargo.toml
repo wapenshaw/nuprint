@@ -20,7 +20,11 @@ nuprint-core.workspace = true
 nuprint-render.workspace = true
 nuprint-transport.workspace = true
 
+base64 = "0.22"
+cargo-packager-updater = "0.2.3"
 image.workspace = true
+# Checks the version an update was signed for, which cargo-packager-updater does not.
+minisign-verify = "0.2.5"
 # GTK dialogs on Linux, as the Tauri app's dialog plugin uses: rfd refuses to build with both GTK and
 # its default XDG portal backend, which a workspace-wide build would otherwise ask for.
 rfd = { version = "0.17", default-features = false, features = ["gtk3"] }
@@ -31,6 +35,7 @@ serde_json.workspace = true
 slint = { version = "1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-skia", "accessibility", "compat-1-2", "unstable-winit-030"] }
 tokio.workspace = true
 uuid.workspace = true
+webbrowser = "1.2"
 
 [build-dependencies]
 slint-build = "1.18.1"

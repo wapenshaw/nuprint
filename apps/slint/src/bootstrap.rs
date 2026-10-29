@@ -223,6 +223,8 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
     theme.set_font_family(font.into());
     theme.set_mono_family(mono.into());
     data.set_brand_icon(prefs.icon);
+    data.set_app_version(env!("CARGO_PKG_VERSION").into());
+    data.set_check_updates_at_start(prefs.check_updates);
     data.set_logs(ModelRc::new(VecModel::<LogItem>::default()));
 
     data.set_text_value(DEFAULT_TEXT.into());
@@ -248,4 +250,8 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
     ctx.sync_diagnostics();
     ctx.sync_logs();
     ctx.schedule_preview(ui, true);
+    // Only when the user turned it on in Settings → Updates.
+    if prefs.check_updates {
+        ctx.check_for_update(true);
+    }
 }

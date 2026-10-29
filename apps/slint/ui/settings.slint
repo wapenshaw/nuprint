@@ -1,5 +1,5 @@
-// Settings, over the dimmed window: saved printers and finding new ones, appearance and
-// diagnostics.
+// Settings, over the dimmed window: saved printers and finding new ones, appearance, updates
+// and diagnostics.
 import { ScrollView } from "std-widgets.slint";
 import { Theme, Icons } from "theme.slint";
 import { Data } from "data.slint";
@@ -495,6 +495,87 @@ component AppearancePage inherits Page {
     }
 }
 
+component UpdatesPage inherits Page {
+    PageTitle {
+        text: "Updates";
+    }
+
+    Panel {
+        title: "NuPrint " + Data.app-version;
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            Btn {
+                text: Data.update-checking ? "Checking…" : "Check for updates";
+                enabled: !Data.update-checking && !Data.update-installing;
+                clicked => {
+                    Data.check-updates();
+                }
+            }
+
+            if Data.update-newest: Muted {
+                text: "This is the newest version.";
+                vertical-alignment: center;
+            }
+        }
+
+        Check {
+            text: "Check for updates when NuPrint starts";
+            checked <=> Data.check-updates-at-start;
+            toggled(on) => {
+                Data.set-check-updates(on);
+            }
+        }
+
+        Hint {
+            text: "A check asks GitHub, where NuPrint is published, for the newest release. Nothing about you, your printers or your documents is sent.";
+        }
+    }
+
+    if Data.update-version != "": Panel {
+        title: "NuPrint " + Data.update-version + " is available";
+        if Data.update-notes != "": notes := CodeBox {
+            height: 180px;
+            VerticalLayout {
+                width: notes.width - 12px;
+                padding: 10px;
+                Body {
+                    text: Data.update-notes;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            if Data.update-can-install: Btn {
+                kind: 1;
+                text: Data.update-installing ? "Installing…" : "Install and restart";
+                enabled: !Data.job-active && !Data.update-installing;
+                clicked => {
+                    Data.install-update();
+                }
+            }
+            Btn {
+                text: Data.update-can-install ? "Release page" : "Download";
+                clicked => {
+                    Data.open-release-page();
+                }
+            }
+        }
+
+        Hint {
+            text: !Data.update-can-install ? "Download the .deb from the release page and open it to install the update." : Data.job-active ? "A job is printing. Install the update when it has finished." : "NuPrint closes, installs the update and opens again. Waiting jobs are kept.";
+        }
+    }
+
+    if Data.update-error != "": Note {
+        label: "Error";
+        text: Data.update-error;
+        tone: 4;
+    }
+}
+
 component DiagnosticsPage inherits Page {
     PageTitle {
         text: "Diagnostics";
@@ -650,6 +731,7 @@ export component SettingsWindow inherits Rectangle {
                     for tab in [
                         { view: "printers", text: "Printers", icon: Icons.printer },
                         { view: "appearance", text: "Appearance", icon: Icons.palette },
+                        { view: "updates", text: "Updates", icon: Icons.update },
                         { view: "diagnostics", text: "Diagnostics", icon: Icons.pulse },
                     ]: SettingsTab {
                         icon: tab.icon;
@@ -671,6 +753,7 @@ export component SettingsWindow inherits Rectangle {
                         width: content.visible-width;
                         if Data.view == "printers": PrintersPage { }
                         if Data.view == "appearance": AppearancePage { }
+                        if Data.view == "updates": UpdatesPage { }
                         if Data.view == "diagnostics": DiagnosticsPage { }
                     }
                 }
