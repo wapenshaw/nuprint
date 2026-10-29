@@ -100,6 +100,8 @@ struct Ctx {
     ui: Weak<AppWindow>,
     state: Arc<Mutex<State>>,
     rt: tokio::runtime::Handle,
+    /// Held for a whole background refresh, so an older read cannot land after a newer one.
+    refreshing: Arc<Mutex<()>>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -133,6 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ui: ui.as_weak(),
         state: Arc::new(Mutex::new(State { data_dir, ..State::default() })),
         rt: runtime.handle().clone(),
+        refreshing: Arc::default(),
     };
     wire(&ui, &ctx);
     init(&ui, &ctx);
@@ -324,8 +327,9 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
         st.logs = logs;
     }
     ctx.sync_file(ui);
-    ctx.refresh_printers();
-    ctx.refresh_jobs();
+    // Before the window shows, so the first preview already knows the printer.
+    ctx.load_printers();
+    ctx.load_jobs();
     ctx.refresh_adapter();
     ctx.sync_diagnostics();
     ctx.schedule_preview(ui, true);
@@ -466,9 +470,24 @@ impl Ctx {
 
     // -------------------------------------------------------------- printers
 
+    fn refresh_printers(&self) {
+        self.in_background(Self::load_printers);
+    }
+
+    /// Run a reload on a blocking thread: it reads the store (and may encode job thumbnails),
+    /// which must not hold up the UI thread or a runtime worker. Its results reach the UI
+    /// through `ui`, in the order the reloads finish.
+    fn in_background(&self, load: fn(&Self)) {
+        let this = self.clone();
+        self.rt.spawn_blocking(move || {
+            let _serial = this.refreshing.lock().unwrap();
+            load(&this);
+        });
+    }
+
     /// Reload printers together with the profile list: saving or resetting edited settings
     /// changes which profile, and which revision, a printer uses.
-    fn refresh_printers(&self) {
+    fn load_printers(&self) {
         let printers = match self.service.list_printers() {
             Ok(printers) => printers,
             Err(e) => return self.fail(&e),
@@ -683,6 +702,10 @@ impl Ctx {
     // -------------------------------------------------------------- queue
 
     fn refresh_jobs(&self) {
+        self.in_background(Self::load_jobs);
+    }
+
+    fn load_jobs(&self) {
         let queue = match self.service.list_jobs() {
             Ok(queue) => queue,
             Err(e) => return self.fail(&e),
