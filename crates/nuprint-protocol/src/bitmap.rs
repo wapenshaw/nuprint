@@ -4,6 +4,20 @@
 //! byte, **1 = black**, row stride `ceil(width / 8)`, padding bits after the last pixel
 //! are zero. Drivers transform this into their own wire order; for example SC03h rows
 //! are LSB-first on the wire.
+//!
+//! ```
+//! use nuprint_protocol::MonoBitmap;
+//!
+//! // 10 pixels wide: two bytes per row, the last six bits are padding.
+//! let mut page = MonoBitmap::new(10, 2)?;
+//! page.set(0, 0, true); // leftmost pixel is the most significant bit
+//! page.set(9, 1, true); // pixel 9 is bit 6 of the second byte
+//! assert_eq!(page.stride(), 2);
+//! assert_eq!(page.data(), &[0x80, 0x00, 0x00, 0x40]);
+//! assert!(page.get(0, 0) && !page.get(1, 0));
+//! assert_eq!(page.black_pixels(), 2);
+//! # Ok::<(), nuprint_protocol::BitmapError>(())
+//! ```
 
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -56,12 +70,40 @@ impl MonoBitmap {
     }
 
     /// An all-white bitmap.
+    ///
+    /// # Errors
+    ///
+    /// [`BitmapError::Empty`] for a zero width or height, and [`BitmapError::TooLarge`] when
+    /// the page exceeds [`MAX_PIXELS`].
+    ///
+    /// ```
+    /// use nuprint_protocol::{BitmapError, MonoBitmap};
+    ///
+    /// assert!(MonoBitmap::new(384, 164).is_ok());
+    /// assert!(matches!(MonoBitmap::new(0, 5), Err(BitmapError::Empty { .. })));
+    /// assert!(matches!(MonoBitmap::new(1 << 16, 1 << 16), Err(BitmapError::TooLarge { .. })));
+    /// ```
     pub fn new(width: u32, height: u32) -> Result<Self, BitmapError> {
         Self::check_dims(width, height)?;
         Ok(Self { width, height, data: vec![0; Self::stride_for(width) * height as usize] })
     }
 
     /// Wrap already-packed canonical data, validating length and zero padding.
+    ///
+    /// # Errors
+    ///
+    /// The dimension errors of [`Self::new`], [`BitmapError::Length`] when `data` is not
+    /// `stride * height` bytes, and [`BitmapError::DirtyPadding`] when any padding bit after
+    /// the last pixel of a row is set.
+    ///
+    /// ```
+    /// use nuprint_protocol::{BitmapError, MonoBitmap};
+    ///
+    /// // 10 pixels wide: the low six bits of each row's second byte are padding.
+    /// assert!(MonoBitmap::from_packed(10, 1, vec![0xFF, 0xC0]).is_ok());
+    /// assert_eq!(MonoBitmap::from_packed(10, 1, vec![0xFF, 0x20]), Err(BitmapError::DirtyPadding));
+    /// assert!(matches!(MonoBitmap::from_packed(10, 1, vec![0xFF]), Err(BitmapError::Length { .. })));
+    /// ```
     pub fn from_packed(width: u32, height: u32, data: Vec<u8>) -> Result<Self, BitmapError> {
         Self::check_dims(width, height)?;
         let stride = Self::stride_for(width);
@@ -112,11 +154,27 @@ impl MonoBitmap {
         self.data.chunks_exact(self.stride())
     }
 
+    /// Whether the pixel is black.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `x >= width` or `y >= height`; unlike the constructors this is a caller bug,
+    /// not a recoverable input error.
+    ///
+    /// ```should_panic
+    /// let page = nuprint_protocol::MonoBitmap::new(8, 1).unwrap();
+    /// page.get(8, 0);
+    /// ```
     pub fn get(&self, x: u32, y: u32) -> bool {
         assert!(x < self.width && y < self.height, "pixel ({x}, {y}) outside bitmap");
         self.data[y as usize * self.stride() + (x / 8) as usize] & (0x80 >> (x % 8)) != 0
     }
 
+    /// Set or clear one pixel (`true` = black).
+    ///
+    /// # Panics
+    ///
+    /// Panics when `x >= width` or `y >= height`.
     pub fn set(&mut self, x: u32, y: u32, black: bool) {
         assert!(x < self.width && y < self.height, "pixel ({x}, {y}) outside bitmap");
         let index = y as usize * self.stride() + (x / 8) as usize;
