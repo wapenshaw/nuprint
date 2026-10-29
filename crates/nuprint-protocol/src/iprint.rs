@@ -3,6 +3,48 @@
 //! Independently implemented from APK observations and hardware replies recorded in
 //! docs/protocol.md. Model values (width, heat, speeds, feed scale) come from the
 //! profile via [`Iprint5178Params`]; nothing here is a global default for other models.
+//!
+//! Planning a page needs no transport. The canonical bitmap is MSB-first; the driver reverses
+//! each row byte because the SC03h wire is LSB-first (1 = black on both):
+//!
+//! ```
+//! use nuprint_protocol::iprint::{Iprint5178Driver, Iprint5178Params, crc8};
+//! use nuprint_protocol::{CompletionPolicy, Density, MonoBitmap, PlanStep, PrintRequest, PrinterDriver};
+//!
+//! let driver = Iprint5178Driver::new(Iprint5178Params::sc03h_reference())?;
+//!
+//! // One row with only the leftmost dot black: 0x80 canonical, 0x01 on the wire.
+//! let mut page = MonoBitmap::new(384, 1)?;
+//! page.set(0, 0, true);
+//! let request = PrintRequest { bitmap: &page, density: Density::Normal, trailing_feed_mm: 0 };
+//!
+//! let rows = driver.wire_rows(&request)?;
+//! assert_eq!((rows[0][0], rows[0].len()), (0x01, 48));
+//!
+//! // Planning validates and encodes completely; nothing is sent anywhere.
+//! let plan = driver.plan_job(&request)?;
+//! assert_eq!(plan.completion, CompletionPolicy::StatusConfirmedReady);
+//! assert!(matches!(plan.steps.first(), Some(PlanStep::RequireReady { .. })));
+//! let PlanStep::SendPrintData { bytes } = &plan.steps[1] else { panic!("print data follows the status check") };
+//! assert_eq!(plan.print_bytes(), bytes.len());
+//! assert_eq!(&bytes[..2], &[0x51, 0x78]); // every frame starts with the magic
+//!
+//! // With no trailing feed the stream ends with the raster row frame
+//! // `51 78 A2 00 30 00 <48 wire bytes> crc FF`.
+//! let row_frame = &bytes[bytes.len() - 56..];
+//! assert_eq!(&row_frame[..6], &[0x51, 0x78, 0xA2, 0x00, 48, 0]);
+//! assert_eq!(row_frame[6], 0x01);
+//! assert_eq!(row_frame[54], crc8(&row_frame[6..54]));
+//! assert_eq!(row_frame[55], 0xFF);
+//!
+//! // A bitmap of the wrong width is rejected before any bytes exist.
+//! let narrow = MonoBitmap::new(100, 1)?;
+//! let bad = PrintRequest { bitmap: &narrow, density: Density::Normal, trailing_feed_mm: 0 };
+//! assert!(driver.plan_job(&bad).is_err());
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! Exact bytes are pinned against the Python reference by `tests/python_parity.rs`.
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -61,6 +103,10 @@ const CRC8_TABLE: [u8; 256] = {
 };
 
 /// `51 78 | opcode | direction | len u16 LE | payload | crc8(payload) | FF`
+///
+/// # Errors
+///
+/// [`ProtocolError::PayloadTooLarge`] when the payload does not fit the uint16 length field.
 pub fn frame_with_direction(opcode: u8, direction: u8, payload: &[u8]) -> Result<Vec<u8>, ProtocolError> {
     let len = u16::try_from(payload.len()).map_err(|_| ProtocolError::PayloadTooLarge(payload.len()))?;
     let mut out = Vec::with_capacity(payload.len() + FRAME_OVERHEAD);
@@ -74,7 +120,21 @@ pub fn frame_with_direction(opcode: u8, direction: u8, payload: &[u8]) -> Result
     Ok(out)
 }
 
-/// Command frame. Panics only for payloads over 65535 bytes, which this crate never builds.
+/// Command frame.
+///
+/// # Panics
+///
+/// Panics only for payloads over 65535 bytes, which this crate never builds. Use
+/// [`frame_with_direction`] for untrusted lengths.
+///
+/// ```
+/// use nuprint_protocol::iprint::{command, crc8};
+///
+/// // `51 78 | A3 | 00 | 01 00 | payload | crc | FF`
+/// let status = command(0xA3, &[0x00]);
+/// assert_eq!(status, [0x51, 0x78, 0xA3, 0x00, 0x01, 0x00, 0x00, crc8(&[0x00]), 0xFF]);
+/// assert_eq!(crc8(b"123456789"), 0xF4);
+/// ```
 pub fn command(opcode: u8, payload: &[u8]) -> Vec<u8> {
     frame_with_direction(opcode, DIRECTION_COMMAND, payload).expect("command payload fits uint16")
 }
@@ -112,6 +172,18 @@ impl FrameDecoder {
         Self::default()
     }
 
+    /// Add received bytes and return every complete, valid frame. Fragments are buffered for
+    /// the next call; noise, bad CRCs and bad terminators are skipped, never reported.
+    ///
+    /// ```
+    /// use nuprint_protocol::iprint::{FrameDecoder, command};
+    ///
+    /// let wire = command(0xA3, &[0x00]);
+    /// let mut decoder = FrameDecoder::new();
+    /// assert!(decoder.feed(&wire[..4]).is_empty()); // a notification may split a frame
+    /// let frames = decoder.feed(&wire[4..]);
+    /// assert_eq!((frames[0].opcode, frames[0].payload.as_slice()), (0xA3, &[0x00][..]));
+    /// ```
     pub fn feed(&mut self, data: &[u8]) -> Vec<Frame> {
         self.buffer.extend_from_slice(data);
         let mut frames = Vec::new();
@@ -337,11 +409,19 @@ pub struct Iprint5178Driver {
 }
 
 impl Iprint5178Driver {
+    /// # Errors
+    ///
+    /// The message from [`Iprint5178Params::validate`] when the parameters are inconsistent.
     pub fn new(params: Iprint5178Params) -> Result<Self, String> {
         params.validate()?;
         Ok(Self { params })
     }
 
+    /// Convert extra feed in nominal millimetres to device steps.
+    ///
+    /// # Errors
+    ///
+    /// [`ProtocolError::FeedOutOfRange`] when `feed_mm` is outside the profile's feed bounds.
     pub fn feed_steps(&self, feed_mm: u16) -> Result<u16, ProtocolError> {
         let feed = self.params.feed;
         if !feed.contains(feed_mm) {
@@ -351,6 +431,11 @@ impl Iprint5178Driver {
     }
 
     /// Canonical MSB-first/1=black rows → wire LSB-first/1=black rows.
+    ///
+    /// # Errors
+    ///
+    /// [`ProtocolError::InvalidRaster`] unless the bitmap is exactly the profile width and
+    /// between one row and the profile's maximum height.
     pub fn wire_rows(&self, request: &PrintRequest<'_>) -> Result<Vec<Vec<u8>>, ProtocolError> {
         self.check_raster(request.bitmap)?;
         Ok(request.bitmap.rows().map(|row| row.iter().map(|b| b.reverse_bits()).collect()).collect())
@@ -370,6 +455,30 @@ impl Iprint5178Driver {
     }
 
     /// Exact byte stream for one page, identical to the Python reference `print_job()`.
+    ///
+    /// # Errors
+    ///
+    /// [`ProtocolError::FeedOutOfRange`], [`ProtocolError::UnsupportedDensity`] or
+    /// [`ProtocolError::InvalidRaster`]. All checks run before any byte is produced.
+    ///
+    /// ```
+    /// use nuprint_protocol::iprint::{Iprint5178Driver, Iprint5178Params};
+    /// use nuprint_protocol::{Density, MonoBitmap, PrintRequest, ProtocolError};
+    ///
+    /// let driver = Iprint5178Driver::new(Iprint5178Params::sc03h_reference())?;
+    /// let page = MonoBitmap::new(384, 2)?;
+    /// let request = |feed| PrintRequest { bitmap: &page, density: Density::Normal, trailing_feed_mm: feed };
+    ///
+    /// // Zero feed omits the feed commands; 12 mm adds a speed command and two 48-step A1 commands.
+    /// let none = driver.encode_job(&request(0))?;
+    /// let full = driver.encode_job(&request(12))?;
+    /// assert!(full.len() > none.len());
+    /// assert_eq!(
+    ///     driver.encode_job(&request(13)),
+    ///     Err(ProtocolError::FeedOutOfRange { min: 0, max: 12 })
+    /// );
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn encode_job(&self, request: &PrintRequest<'_>) -> Result<Vec<u8>, ProtocolError> {
         let steps = self.feed_steps(request.trailing_feed_mm)?;
         let energy = *self

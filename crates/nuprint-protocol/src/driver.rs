@@ -43,6 +43,14 @@ impl Density {
     }
 }
 
+/// Parses `light`, `normal` or `dark`; anything else is [`ProtocolError::UnsupportedDensity`].
+///
+/// ```
+/// use nuprint_protocol::{Density, ProtocolError};
+///
+/// assert_eq!("dark".parse::<Density>(), Ok(Density::Dark));
+/// assert_eq!("Dark".parse::<Density>(), Err(ProtocolError::UnsupportedDensity("Dark".into())));
+/// ```
 impl std::str::FromStr for Density {
     type Err = ProtocolError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -227,5 +235,9 @@ pub trait PrinterDriver: Send + Sync {
     fn width_dots(&self) -> u32;
     fn max_height(&self) -> u32;
     /// Validate and encode completely before any transport is opened.
+    ///
+    /// # Errors
+    ///
+    /// A [`ProtocolError`] when the raster size, density or feed is not valid for this model.
     fn plan_job(&self, request: &PrintRequest<'_>) -> Result<ExchangePlan, ProtocolError>;
 }
