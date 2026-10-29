@@ -6,6 +6,7 @@
 pub mod api;
 pub mod error;
 pub mod jobs;
+mod log_writer;
 pub mod profile;
 pub mod service;
 pub mod session;

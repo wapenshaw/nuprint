@@ -58,6 +58,8 @@ For an experimental printer, or the SC03h, **Settings → Printers → Advanced*
 
 Diagnostics can be exported from **Settings → Diagnostics**. Device names, addresses, job titles, names you gave edited printer settings, and backend error details (including in the log) are redacted unless you choose to include them. Documents are never uploaded anywhere.
 
+The app also keeps a log file at `logs/nuprint.log` in its data folder, with `nuprint.log.1` as the previous 2 MB. A background thread writes it, so a crash or forced kill can lose the most recent lines; they are written when the app quits normally and before a diagnostics export. If lines arrive faster than the disk accepts them, or the file cannot be written, informational lines are dropped before warnings and errors and the log reports how many were lost. The on-screen log and the diagnostics export are unaffected. The log file itself is not redacted.
+
 ## Troubleshooting
 
 - **Not found:** make sure Bluetooth is on, power-cycle the printer, keep it close and close phone printer apps that may hold the connection.
