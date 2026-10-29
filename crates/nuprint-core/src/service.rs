@@ -24,6 +24,7 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::jobs::{classify, summarize};
 use crate::log_writer::LogWriter;
 use crate::profile::{ModelProfile, ProfileRegistry, ResolvedProfile};
+use crate::render_queue::RenderQueue;
 use crate::session::{LogFn, PrinterSession, SessionEvent, locate};
 use crate::store::{CustomProfileRow, JobRow, PrinterRow, Store, now_ms};
 
@@ -72,6 +73,16 @@ struct Snapshot {
     png: Arc<Vec<u8>>,
 }
 
+/// A finished preview render: the bitmap and everything derived from it.
+struct PreparedPreview {
+    source_page: u32,
+    bitmap: MonoBitmap,
+    png: Arc<Vec<u8>>,
+    sha256: String,
+    black_ratio: f32,
+    warnings: Vec<String>,
+}
+
 /// The most recent entries by ID; the oldest is dropped beyond `cap`.
 struct Recent<T> {
     cap: usize,
@@ -100,7 +111,7 @@ impl<T> Recent<T> {
 /// cancel tokens, a diagnostic holder, or the active-job slot, which is only ever replaced whole).
 /// A panic while holding it cannot leave a half-applied change, so the poison flag is cleared
 /// instead of panicking every later caller. Not for the job store: see `AppService::store`.
-fn relock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+pub(crate) fn relock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|poisoned| {
         mutex.clear_poison();
         poisoned.into_inner()
@@ -159,7 +170,7 @@ struct Inner {
     pdf: Mutex<Option<AppResult<PdfEngine>>>,
     sources: Recent<Source>,
     snapshots: Recent<Snapshot>,
-    latest_generation: Mutex<f64>,
+    renders: Arc<RenderQueue>,
     scans: Mutex<HashMap<String, CancellationToken>>,
     inspections: Mutex<HashMap<String, CancellationToken>>,
     discovered: Mutex<HashMap<String, Advertisement>>,
@@ -454,7 +465,7 @@ impl AppService {
             pdf: Mutex::new(None),
             sources: Recent::new(MAX_SOURCES),
             snapshots: Recent::new(MAX_SNAPSHOTS),
-            latest_generation: Mutex::new(f64::MIN),
+            renders: RenderQueue::new(),
             scans: Mutex::new(HashMap::new()),
             inspections: Mutex::new(HashMap::new()),
             discovered: Mutex::new(HashMap::new()),
@@ -1348,11 +1359,16 @@ impl AppService {
         let format = nuprint_render::sniff_format(&bytes).ok_or(RenderError::UnsupportedFormat)?;
         let name = path.file_name().map_or_else(|| "file".into(), |n| n.to_string_lossy().into_owned());
         let (kind, page_count) = if format == SourceFormat::Pdf {
-            let engine = self.pdf_engine()?;
+            let service = self.clone();
             let data = bytes.clone();
-            let count = tokio::task::spawn_blocking(move || engine.page_count(&data, None))
-                .await
-                .map_err(AppError::internal)?;
+            let count = self
+                .inner
+                .renders
+                .run_exclusive(&self.inner.shutdown, move || {
+                    let engine = service.pdf_engine()?;
+                    Ok(engine.page_count(&data, None))
+                })
+                .await?;
             match count {
                 Ok(count) => (SourceKind::Pdf, Some(count)),
                 Err(RenderError::PdfPasswordRequired) => (SourceKind::Pdf, None),
@@ -1375,14 +1391,7 @@ impl AppService {
     }
 
     pub async fn render_preview(&self, request: PreviewRequest) -> AppResult<PreviewResult> {
-        let stale = || AppError::new(ErrorCode::StalePreview, "A newer preview was requested");
-        {
-            let mut latest = self.inner.latest_generation.lock().unwrap();
-            if request.generation < *latest {
-                return Err(stale());
-            }
-            *latest = request.generation;
-        }
+        let mut ticket = self.inner.renders.admit(request.generation)?;
         let resolved =
             self.inner.registry.get(&request.profile_id).ok_or_else(|| AppError::not_found("Printer profile"))?;
         let raster = &resolved.profile.raster;
@@ -1393,56 +1402,69 @@ impl AppService {
         };
         let source_kind = source_kind_name(&request.source);
         let settings_json = persisted_settings(&request.source)?;
-        let spec = request.source.clone();
-        let pages: Vec<(u32, RenderOutput)> = match spec {
+        // Cheap validation stays here; everything heavy runs in the bounded worker below.
+        let work: Box<dyn FnOnce() -> AppResult<(u32, RenderOutput)> + Send> = match request.source.clone() {
             SourceSpec::Text(text) => {
                 let params = text_params(&text);
-                vec![(1, self.blocking(move || nuprint_render::render_text(&params, &target)).await?)]
+                Box::new(move || Ok((1, nuprint_render::render_text(&params, &target)?)))
             }
-            SourceSpec::TestPattern => {
-                vec![(1, self.blocking(move || Ok(nuprint_render::test_pattern(&target))).await?)]
-            }
+            SourceSpec::TestPattern => Box::new(move || Ok((1, nuprint_render::test_pattern(&target)))),
             SourceSpec::Image { source_id, adjust } => {
                 let source = self.source(&source_id)?;
                 if source.format == SourceFormat::Pdf {
                     return Err(AppError::invalid("This file is a PDF; choose a PDF page instead."));
                 }
                 let params = image_params(&adjust);
-                vec![(1, self.blocking(move || nuprint_render::render_image(&source.bytes, &params, &target)).await?)]
+                Box::new(move || Ok((1, nuprint_render::render_image(&source.bytes, &params, &target)?)))
             }
             SourceSpec::Pdf { source_id, page, adjust, password } => {
                 let source = self.source(&source_id)?;
                 if source.format != SourceFormat::Pdf {
                     return Err(AppError::invalid("This file is not a PDF."));
                 }
-                let engine = self.pdf_engine()?;
+                let service = self.clone();
                 let params = image_params(&adjust);
-                let output = self
-                    .blocking(move || engine.render_page(&source.bytes, password.as_deref(), page, &params, &target))
-                    .await?;
-                vec![(page, output)]
+                Box::new(move || {
+                    let engine = service.pdf_engine()?;
+                    let output = engine.render_page(&source.bytes, password.as_deref(), page, &params, &target)?;
+                    Ok((page, output))
+                })
             }
         };
-        if *self.inner.latest_generation.lock().unwrap() > request.generation {
-            return Err(stale());
-        }
-        let (source_page, output) = &pages[0];
-        let bitmap = output.bitmap.clone();
-        let png = Arc::new(nuprint_render::encode_png(&bitmap));
-        let warnings = pages.iter().flat_map(|(_, o)| o.warnings.iter().map(warning_text)).collect();
-        let total = f64::from(bitmap.width()) * f64::from(bitmap.height());
+        // Render, encode and measure in one bounded operation that owns the render slot.
+        let prepared = self
+            .inner
+            .renders
+            .run(&mut ticket, &self.inner.shutdown, move |gate| {
+                let (source_page, output) = work()?;
+                if !gate.is_current() {
+                    return Ok(None);
+                }
+                let RenderOutput { bitmap, warnings } = output;
+                let png = Arc::new(nuprint_render::encode_png(&bitmap));
+                let total = f64::from(bitmap.width()) * f64::from(bitmap.height());
+                Ok(Some(PreparedPreview {
+                    source_page,
+                    png,
+                    sha256: bitmap.sha256_hex(),
+                    black_ratio: (bitmap.black_pixels() as f64 / total) as f32,
+                    warnings: warnings.iter().map(warning_text).collect(),
+                    bitmap,
+                }))
+            })
+            .await?;
         let snapshot_id = Uuid::new_v4().to_string();
         let result = PreviewResult {
             generation: request.generation,
             snapshot_id: snapshot_id.clone(),
             profile_id: resolved.profile.id.clone(),
             profile_revision: resolved.profile.revision,
-            width: bitmap.width(),
-            height: bitmap.height(),
-            length_mm: bitmap.height() as f32 / target.dots_per_mm,
-            sha256: bitmap.sha256_hex(),
-            black_ratio: (bitmap.black_pixels() as f64 / total) as f32,
-            warnings,
+            width: prepared.bitmap.width(),
+            height: prepared.bitmap.height(),
+            length_mm: prepared.bitmap.height() as f32 / target.dots_per_mm,
+            sha256: prepared.sha256,
+            black_ratio: prepared.black_ratio,
+            warnings: prepared.warnings,
             preview_path: format!("{snapshot_id}.png"),
         };
         let snapshot = Snapshot {
@@ -1450,18 +1472,12 @@ impl AppService {
             profile_revision: resolved.profile.revision,
             source_kind,
             settings_json,
-            pages: vec![(*source_page, bitmap)],
-            png,
+            pages: vec![(prepared.source_page, prepared.bitmap)],
+            png: prepared.png,
         };
-        self.inner.snapshots.insert(snapshot_id, snapshot);
+        // Checked and published under one lock so a newer request is never overtaken.
+        self.inner.renders.publish(&ticket, || self.inner.snapshots.insert(snapshot_id, snapshot))?;
         Ok(result)
-    }
-
-    async fn blocking<T: Send + 'static>(
-        &self,
-        work: impl FnOnce() -> Result<T, RenderError> + Send + 'static,
-    ) -> AppResult<T> {
-        tokio::task::spawn_blocking(work).await.map_err(AppError::internal)?.map_err(AppError::from)
     }
 
     fn snapshot(&self, snapshot_id: &str) -> AppResult<Arc<Snapshot>> {
