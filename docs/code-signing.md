@@ -7,7 +7,7 @@ This page says which NuPrint downloads are signed, by what, and how to check one
 | Download | Signature | How to check it |
 | --- | --- | --- |
 | All installers, from the next release on | GitHub build provenance attestation | [Check a download](#check-a-download) |
-| Windows `NuPrint_<version>_x64-setup.exe` | Not code-signed yet; signing through the SignPath Foundation has been applied for | SmartScreen warns on first launch |
+| Windows `NuPrint_<version>_x64-setup.exe` | Not code-signed yet; signing through the SignPath Foundation is planned | SmartScreen warns on first launch |
 | macOS `.dmg` | Signed ad hoc, not notarized | Gatekeeper blocks the first launch |
 | Debian/Ubuntu `.deb` | Attestation only | [Check a download](#check-a-download) |
 

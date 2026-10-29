@@ -13,7 +13,7 @@ NuPrint is a **Rust + Tauri app for Windows, macOS and Linux** with extensible p
 | [Printer protocol](protocol.md) | Model-specific wire format, GATT endpoints, packet samples and evidence | APK-derived + one-unit hardware verification |
 | [APK printer catalog](apk-printer-models.md) | Model names, prefixes, dimensions and app-list membership from the supplied APK | Research candidates; SC03h only verified |
 | [Printer interaction](printer-interaction.md) | Exact connection/print commands (Rust CLI), Python PoC API and troubleshooting | Implemented |
-| [Code signing policy](code-signing.md) | Which downloads are signed, release build provenance, team roles and how to check a download | Attestations configured, not yet on a release; Windows signing applied for |
+| [Code signing policy](code-signing.md) | Which downloads are signed, release build provenance, team roles and how to check a download | Attestations configured, not yet on a release; Windows signing planned |
 | [Validation and release plan](validation.md) | Automated, hardware, usability and packaging acceptance tests | Python and Rust results + planned coverage |
 | [Engineering backlog](backlog.md) | Deferred refactors, performance work, wording decisions and Rust/Tauri best-practice review findings | Proposed |
 | [Rust follow-up plan](rust-follow-up-plan.md) | Sequenced validation, runtime performance, dispatcher recovery, module, lint and doctest work after the completed review fixes | Steps 0–8 landed or deferred with reasons; see its progress table |
