@@ -27,9 +27,33 @@ use crate::{
 /// On Windows, a scan started just after one that was stopped within its first 100 ms or so can
 /// stay silent, with no error, until it is stopped again: on hardware it heard nothing from any
 /// device for 30 s, where a working scan hears its first device within a second. A scan that has
-/// heard nothing at all by this point is restarted.
+/// heard no advertisement by this point is restarted.
 const SILENT_SCAN_RESTART: Duration = Duration::from_secs(2);
 const SCAN_RESTART_PAUSE: Duration = Duration::from_millis(250);
+
+/// What one adapter event means to a scan.
+#[derive(Debug, PartialEq)]
+enum ScanEvent {
+    /// Advertising data from a device: proof that the scan hears.
+    Advertised(PeripheralId),
+    AdapterOff,
+    /// Connections, disconnections and other adapter changes. They also arrive on a silent scan,
+    /// for example a disconnect that follows a cancelled connection, so they prove nothing.
+    Other,
+}
+
+fn classify(event: CentralEvent) -> ScanEvent {
+    match event {
+        CentralEvent::DeviceDiscovered(id)
+        | CentralEvent::DeviceUpdated(id)
+        | CentralEvent::RssiUpdate { id, .. }
+        | CentralEvent::ServicesAdvertisement { id, .. }
+        | CentralEvent::ServiceDataAdvertisement { id, .. }
+        | CentralEvent::ManufacturerDataAdvertisement { id, .. } => ScanEvent::Advertised(id),
+        CentralEvent::StateUpdate(CentralState::PoweredOff) => ScanEvent::AdapterOff,
+        _ => ScanEvent::Other,
+    }
+}
 
 fn map_err(error: btleplug::Error) -> TransportError {
     match error {
@@ -214,16 +238,12 @@ impl Transport for BleTransport {
                 }
                 event = events.next() => {
                     let Some(event) = event else { break Ok(()) };
-                    heard = true;
-                    let id = match event {
-                        CentralEvent::DeviceDiscovered(id)
-                        | CentralEvent::DeviceUpdated(id)
-                        | CentralEvent::RssiUpdate { id, .. }
-                        | CentralEvent::ServicesAdvertisement { id, .. }
-                        | CentralEvent::ManufacturerDataAdvertisement { id, .. } => id,
-                        CentralEvent::StateUpdate(CentralState::PoweredOff) => break Err(TransportError::AdapterOff),
-                        _ => continue,
+                    let id = match classify(event) {
+                        ScanEvent::Advertised(id) => id,
+                        ScanEvent::AdapterOff => break Err(TransportError::AdapterOff),
+                        ScanEvent::Other => continue,
                     };
+                    heard = true;
                     if let Some(adv) = self.advertisement(adapter, &id).await
                         && sink.send(adv).await.is_err()
                     {
@@ -391,5 +411,37 @@ impl Link for BleLink {
     async fn disconnect(&self) -> Result<(), TransportError> {
         self.forwarder.abort();
         self.peripheral.disconnect().await.map_err(map_err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adapter_state_changes_are_not_advertisements() {
+        assert_eq!(classify(CentralEvent::StateUpdate(CentralState::PoweredOn)), ScanEvent::Other);
+        assert_eq!(classify(CentralEvent::StateUpdate(CentralState::Unknown)), ScanEvent::Other);
+        assert_eq!(classify(CentralEvent::StateUpdate(CentralState::PoweredOff)), ScanEvent::AdapterOff);
+    }
+
+    /// Only Windows restarts a silent scan, and only there can a test build a device id.
+    #[cfg(windows)]
+    #[test]
+    fn only_advertisements_stop_a_silent_scan_being_restarted() {
+        let id = PeripheralId::from(btleplug::api::BDAddr::from([1, 2, 3, 4, 5, 6]));
+        for event in [CentralEvent::DeviceConnected(id.clone()), CentralEvent::DeviceDisconnected(id.clone())] {
+            assert_eq!(classify(event), ScanEvent::Other);
+        }
+        for event in [
+            CentralEvent::DeviceDiscovered(id.clone()),
+            CentralEvent::DeviceUpdated(id.clone()),
+            CentralEvent::RssiUpdate { id: id.clone(), rssi: -60 },
+            CentralEvent::ServicesAdvertisement { id: id.clone(), services: vec![] },
+            CentralEvent::ServiceDataAdvertisement { id: id.clone(), service_data: HashMap::new() },
+            CentralEvent::ManufacturerDataAdvertisement { id: id.clone(), manufacturer_data: HashMap::new() },
+        ] {
+            assert_eq!(classify(event), ScanEvent::Advertised(id.clone()));
+        }
     }
 }
