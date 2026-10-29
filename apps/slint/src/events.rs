@@ -6,8 +6,7 @@ use slint::{ComponentHandle, Model};
 use crate::Data;
 use crate::ctx::Ctx;
 use crate::labels::*;
-
-const MAX_LOG_LINES: usize = 500;
+use crate::sync::MAX_LOG_LINES;
 
 impl Ctx {
     pub(crate) fn on_event(&self, event: AppEvent) {
@@ -77,12 +76,12 @@ impl Ctx {
                         return;
                     }
                     st.log_seq = line.seq;
-                    st.logs.push(line);
-                    if st.logs.len() > MAX_LOG_LINES {
-                        st.logs.remove(0);
+                    st.new_logs.push(line);
+                    if st.new_logs.len() > MAX_LOG_LINES {
+                        st.new_logs.remove(0);
                     }
                 }
-                self.sync_diagnostics();
+                self.sync_logs();
             }
         }
     }

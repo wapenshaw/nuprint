@@ -64,7 +64,9 @@ pub(crate) struct State {
     pub(crate) tracked: Option<String>,
     pub(crate) status: Option<Status>,
     pub(crate) log_seq: f64,
-    pub(crate) logs: Vec<LogLine>,
+    /// Log lines not on screen yet, and whether the UI thread is already due to add them.
+    pub(crate) new_logs: Vec<LogLine>,
+    pub(crate) logs_queued: bool,
     pub(crate) dialog_device: Option<String>,
     pub(crate) dialog_printer: Option<String>,
     pub(crate) save_candidates: Vec<ProfileMatch>,
