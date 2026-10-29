@@ -380,8 +380,9 @@ pub fn run() {
         .register_asynchronous_uri_scheme_protocol(PREVIEW_SCHEME, |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_owned();
-            // Serve off the main thread; previews are small but this keeps the UI responsive.
-            tauri::async_runtime::spawn(async move { responder.respond(preview_response(&app, &path)) });
+            // A job page is read from the store and encoded here, so serve it on a blocking thread
+            // rather than the main thread or an async worker.
+            tauri::async_runtime::spawn_blocking(move || responder.respond(preview_response(&app, &path)));
         })
         .setup(|app| {
             let base_dir = app.path().app_data_dir()?;
