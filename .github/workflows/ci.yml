@@ -90,6 +90,9 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --locked
+        env:
+          # PDFium was fetched above, so a PDF test must not skip itself.
+          NUPRINT_REQUIRE_PDFIUM: "1"
 
       # ts-rs regenerates the bindings during the tests; they must match what is committed.
       - name: Generated bindings are committed

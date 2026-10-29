@@ -5,9 +5,14 @@ use std::path::PathBuf;
 
 use nuprint_render::{ImageParams, PdfEngine, RenderError, RenderTarget, RenderWarning, Rotation, Tone};
 
+/// The PDF engine, or `None` to skip a test when PDFium has not been fetched. With
+/// `NUPRINT_REQUIRE_PDFIUM=1` (as in CI) a missing PDFium fails the test instead.
 fn engine() -> Option<PdfEngine> {
     match PdfEngine::load(&nuprint_render::pdfium_search_dirs(&[])) {
         Ok(engine) => Some(engine),
+        Err(error) if std::env::var_os("NUPRINT_REQUIRE_PDFIUM").is_some_and(|v| v == "1") => {
+            panic!("PDFium is required (NUPRINT_REQUIRE_PDFIUM=1) but is not available: {error}")
+        }
         Err(error) => {
             println!("SKIPPED: PDFium is not available ({error}). Run scripts/fetch-pdfium.ps1 or fetch-pdfium.sh.");
             None
