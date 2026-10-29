@@ -45,7 +45,7 @@ Get the installer for your system from the [latest release](https://github.com/w
 | macOS 14+ on Intel | `NuPrint_<version>_x64.dmg` | `nuprint-slint_<version>_x64.dmg` |
 | Debian and Ubuntu | `NuPrint_<version>_amd64.deb` | `nuprint-slint_<version>_amd64.deb` |
 
-The Windows installers need no admin rights.
+The Windows installers need no admin rights. Once installed, both apps can check for a newer release and install it in **Settings → Updates**. They check only when you ask, or at start if you turn that on.
 
 ### Two apps, one engine
 
@@ -69,7 +69,7 @@ From the next release on, every installer comes with a GitHub build attestation:
 3. Write a note or open a picture or PDF page.
 4. Press **Print**.
 
-The [user guide](docs/user-guide.md) covers the queue, advanced printer settings, appearance and troubleshooting.
+The [user guide](docs/user-guide.md) covers the queue, advanced printer settings, appearance, updates and troubleshooting.
 
 ## Printers
 
