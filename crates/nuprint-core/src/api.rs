@@ -26,6 +26,20 @@ pub struct AppInfo {
     pub persistent: bool,
 }
 
+/// A release newer than the running app, found when the user checks for updates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct UpdateInfo {
+    pub version: String,
+    pub current_version: String,
+    /// What changed, as plain text (see [`crate::update::release_notes`]); may be empty.
+    pub notes: String,
+    /// The release page, with the full notes and every installer.
+    pub release_url: String,
+    /// False where the app can only point to the download, as the Slint app on Linux does.
+    pub can_install: bool,
+}
+
 /// Support is tracked per profile revision × OS/backend (docs/printer-support.md).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]

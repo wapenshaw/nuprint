@@ -24,6 +24,7 @@ mod render_queue;
 pub mod service;
 pub mod session;
 pub mod store;
+pub mod update;
 
 pub use error::{AppError, AppResult, ErrorCode};
 pub use service::{AppService, EventSink, ServiceConfig, ShutdownOutcome};
