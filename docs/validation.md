@@ -6,10 +6,11 @@ NuPrint is implemented in [Rust + Tauri](rust-tauri-spec.md); the Python app in 
 
 | | Status (2026-10-29) |
 | --- | --- |
-| Rust engine | SC03h packets match the Python reference byte-for-byte on 40 golden job vectors. 222 offline Rust tests pass, including 18 doctests (2026-10-29, with PDFium required). |
+| Rust engine | SC03h packets match the Python reference byte-for-byte on 40 golden job vectors. 223 offline Rust tests pass, including 18 doctests (2026-10-29, with PDFium required). |
 | Desktop app (Windows, dev build) | Found SC03h-3DE8 and read firmware 3.0.49 with ready status. Printed two short text jobs; the printer reported ready after each and the owner reported them working. |
 | Desktop app (macOS) | Bluetooth permission prompt, discovery and four short text prints on SC03h-3DE8 (dev build and a packaged debug app, Apple silicon); ready status after each, owner reported them working. |
 | Review fixes (2026-10-29) | The owner ran the non-printing checks for the 2026-10-29 review fixes in the Tauri dev build and the Slint app on Windows: edited settings and their limits, a connection check racing an edit and a removal, cancelling a connection, redacted diagnostics and the queue. All were reported working. No paper was used, and which Bluetooth stage a cancellation interrupted was not observed. |
+| Cancelling a connection (Windows, 2026-10-29) | `cancel_connect` (below) against SC03h-3DE8, dev build, no print data. Eleven connections cancelled part-way, from 56 ms to 2 s into a 1.1 to 2.1 s connection, so both while the link was being established and during service discovery: each returned within 13 ms and the next connection check reported ready. Cancelling a search for the printer 100 ms in left the next Windows scan hearing nothing at all for 30 s, so its check failed, in 5 of 10 tries; a scan that hears nothing for 2 s is now restarted, and with that all 12 tries passed (the restart fired in 6). No paper was used. |
 | Slint app | Used for the checks above (Windows dev build). The Windows preview installer was built locally; the unpacked release app found its bundled PDFium. The macOS and Linux preview installers have not been built or installed yet. |
 | Release installers | The v1.0.0 installers (NSIS, two DMGs, `.deb`) were built by the release workflow and their checksums and `.deb` contents checked. None has yet been installed and tested with a printer. |
 | Linux | Not tested on hardware. The SC03h profile is **experimental** on Linux. |
@@ -95,7 +96,7 @@ Keep roll and heat settings within the verified profile. Do not deliberately exh
 - Exercise keyboard navigation and readable focus indicators; validate screen-reader behavior before claiming accessibility support.
 - Build from a clean clone using the lock file. The APK, `.tools/`, system Java and existing build outputs must not be required.
 - Launch the packaged app on the supported Windows x64 matrix, including a PC without separately installed Python. Exercise BLE, PDF and image paths to catch bundled native-library/import issues.
-- Check cancellation and exit while connecting/transferring; verify Bluetooth becomes available to a new session afterwards. For the connecting half without printing, run `cargo run -p nuprint-cli --example cancel_connect` with the printer on: it cancels an inspection at seven delays from 0 to 6 s, runs a connection check after each and prints a timeline showing whether the disconnect came before the next connection. Neither step sends print data.
+- Check cancellation and exit while connecting/transferring; verify Bluetooth becomes available to a new session afterwards. For the connecting half without printing, run `cargo run -p nuprint-cli --example cancel_connect` with the printer on: it times one connection, cancels six more at 5 to 95% of that time, then cancels six searches for the printer 100 ms in, and runs a connection check after each. It reports any cancel that came too late to test anything. Nothing sends print data.
 - Verify log rotation, source-content exclusion, diagnostics export, storage quota and retention behavior as implemented.
 - For installers, test install/update/uninstall and preservation of user designs. Verify actual signing status and include third-party notices.
 
@@ -130,7 +131,7 @@ Pre-release working tree, workspace version 0.2.0, Rust 1.98.0, Windows 11 Pro 1
 | Discovery/check | SC03h-3DE8 found and saved; firmware 3.0.49; status ready; write AE30/AE01, chunk 180 bytes (link limit 509) | Read-only check, no paper |
 | Print transfer | Two short "Hello from NuPrint!" text jobs, 4770 and 4760 bytes: fresh ready status before sending, ready after, clean disconnect, recorded as "Transfer complete · printer reports ready" | Started by the owner from the GUI; owner reported the prints working (no detailed paper inspection recorded) |
 
-Not yet validated for the Rust app: detailed paper inspection, packaged installers (bundled PDFium), Linux, pictures/PDF on paper, long jobs, real pause/resume, faults, cancellation on hardware and reduced-feed calibration. The SC03h profile's `verified_basic` level on Windows rests on the Python evidence plus this owner report for short text from the Rust dev build.
+Not yet validated for the Rust app: detailed paper inspection, packaged installers (bundled PDFium), Linux, pictures/PDF on paper, long jobs, real pause/resume, faults, cancellation during a transfer on hardware and reduced-feed calibration. The SC03h profile's `verified_basic` level on Windows rests on the Python evidence plus this owner report for short text from the Rust dev build.
 
 ## macOS (2026-10-13)
 
