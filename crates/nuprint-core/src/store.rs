@@ -13,6 +13,7 @@ use nuprint_protocol::{Density, MonoBitmap};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use uuid::Uuid;
 
 use crate::api::JobState;
 use crate::error::{AppError, AppResult, ErrorCode};
@@ -362,13 +363,23 @@ impl Store {
         }
         let revision = conn.query_row("SELECT COALESCE(MAX(revision), 0) FROM jobs", [], |r| r.get(0))?;
         let store = Self { conn, root, revision, _lock: lock };
-        store.discard_temp_assets();
+        store.tidy_assets();
         Ok(store)
     }
 
-    fn discard_temp_assets(&self) {
+    /// Remove what an interrupted write left behind: unfinished files, and the folders of jobs
+    /// whose rows were never committed. Only folders named like a job ID are considered.
+    fn tidy_assets(&self) {
         let Ok(dirs) = fs::read_dir(self.root.join("jobs")) else { return };
         for dir in dirs.flatten() {
+            let name = dir.file_name();
+            if let Some(id) = name.to_str()
+                && Uuid::try_parse(id).is_ok()
+                && matches!(self.get_job(id), Ok(None))
+            {
+                let _ = fs::remove_dir_all(dir.path());
+                continue;
+            }
             let Ok(files) = fs::read_dir(dir.path()) else { continue };
             for file in files.flatten() {
                 if file.path().extension().is_some_and(|e| e == "tmp") {
@@ -503,12 +514,19 @@ impl Store {
         self.root.join("jobs").join(job_id)
     }
 
-    /// Persist page assets, then commit job + page rows in one transaction.
+    /// Persist page assets, then commit job + page rows in one transaction. If anything fails the
+    /// job's folder is removed again, so a refused job leaves no print data behind.
     pub fn insert_job(&mut self, job: &JobRow, pages: &[(u32, MonoBitmap)], encoded_bytes: &[i64]) -> AppResult<()> {
         let dir = self.job_dir(&job.id);
-        fs::create_dir_all(&dir)?;
+        self.write_job(&dir, job, pages, encoded_bytes).inspect_err(|_| {
+            let _ = fs::remove_dir_all(&dir);
+        })
+    }
+
+    fn write_job(&mut self, dir: &Path, job: &JobRow, pages: &[(u32, MonoBitmap)], encoded: &[i64]) -> AppResult<()> {
+        fs::create_dir_all(dir)?;
         let mut rows = Vec::with_capacity(pages.len());
-        for (idx, ((source_page, bitmap), encoded)) in pages.iter().zip(encoded_bytes).enumerate() {
+        for (idx, ((source_page, bitmap), encoded)) in pages.iter().zip(encoded).enumerate() {
             let name = format!("page-{idx}.bin");
             write_atomic(&dir.join(&name), bitmap.data())?;
             rows.push(PageRow {
@@ -531,9 +549,7 @@ impl Store {
                 params![p.job_id, p.idx, p.source_page, p.width, p.height, p.path, p.sha256, p.encoded_bytes],
             )?;
         }
-        tx.commit().inspect_err(|_| {
-            let _ = fs::remove_dir_all(&dir);
-        })?;
+        tx.commit()?;
         Ok(())
     }
 
@@ -906,10 +922,33 @@ mod tests {
         // Tampering is detected rather than printed.
         fs::write(dir.path().join(&pages[0].path), vec![0xFF; 48 * 3]).unwrap();
         assert_eq!(store.load_page(&pages[0]).unwrap_err().code, ErrorCode::RenderInvalid);
-        // Duplicate idempotency key is rejected by the schema.
+        // Duplicate idempotency key is rejected by the schema, and leaves no print data behind.
         let mut dup = job("j2", JobState::Queued);
         dup.idempotency_key = "key-j1".into();
         assert!(store.insert_job(&dup, &[(1, bitmap)], &[1]).is_err());
+        assert!(!dir.path().join("jobs/j2").exists());
+    }
+
+    #[test]
+    fn opening_removes_folders_of_jobs_that_were_never_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let orphan = Uuid::new_v4().to_string();
+        let saved = Uuid::new_v4().to_string();
+        {
+            let mut store = Store::open(dir.path()).unwrap();
+            let b = MonoBitmap::new(384, 1).unwrap();
+            store.insert_job(&job(&saved, JobState::Queued), &[(1, b)], &[1]).unwrap();
+        }
+        // A crash between writing the pages and committing the rows.
+        fs::create_dir_all(dir.path().join("jobs").join(&orphan)).unwrap();
+        fs::write(dir.path().join("jobs").join(&orphan).join("page-0.bin"), [0u8; 48]).unwrap();
+        fs::create_dir_all(dir.path().join("jobs/not-a-job")).unwrap();
+
+        let store = Store::open(dir.path()).unwrap();
+        assert!(!dir.path().join("jobs").join(&orphan).exists());
+        assert!(dir.path().join("jobs").join(&saved).exists());
+        assert!(dir.path().join("jobs/not-a-job").exists(), "only folders named like a job are removed");
+        assert_eq!(store.load_page(&store.pages(&saved).unwrap()[0]).unwrap().height(), 1);
     }
 
     #[test]
