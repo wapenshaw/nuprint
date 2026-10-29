@@ -1,4 +1,63 @@
 //! Scriptable in-memory transport for offline tests. Never touches Bluetooth.
+//!
+//! A [`MockDevice`] describes one fake peripheral and a write hook that answers each write with
+//! notifications (or an error). [`MockTransport::log`] records what the code under test did:
+//!
+//! ```
+//! use std::sync::Arc;
+//! use std::time::Duration;
+//!
+//! use nuprint_transport::mock::{MockDevice, MockTransport};
+//! use nuprint_transport::{
+//!     Advertisement, CharProps, CharacteristicInfo, Endpoint, Notification, ServiceInfo, Transport,
+//!     WriteMode, short_uuid,
+//! };
+//! use tokio_util::sync::CancellationToken;
+//!
+//! # #[tokio::main(flavor = "current_thread")]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let service = short_uuid(0xAE30);
+//! let write = Endpoint { service, characteristic: short_uuid(0xAE01) };
+//! let notify = Endpoint { service, characteristic: short_uuid(0xAE02) };
+//! let properties = CharProps { write: true, notify: true, ..CharProps::default() };
+//!
+//! let device = MockDevice {
+//!     advertisement: Advertisement {
+//!         backend_id: "mock-1".into(),
+//!         local_name: Some("Mock Printer".into()),
+//!         address: None,
+//!         rssi: None,
+//!         services: vec![],
+//!         manufacturer_ids: vec![],
+//!     },
+//!     services: vec![ServiceInfo {
+//!         uuid: service,
+//!         characteristics: vec![
+//!             CharacteristicInfo { uuid: write.characteristic, properties },
+//!             CharacteristicInfo { uuid: notify.characteristic, properties },
+//!         ],
+//!     }],
+//!     max_write: 20,
+//!     // Every write is answered with one notification echoing its length.
+//!     hook: Arc::new(move || {
+//!         Box::new(move |_endpoint, data| Ok(vec![Notification { endpoint: notify, data: vec![data.len() as u8] }]))
+//!     }),
+//! };
+//! let transport = MockTransport::new(vec![device]);
+//!
+//! let mut link = transport.connect("mock-1", Duration::from_secs(1), &CancellationToken::new()).await?;
+//! let mut notifications = link.take_notifications().expect("first call returns the stream");
+//! link.subscribe(notify).await?;
+//! link.write(write, b"hello", WriteMode::WithoutResponse).await?;
+//! assert_eq!(notifications.recv().await.unwrap().data, vec![5]);
+//! link.disconnect().await?;
+//!
+//! let log = transport.log();
+//! assert_eq!(log.written_bytes(), b"hello");
+//! assert_eq!((log.connects, log.disconnects), (1, 1));
+//! # Ok(())
+//! # }
+//! ```
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -86,6 +145,7 @@ impl MockTransport {
         self
     }
 
+    /// A snapshot of everything the transport and its links have been asked to do.
     pub fn log(&self) -> MockLog {
         self.log.lock().unwrap().clone()
     }

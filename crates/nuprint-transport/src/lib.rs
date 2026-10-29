@@ -140,6 +140,11 @@ pub trait Transport: Send + Sync + 'static {
 
     /// Stream advertisements into `sink` until `duration` elapses or `cancel` fires.
     /// Repeated observations of one device may be sent; consumers de-duplicate.
+    ///
+    /// # Errors
+    ///
+    /// Adapter and permission errors as for [`Transport::connect`]. Cancellation is a normal
+    /// end of the scan, not an error.
     async fn scan(
         &self,
         duration: Duration,
@@ -154,6 +159,13 @@ pub trait Transport: Send + Sync + 'static {
     /// connected while its services are still being discovered, so every failure, a timeout or
     /// cancellation included, disconnects before this returns. Await it to the end rather than
     /// dropping it, so the device is free again when it returns.
+    ///
+    /// # Errors
+    ///
+    /// Adapter and permission errors ([`TransportError::AdapterAbsent`],
+    /// [`TransportError::AdapterOff`], [`TransportError::PermissionDenied`]),
+    /// [`TransportError::NotFound`] for an unknown device, [`TransportError::Timeout`],
+    /// [`TransportError::Cancelled`], and [`TransportError::Backend`] for other failures.
     async fn connect(
         &self,
         backend_id: &str,
@@ -178,6 +190,14 @@ pub trait Link: Send + Sync {
     /// The notification stream for this link; returns `None` after the first call.
     fn take_notifications(&mut self) -> Option<mpsc::Receiver<Notification>>;
 
+    /// Write `data` to `endpoint`; it must not exceed [`Self::max_write_len`] for `mode`.
+    ///
+    /// # Errors
+    ///
+    /// [`TransportError::Disconnected`] once the link is gone, [`TransportError::EndpointMissing`]
+    /// for an unknown characteristic, and [`TransportError::Backend`] for other failures,
+    /// including an oversized write. A successful write only means the bytes were handed to the
+    /// radio, not that the device acted on them.
     async fn write(&self, endpoint: Endpoint, data: &[u8], mode: WriteMode) -> Result<(), TransportError>;
 
     async fn is_connected(&self) -> bool;
