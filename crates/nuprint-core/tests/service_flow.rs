@@ -996,3 +996,38 @@ async fn a_connection_check_does_not_bring_back_a_removed_printer() {
     check.await.unwrap().unwrap();
     assert!(h.service.list_printers().unwrap().is_empty());
 }
+
+#[tokio::test(start_paused = true)]
+async fn a_profile_edit_that_cannot_be_saved_changes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().to_path_buf();
+    let h = start(vec![sc03h("SC03h-TEST", Sim::default())], Some(dir));
+    let printer = h.save_first_printer().await;
+    let printer =
+        h.service.save_printer_profile(edited(&h, &printer, |doc| doc["driver"]["print_speed"] = 11.into())).unwrap();
+    rusqlite::Connection::open(path.join("state.sqlite3"))
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER block_profiles BEFORE INSERT ON custom_profiles BEGIN SELECT RAISE(ABORT, 'blocked'); END;",
+        )
+        .unwrap();
+    let failed = h.service.save_printer_profile(edited(&h, &printer, |doc| doc["driver"]["print_speed"] = 12.into()));
+    assert!(failed.is_err());
+
+    assert_eq!(h.service.list_printers().unwrap()[0].profile_revision, 1);
+    let listed = h.service.profiles().into_iter().find(|p| p.id == printer.profile_id).unwrap();
+    assert_eq!(listed.revision, 1, "the unsaved revision was never offered");
+    // A fresh preview is still for the revision the printer uses, so it can be printed.
+    h.service.hold_queue().unwrap();
+    let preview = h
+        .service
+        .render_preview(PreviewRequest {
+            generation: 1.0,
+            profile_id: printer.profile_id.clone(),
+            source: SourceSpec::TestPattern,
+        })
+        .await
+        .unwrap();
+    assert_eq!(preview.profile_revision, 1);
+    h.enqueue(&preview, &printer, "after-failed-save", 0);
+}

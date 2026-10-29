@@ -889,28 +889,33 @@ impl AppService {
     /// Settings identical to the built-in ones go back to the built-in profile instead.
     /// Jobs already queued keep the revision they were rendered for.
     pub fn save_printer_profile(&self, request: SavePrinterProfileRequest) -> AppResult<SavedPrinter> {
-        let mut row = self.printer_row(&request.printer_id)?;
-        let base = self.base_profile(&row)?;
         let doc: serde_json::Value = serde_json::from_str(&request.json)
             .map_err(|e| AppError::invalid(format!("The settings are not valid JSON: {e}")))?;
+        // One store lock from choosing the revision to publishing it: two saves cannot pick the
+        // same revision, and the registry only ever offers a revision that was stored.
+        let mut store = self.store();
+        let mut row = store.get_printer(&request.printer_id)?.ok_or_else(|| AppError::not_found("Printer"))?;
+        let base = self.base_profile(&row)?;
         let custom_id = format!("custom:{}", row.id);
-        let revision = self.inner.registry.next_custom_revision(&custom_id);
+        let revision =
+            self.inner.registry.next_custom_revision(&custom_id).max(store.max_custom_revision(&custom_id)? + 1);
         let profile = ModelProfile::customized(&base.profile, &doc, custom_id, revision)?;
         if profile.tunable_doc() == base.profile.tunable_doc() {
+            drop(store);
             return self.reset_printer_profile(&request.printer_id);
         }
         let json = serde_json::to_string(&profile).map_err(AppError::internal)?;
-        let resolved = self.inner.registry.add_custom(profile)?;
-        let store = self.store();
-        store.insert_custom_profile(
-            &CustomProfileRow { id: resolved.profile.id.clone(), revision, json },
-            &base.profile.id,
-        )?;
+        let resolved = self.inner.registry.prepare_custom(profile)?;
         row.profile_id = resolved.profile.id.clone();
         row.profile_revision = revision;
         row.base_profile_id = Some(base.profile.id.clone());
         Self::fit_settings(&mut row, &resolved);
-        store.upsert_printer(&row)?;
+        store.save_custom_profile(
+            &CustomProfileRow { id: resolved.profile.id.clone(), revision, json },
+            &base.profile.id,
+            &row,
+        )?;
+        self.inner.registry.publish_custom(resolved)?;
         drop(store);
         self.log(
             LogLevel::Info,
