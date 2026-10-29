@@ -1249,3 +1249,52 @@ async fn redacted_diagnostics_hide_names_in_errors_edits_and_odd_titles() {
 
 #[path = "service_flow/dispatcher_failure.rs"]
 mod dispatcher_failure;
+
+fn text_request(generation: f64, text: &str) -> PreviewRequest {
+    PreviewRequest {
+        generation,
+        profile_id: PROFILE.into(),
+        source: SourceSpec::Text(TextSpec { text: text.into(), ..TextSpec::default() }),
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_preview_burst_publishes_only_the_newest_and_matches_a_lone_render() {
+    let h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
+    let baseline = h.service.render_preview(text_request(1.0, "Burst target")).await.unwrap();
+    let baseline_png = h.service.preview_png(&baseline.snapshot_id).unwrap();
+
+    let mut tasks = Vec::new();
+    for n in 0..20u32 {
+        let service = h.service.clone();
+        // The last request renders the same text as the baseline; earlier ones differ.
+        let text = if n == 19 { "Burst target".to_owned() } else { format!("Burst {n}") };
+        tasks.push(tokio::spawn(async move { service.render_preview(text_request(2.0 + f64::from(n), &text)).await }));
+    }
+    let mut results = Vec::new();
+    for task in tasks {
+        results.push(task.await.unwrap());
+    }
+    let latest = results.pop().unwrap().expect("the newest request completes");
+    assert_eq!(latest.generation, 21.0);
+    assert_eq!(latest.sha256, baseline.sha256, "same bitmap as an unqueued render");
+    assert_eq!(*h.service.preview_png(&latest.snapshot_id).unwrap(), *baseline_png, "same preview pixels");
+    for result in &results {
+        if let Err(e) = result {
+            assert_eq!(e.code, ErrorCode::StalePreview, "older requests only ever report StalePreview");
+        }
+    }
+    let stale = results.iter().filter(|r| r.is_err()).count();
+    assert!(stale >= 17, "all but the active request were replaced before rendering, got {stale}");
+    // A request older than one already accepted is refused outright.
+    let err = h.service.render_preview(text_request(3.0, "late")).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::StalePreview);
+}
+
+#[tokio::test(start_paused = true)]
+async fn previews_stop_after_shutdown() {
+    let h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
+    h.service.shutdown(Duration::from_secs(1)).await;
+    let err = h.service.render_preview(text_request(1.0, "late")).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::Cancelled);
+}

@@ -18,6 +18,7 @@ pub mod error;
 pub mod jobs;
 mod log_writer;
 pub mod profile;
+mod render_queue;
 pub mod service;
 pub mod session;
 pub mod store;
