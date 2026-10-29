@@ -17,7 +17,8 @@ use crate::store::JobRow;
 
 #[cfg(feature = "fault-injection")]
 use super::FaultPoint;
-use super::{AppService, private, relock};
+use super::logging::private;
+use super::{AppService, relock};
 
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
 

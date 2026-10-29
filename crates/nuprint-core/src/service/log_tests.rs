@@ -1,7 +1,11 @@
 //! The service's log path end to end: ring, UI events, file and diagnostics export.
 
 use super::*;
+use crate::service::ServiceConfig;
 use nuprint_transport::mock::MockTransport;
+use std::fs;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 const SECRET: &str = "Kitchen SC03h-ABCD";
 

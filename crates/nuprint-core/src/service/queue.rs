@@ -11,7 +11,8 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::jobs::summarize;
 use crate::store::{JobRow, now_ms};
 
-use super::{AppService, MAX_QUEUE_JOBS, MAX_RETAINED_BYTES, private};
+use super::logging::private;
+use super::{AppService, MAX_QUEUE_JOBS, MAX_RETAINED_BYTES};
 
 impl AppService {
     fn job_summary(&self, job: &JobRow) -> AppResult<JobSummary> {

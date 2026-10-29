@@ -16,7 +16,8 @@ use crate::profile::{ModelProfile, ResolvedProfile};
 use crate::session::locate;
 use crate::store::{CustomProfileRow, PrinterRow, now_ms};
 
-use super::{AppService, CUSTOM_PROFILE_PREFIX, HardwareUse, blocking_io, private, relock};
+use super::logging::private;
+use super::{AppService, CUSTOM_PROFILE_PREFIX, HardwareUse, blocking_io, relock};
 
 fn gatt_services(services: &[ServiceInfo]) -> Vec<GattService> {
     services
