@@ -2,6 +2,8 @@
 //!
 //! Nothing in this crate performs I/O, so every behavior is testable without Bluetooth.
 
+#![warn(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+
 pub mod bitmap;
 pub mod driver;
 pub mod iprint;

@@ -122,6 +122,10 @@ impl MonoBitmap {
     }
 
     /// Build from a per-pixel predicate (`true` = black). Intended for tests and synthetic patterns.
+    ///
+    /// # Errors
+    ///
+    /// The dimension errors of [`Self::new`].
     pub fn from_fn(width: u32, height: u32, mut black: impl FnMut(u32, u32) -> bool) -> Result<Self, BitmapError> {
         let mut bitmap = Self::new(width, height)?;
         for y in 0..height {
