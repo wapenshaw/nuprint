@@ -132,6 +132,6 @@ jobs:
         working-directory: poc/python
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --extra dev --locked
       - run: uv run --locked pytest -q
