@@ -32,6 +32,10 @@ struct Sim {
     disconnect_after_rows: Option<usize>,
     /// Drop the connection when asked for status, before any print data.
     disconnect_on_status: bool,
+    /// Panic inside the transport when asked for status (during connection setup).
+    panic_on_status: bool,
+    /// Panic inside the transport on this raster row, after its bytes were recorded as written.
+    panic_on_row: Option<usize>,
 }
 
 fn notify(op: u8, payload: &[u8]) -> Notification {
@@ -74,6 +78,7 @@ fn sc03h(name: &str, sim: Sim) -> MockDevice {
                     let mut out = Vec::new();
                     for frame in decoder.feed(data) {
                         match frame.opcode {
+                            opcode::STATUS if sim.panic_on_status => panic!("injected transport fault"),
                             opcode::STATUS if sim.disconnect_on_status => return Err(TransportError::Disconnected),
                             opcode::STATUS if !sim.mute && !(sim.mute_after_print && rows > 0) => {
                                 let n = queries.fetch_add(1, Ordering::Relaxed);
@@ -85,6 +90,9 @@ fn sc03h(name: &str, sim: Sim) -> MockDevice {
                             }
                             opcode::RASTER_ROW => {
                                 rows += 1;
+                                if Some(rows) == sim.panic_on_row {
+                                    panic!("injected transport fault");
+                                }
                                 if Some(rows) == sim.disconnect_after_rows {
                                     return Err(TransportError::Disconnected);
                                 }
@@ -1238,3 +1246,6 @@ async fn redacted_diagnostics_hide_names_in_errors_edits_and_odd_titles() {
     let full = serde_json::to_string(&service.diagnostics_report(true).await.unwrap()).unwrap();
     assert!(full.contains("PRIVATE-TITLE"), "the title itself is kept");
 }
+
+#[path = "service_flow/dispatcher_failure.rs"]
+mod dispatcher_failure;

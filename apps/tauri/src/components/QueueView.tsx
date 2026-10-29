@@ -64,7 +64,12 @@ export function QueuePanel() {
       <div className="drawer-head">
         <h2 id="queue-heading">Queue</h2>
         <span className="muted">{waiting > 0 ? `${waiting} not finished` : ""}</span>
-        <button type="button" className="btn btn-small" onClick={() => void toggleHold()} disabled={busy === "hold"}>
+        <button
+          type="button"
+          className="btn btn-small"
+          onClick={() => void toggleHold()}
+          disabled={busy === "hold" || data.queueFault !== null}
+        >
           {data.queueHeld ? "Resume queue" : "Hold queue"}
         </button>
         <button type="button" className="btn btn-quiet icon-only btn-small" onClick={close} aria-label="Close queue">
@@ -73,13 +78,19 @@ export function QueuePanel() {
       </div>
       <div className="drawer-body">
 
-      {data.queueHeld ? (
+      {data.queueFault ? (
+        <p className="note note-error" role="alert">
+          <strong>Queue stopped: </strong>
+          {data.queueFault.message}
+        </p>
+      ) : null}
+      {data.queueHeld && !data.queueFault ? (
         <p className="note note-warn" role="status">
           <strong>Queue held: </strong>A job that is already printing will finish or can be cancelled, but waiting jobs
           will not start until you resume.
         </p>
       ) : null}
-      {hasHeldJobs ? (
+      {hasHeldJobs && !data.queueFault ? (
         <p className="note note-warn" role="status">
           <strong>Jobs were held after restart: </strong>resume when ready. NuPrint never replays a half-sent job on
           its own, so check each job first.

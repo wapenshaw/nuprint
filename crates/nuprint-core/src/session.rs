@@ -229,7 +229,7 @@ impl PrinterSession {
     }
 
     pub fn raw_notifications(&self) -> Vec<String> {
-        self.raw.lock().unwrap().clone()
+        self.raw.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
     pub fn device_info(&self) -> Option<DeviceInfo> {
@@ -449,7 +449,7 @@ async fn pump(
     while let Some(notification) = notifications.recv().await {
         let hex = hex::encode(&notification.data);
         {
-            let mut raw = raw.lock().unwrap();
+            let mut raw = raw.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if raw.len() >= MAX_RAW_NOTIFICATIONS {
                 raw.remove(0);
             }

@@ -4274,6 +4274,7 @@ version = "1.0.0"
 dependencies = [
  "async-trait",
  "hex",
+ "nuprint-core",
  "nuprint-protocol",
  "nuprint-render",
  "nuprint-transport",

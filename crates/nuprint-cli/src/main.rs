@@ -521,6 +521,10 @@ impl Runner {
                         }));
                     }
                 }
+                AppEvent::QueueFault { fault, .. } => {
+                    eprintln!("{}", fault.message);
+                    return Ok(ExitCode::from(1));
+                }
                 _ => {}
             }
         }

@@ -12,4 +12,4 @@ pub mod session;
 pub mod store;
 
 pub use error::{AppError, AppResult, ErrorCode};
-pub use service::{AppService, EventSink, ServiceConfig};
+pub use service::{AppService, EventSink, ServiceConfig, ShutdownOutcome};

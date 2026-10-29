@@ -780,6 +780,32 @@ impl Store {
 
     // ------------------------------------------------------------ lifecycle
 
+    /// Whether the connection is usable after a thread panicked while holding it: no transaction
+    /// is left open (an unwound `Transaction` rolls back) and a query still runs.
+    pub fn is_consistent(&self) -> bool {
+        self.conn.is_autocommit() && self.conn.query_row("SELECT 1", [], |r| r.get::<_, i64>(0)).is_ok()
+    }
+
+    /// Mark a job that was claimed when its worker failed as uncertain, and close its newest
+    /// attempt the same way. A checked transition: `None` means the job is not active (never
+    /// claimed, or already finished), so there is nothing to reconcile. Never requeues.
+    pub fn mark_active_uncertain(&mut self, job_id: &str, message: &str) -> AppResult<Option<JobRow>> {
+        let Some(mut job) = self.get_job(job_id)? else { return Ok(None) };
+        if !job.state.is_active() {
+            return Ok(None);
+        }
+        job.state = JobState::Uncertain;
+        job.partial_output = true;
+        job.error = Some(AppError::new(ErrorCode::OutcomeUncertain, message));
+        self.update_job(&mut job)?;
+        self.conn.execute(
+            "UPDATE attempts SET ended_ms = COALESCE(ended_ms, ?2), outcome = 'uncertain'
+             WHERE id = (SELECT id FROM attempts WHERE job_id = ?1 ORDER BY started_ms DESC, rowid DESC LIMIT 1)",
+            params![job_id, now_ms()],
+        )?;
+        Ok(Some(job))
+    }
+
     /// Conservative restart recovery: active attempts become Uncertain (never replayed);
     /// queued jobs become Held until the user resumes. Returns (uncertain, held).
     pub fn recover_after_restart(&mut self) -> AppResult<(usize, usize)> {

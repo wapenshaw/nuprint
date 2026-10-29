@@ -27,6 +27,12 @@ tempfile.workspace = true
 ts-rs.workspace = true
 uuid.workspace = true
 
+[features]
+# Test-only panic injection into the dispatcher. Never enabled in a shipped build.
+fault-injection = []
+
 [dev-dependencies]
+# Enables the fault-injection seam for this crate's own integration tests only.
+nuprint-core = { path = ".", features = ["fault-injection"] }
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
