@@ -476,12 +476,22 @@ export component CodeBox inherits Rectangle {
     border-color: Theme.line;
     clip: true;
     ScrollView {
-        if root.text != "": Mono {
-            x: 10px;
-            y: 8px;
-            text: root.text;
-            color: root.text-color;
+        // A scroll view measures its content only from layouts that are always there, so the
+        // text sits in one that is hidden, rather than left out, when there is no text.
+        VerticalLayout {
+            visible: root.text != "";
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            Mono {
+                // At least as wide as its longest line, so long lines scroll sideways.
+                min-width: self.preferred-width;
+                text: root.text;
+                color: root.text-color;
+            }
         }
+
         @children
     }
 }

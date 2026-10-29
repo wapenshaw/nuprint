@@ -210,4 +210,4 @@ Recorded so later reviews don't repeat this work:
 
 ## Slint app
 
-- **P3 · The settings pages do not scroll with the mouse wheel** (owner report, 2026-10-29). On Windows, in Settings → Diagnostics the wheel scrolls the activity log while the pointer is over it, but nowhere else on the page, so the report panel below it cannot be reached by wheel. The pages sit in a `ScrollView` in `apps/slint/ui/settings.slint`; check whether that view's content height covers the page, then the other settings pages.
+- **P3 · The settings pages do not scroll with the mouse wheel** (owner report, 2026-10-29; resolved). Slint 1.18 measures a scroll view's content only from layouts that are always present, not from `if` elements (upstream FIXME #407). Every settings page was an `if` child of its `ScrollView`, so the content never exceeded the view; the same held for `CodeBox` text, so a long diagnostics report or device inspection could not scroll either. Both now sit inside an always-present layout, and long `CodeBox` lines scroll sideways.
