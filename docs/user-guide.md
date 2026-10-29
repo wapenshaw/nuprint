@@ -52,7 +52,7 @@ For an experimental printer, or the SC03h, **Settings → Printers → Advanced*
 
 ### Diagnostics
 
-Diagnostics can be exported from **Settings → Diagnostics**. Device names, addresses and job titles (including in the log) are redacted unless you choose to include them. Documents are never uploaded anywhere.
+Diagnostics can be exported from **Settings → Diagnostics**. Device names, addresses, job titles, names you gave edited printer settings, and backend error details (including in the log) are redacted unless you choose to include them. Documents are never uploaded anywhere.
 
 ## Troubleshooting
 
