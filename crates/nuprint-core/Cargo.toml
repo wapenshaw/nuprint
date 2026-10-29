@@ -8,6 +8,9 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 nuprint-protocol = { workspace = true, features = ["ts"] }
 nuprint-render.workspace = true

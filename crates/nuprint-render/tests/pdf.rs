@@ -141,6 +141,7 @@ fn engine_is_shared_and_thread_safe() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<PdfEngine>();
     let pdf = std::sync::Arc::new(two_page_pdf());
+    #[allow(clippy::needless_collect, reason = "spawn every render before joining any, so they really run at once")]
     let handles: Vec<_> = (1..=2u32)
         .flat_map(|page| (0..3).map(move |_| page))
         .map(|page| {
