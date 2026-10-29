@@ -15,6 +15,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use crate::api::LogLevel;
+use crate::service::relock;
 
 /// Lines buffered for the writer thread. Beyond this the overload policy applies.
 pub(crate) const QUEUE_LINES: usize = 1024;
@@ -106,7 +107,7 @@ impl LogWriter {
     }
 
     pub(crate) fn set_notifier(&self, notifier: Notifier) {
-        *self.shared.notifier.lock().unwrap() = Some(notifier);
+        *relock(&self.shared.notifier) = Some(notifier);
     }
 
     /// Queue one finished line without waiting for the disk.
@@ -195,7 +196,7 @@ impl LogWriter {
     }
 
     fn join(&self) {
-        let thread = self.thread.lock().unwrap().take();
+        let thread = relock(&self.thread).take();
         if let Some(thread) = thread
             && thread.thread().id() != thread::current().id()
         {
@@ -221,7 +222,7 @@ fn lock(state: &Mutex<State>) -> MutexGuard<'_, State> {
 }
 
 fn notify(shared: &Shared, level: LogLevel, message: String) {
-    let notifier = shared.notifier.lock().unwrap().clone();
+    let notifier = relock(&shared.notifier).clone();
     if let Some(notifier) = notifier {
         notifier(level, message);
     }
