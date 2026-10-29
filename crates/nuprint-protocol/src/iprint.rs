@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use crate::MonoBitmap;
 use crate::driver::{
     CompletionPolicy, Density, DeviceInfo, DiagnosticQuery, ExchangePlan, FeedCapability, NotificationDecoder,
     PlanStep, PrintRequest, PrinterDriver, ProtocolError, ProtocolEvent, StatusFlag, StatusReport,
@@ -17,6 +18,8 @@ use crate::driver::{
 pub const PROTOCOL_ID: &str = "iprint-5178";
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAGIC: [u8; 2] = [0x51, 0x78];
+/// Bytes a frame adds around its payload: magic, opcode, direction, length, CRC and terminator.
+const FRAME_OVERHEAD: usize = 8;
 /// Application guard for notification payloads; the wire length field is uint16.
 pub const MAX_NOTIFICATION_PAYLOAD: usize = 512;
 
@@ -37,20 +40,30 @@ pub const DIRECTION_RESPONSE: u8 = 0x01;
 
 /// CRC-8, polynomial 0x07, init 0, no reflection, no final XOR. `crc8(b"123456789") == 0xF4`.
 pub fn crc8(data: &[u8]) -> u8 {
-    let mut crc = 0u8;
-    for &value in data {
-        crc ^= value;
-        for _ in 0..8 {
-            crc = if crc & 0x80 != 0 { (crc << 1) ^ 0x07 } else { crc << 1 };
-        }
-    }
-    crc
+    data.iter().fold(0, |crc, &value| CRC8_TABLE[usize::from(crc ^ value)])
 }
+
+/// [`crc8`] of every single byte, so each payload byte costs one lookup.
+const CRC8_TABLE: [u8; 256] = {
+    let mut table = [0u8; 256];
+    let mut i = 0;
+    while i < 256 {
+        let mut crc = i as u8;
+        let mut bit = 0;
+        while bit < 8 {
+            crc = if crc & 0x80 != 0 { (crc << 1) ^ 0x07 } else { crc << 1 };
+            bit += 1;
+        }
+        table[i] = crc;
+        i += 1;
+    }
+    table
+};
 
 /// `51 78 | opcode | direction | len u16 LE | payload | crc8(payload) | FF`
 pub fn frame_with_direction(opcode: u8, direction: u8, payload: &[u8]) -> Result<Vec<u8>, ProtocolError> {
     let len = u16::try_from(payload.len()).map_err(|_| ProtocolError::PayloadTooLarge(payload.len()))?;
-    let mut out = Vec::with_capacity(payload.len() + 8);
+    let mut out = Vec::with_capacity(payload.len() + FRAME_OVERHEAD);
     out.extend_from_slice(&MAGIC);
     out.push(opcode);
     out.push(direction);
@@ -64,6 +77,21 @@ pub fn frame_with_direction(opcode: u8, direction: u8, payload: &[u8]) -> Result
 /// Command frame. Panics only for payloads over 65535 bytes, which this crate never builds.
 pub fn command(opcode: u8, payload: &[u8]) -> Vec<u8> {
     frame_with_direction(opcode, DIRECTION_COMMAND, payload).expect("command payload fits uint16")
+}
+
+/// Append a command frame to `out`, with `map` applied to each payload byte on the way in.
+/// Panics only for payloads over 65535 bytes, like [`command`].
+fn push_command(out: &mut Vec<u8>, opcode: u8, payload: &[u8], map: impl Fn(u8) -> u8) {
+    let len = u16::try_from(payload.len()).expect("command payload fits uint16");
+    out.extend_from_slice(&MAGIC);
+    out.push(opcode);
+    out.push(DIRECTION_COMMAND);
+    out.extend_from_slice(&len.to_le_bytes());
+    let start = out.len();
+    out.extend(payload.iter().map(|&b| map(b)));
+    let crc = crc8(&out[start..]);
+    out.push(crc);
+    out.push(0xFF);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -324,7 +352,11 @@ impl Iprint5178Driver {
 
     /// Canonical MSB-first/1=black rows → wire LSB-first/1=black rows.
     pub fn wire_rows(&self, request: &PrintRequest<'_>) -> Result<Vec<Vec<u8>>, ProtocolError> {
-        let bitmap = request.bitmap;
+        self.check_raster(request.bitmap)?;
+        Ok(request.bitmap.rows().map(|row| row.iter().map(|b| b.reverse_bits()).collect()).collect())
+    }
+
+    fn check_raster(&self, bitmap: &MonoBitmap) -> Result<(), ProtocolError> {
         if bitmap.width() != self.params.width_dots || !(1..=self.params.max_height).contains(&bitmap.height()) {
             return Err(ProtocolError::InvalidRaster(format!(
                 "Expected a monochrome {}-dot-wide image, 1–{} rows (got {} × {})",
@@ -334,7 +366,7 @@ impl Iprint5178Driver {
                 bitmap.height()
             )));
         }
-        Ok(bitmap.rows().map(|row| row.iter().map(|b| b.reverse_bits()).collect()).collect())
+        Ok(())
     }
 
     /// Exact byte stream for one page, identical to the Python reference `print_job()`.
@@ -345,21 +377,26 @@ impl Iprint5178Driver {
             .energy
             .get(&request.density)
             .ok_or_else(|| ProtocolError::UnsupportedDensity(request.density.as_str().into()))?;
-        let rows = self.wire_rows(request)?; // Validate completely before producing anything.
-        let mut out = Vec::with_capacity(rows.len() * (rows.first().map_or(0, Vec::len) + 8) + 64);
-        out.extend(command(opcode::QUALITY, &[self.params.quality]));
-        out.extend(command(opcode::ENERGY, &energy.to_le_bytes()));
-        out.extend(command(opcode::MODE, &[self.params.image_mode]));
-        out.extend(command(opcode::SPEED, &[self.params.print_speed]));
-        for row in &rows {
-            out.extend(command(opcode::RASTER_ROW, row));
+        let bitmap = request.bitmap;
+        self.check_raster(bitmap)?; // Validate completely before producing anything.
+        let feeds = usize::from(steps.div_ceil(self.params.feed_command_max_steps));
+        let row_frame = bitmap.stride() + FRAME_OVERHEAD;
+        let mut out = Vec::with_capacity(bitmap.height() as usize * row_frame + (6 + feeds) * (FRAME_OVERHEAD + 2));
+        let same = |b: u8| b;
+        push_command(&mut out, opcode::QUALITY, &[self.params.quality], same);
+        push_command(&mut out, opcode::ENERGY, &energy.to_le_bytes(), same);
+        push_command(&mut out, opcode::MODE, &[self.params.image_mode], same);
+        push_command(&mut out, opcode::SPEED, &[self.params.print_speed], same);
+        for row in bitmap.rows() {
+            // The wire packs the leftmost dot in the lowest bit.
+            push_command(&mut out, opcode::RASTER_ROW, row, u8::reverse_bits);
         }
         if steps > 0 {
-            out.extend(command(opcode::SPEED, &[self.params.feed_speed]));
+            push_command(&mut out, opcode::SPEED, &[self.params.feed_speed], same);
             let mut remaining = steps;
             while remaining > 0 {
                 let amount = remaining.min(self.params.feed_command_max_steps);
-                out.extend(command(opcode::FEED, &amount.to_le_bytes()));
+                push_command(&mut out, opcode::FEED, &amount.to_le_bytes(), same);
                 remaining -= amount;
             }
         }
