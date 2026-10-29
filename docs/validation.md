@@ -6,9 +6,11 @@ NuPrint is implemented in [Rust + Tauri](rust-tauri-spec.md); the Python app in 
 
 | | Status (2026-10-29) |
 | --- | --- |
-| Rust engine | SC03h packets match the Python reference byte-for-byte on 40 golden job vectors. 148 offline Rust tests pass. |
+| Rust engine | SC03h packets match the Python reference byte-for-byte on 40 golden job vectors. 163 offline Rust tests pass. |
 | Desktop app (Windows, dev build) | Found SC03h-3DE8 and read firmware 3.0.49 with ready status. Printed two short text jobs; the printer reported ready after each and the owner reported them working. |
 | Desktop app (macOS) | Bluetooth permission prompt, discovery and four short text prints on SC03h-3DE8 (dev build and a packaged debug app, Apple silicon); ready status after each, owner reported them working. |
+| Review fixes (2026-10-29) | The owner ran the non-printing checks for the 2026-10-29 review fixes in the Tauri dev build and the Slint app on Windows: edited settings and their limits, a connection check racing an edit and a removal, cancelling a connection, redacted diagnostics and the queue. All were reported working. No paper was used, and which Bluetooth stage a cancellation interrupted was not observed. |
+| Slint app | Used for the checks above (Windows dev build). The Windows preview installer was built locally; the unpacked release app found its bundled PDFium. The macOS and Linux preview installers have not been built or installed yet. |
 | Release installers | The v1.0.0 installers (NSIS, two DMGs, `.deb`) were built by the release workflow and their checksums and `.deb` contents checked. None has yet been installed and tested with a printer. |
 | Linux | Not tested on hardware. The SC03h profile is **experimental** on Linux. |
 | Python PoC (Windows) | Owner-confirmed correct 384 × 164-dot text strip on SC03h-3DE8. |

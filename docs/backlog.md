@@ -56,13 +56,17 @@ Reproduction: use the existing mock simulator with `disconnect_after_rows: Some(
 
 **Fixed:** `Store::open` takes an exclusive `state.lock` (`File::try_lock`, released by the OS on exit or crash) before migrating or recovering, and refuses with `ErrorCode::DataDirInUse`. The desktop app then starts further windows in `window-2`…`window-8` folders next to the main one, each with its own saved printers and queue (title shows `NuPrint (2)`), so two windows for two printers work. They do not share printers or jobs, and two windows must not use the same physical printer at once. On macOS, a second copy needs `open -n`. Tests: `a_data_folder_has_one_owner_at_a_time`, `a_second_service_cannot_share_a_running_data_folder`. `AppService::shutdown` now also waits for the dispatcher to exit. Original finding: a second launch against the same data directory can run recovery over the first instance's live jobs and race its dispatcher; the never-replay guarantee is not protected across processes. Establish exclusive ownership of a persistent data directory before recovery, with a clear second-launch behavior. Test two services/processes sharing a temporary directory: only the owner may recover or dispatch, and a live job must not be relabeled by the second opener. This is about shared desktop state; the CLI currently uses its own in-memory store.
 
-#### R6 · P2 · Connection checks overwrite concurrent printer edits — open, reproduced
+#### R6 · P2 · Connection checks overwrite concurrent printer edits — resolved
+
+Resolved in `fa293c0`: a check now records only firmware and last-seen time on an existing row, and tests cover an edit and a removal made while a check waits. This is the 2026-10-13 review's R6; the 2026-10-29 review's R6 (upgrade backup missing WAL data) is a different issue, fixed in `271e799`.
 
 [`check_printer`](../crates/nuprint-core/src/service.rs) loads a full `PrinterRow` before awaiting Bluetooth work, then upserts that old row with firmware/last-seen changes. A settings/profile edit made during the check can be lost; a deleted printer can also be recreated by the upsert.
 
 Reproduction: delay mock connection by two seconds, start a check, set feed to zero after one second, then await the check. Saved feed returns to 12. Update only diagnostic columns on an existing row, or use a revision-aware merge. Cover settings changes, custom-profile save/reset and printer deletion while a check is pending.
 
-#### R7 · P2 · Cancelling connection establishment bypasses disconnect cleanup — open, source-traced
+#### R7 · P2 · Cancelling connection establishment bypasses disconnect cleanup — resolved in code; hardware unverified
+
+Resolved in `d46260f`: `Transport::connect` takes the cancellation token and disconnects before returning on any failure after the device may have connected, and a staged mock test cancels during service discovery. Cancellation at a known native stage has not been observed on hardware. This is the 2026-10-13 review's R7; the 2026-10-29 review's R7 (limits on edited settings) is a different issue, fixed in `3fcfaf4`.
 
 [`PrinterSession::open`](../crates/nuprint-core/src/session.rs) and `inspect_device` cancel by dropping the `transport.connect` future. In [`BleTransport::connect`](../crates/nuprint-transport/src/ble.rs), the peripheral can already be connected while `BleLink::open` awaits service discovery/notifications. Dropping that future bypasses its error branch's explicit disconnect; `BleLink::drop` only aborts the notification forwarder.
 
