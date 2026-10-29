@@ -1587,7 +1587,8 @@ impl AppService {
                 "Cancelled. Data already in the printer may still print; check the paper before printing again.",
             )),
             (Err(_), JobState::Cancelled) => None,
-            (Err(e), JobState::Uncertain) if !e.message.contains("check") => Some(AppError {
+            // An OutcomeUncertain error already says what to check.
+            (Err(e), JobState::Uncertain) if e.code != ErrorCode::OutcomeUncertain => Some(AppError {
                 code: e.code,
                 message: format!("{} Some paper may already have printed; check before retrying.", e.message),
                 detail: e.detail.clone(),
