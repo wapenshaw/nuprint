@@ -4,7 +4,7 @@
 //! Discovery results are filtered by the application (core), not here.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -66,7 +66,8 @@ const ADAPTER_READY_WAIT: Duration = Duration::from_secs(3);
 #[derive(Default)]
 pub struct BleTransport {
     adapter: OnceCell<Adapter>,
-    /// Backend IDs seen during discovery in this process. IDs are revalidated per session.
+    /// Backend IDs seen during discovery in this process. IDs are revalidated per session, so
+    /// after a panic the cache is kept rather than poisoning every later scan or connect.
     known: Mutex<HashMap<String, PeripheralId>>,
 }
 
@@ -117,7 +118,7 @@ impl BleTransport {
         let peripheral = adapter.peripheral(id).await.ok()?;
         let props = peripheral.properties().await.ok()??;
         let backend_id = id.to_string();
-        self.known.lock().unwrap().insert(backend_id.clone(), id.clone());
+        self.known.lock().unwrap_or_else(PoisonError::into_inner).insert(backend_id.clone(), id.clone());
         let mut manufacturer_ids: Vec<u16> = props.manufacturer_data.keys().copied().collect();
         manufacturer_ids.sort_unstable();
         let address = if cfg!(target_os = "macos") { None } else { Some(props.address.to_string()) };
@@ -132,7 +133,7 @@ impl BleTransport {
     }
 
     async fn find_peripheral(&self, adapter: &Adapter, backend_id: &str) -> Result<Peripheral, TransportError> {
-        let known = self.known.lock().unwrap().get(backend_id).cloned();
+        let known = self.known.lock().unwrap_or_else(PoisonError::into_inner).get(backend_id).cloned();
         if let Some(id) = known
             && let Ok(peripheral) = adapter.peripheral(&id).await
         {
