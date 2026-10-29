@@ -21,7 +21,7 @@ Download the installer for your system from [Releases](https://github.com/wapens
 | macOS 14+, Intel | `NuPrint_<version>_x64.dmg` |
 | Debian/Ubuntu (x64) | `NuPrint_<version>_amd64.deb`, installs BlueZ as a dependency |
 
-The installers are not code-signed yet. On Windows, SmartScreen may warn about an unrecognised app: choose **More info → Run anyway**. On macOS, the first launch is blocked: open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint. The `nuprint` CLI is built from source (see [building from source](building.md)).
+The installers are not code-signed yet. On Windows, SmartScreen may warn about an unrecognised app: choose **More info → Run anyway**. On macOS, the first launch is blocked: open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint. To check that an installer was built by NuPrint's release workflow, see [check a download](code-signing.md#check-a-download). The `nuprint` CLI is built from source (see [building from source](building.md)).
 
 Each release also carries a preview of the app drawn with Slint, as `nuprint-slint_<version>_x64-setup.exe`, `nuprint-slint_<version>_aarch64.dmg`, `nuprint-slint_<version>_x64.dmg` and `nuprint-slint_<version>_amd64.deb`. It installs as **NuPrint Slint** beside NuPrint and keeps its own printers and queue. It is a preview: it has not been tested with a printer from an installer, and the [Slint notes](building.md#slint-app) list what it lacks.
 

@@ -45,7 +45,7 @@ Get the installer for your system from the [latest release](https://github.com/w
 | macOS 14+ on Intel | `NuPrint_<version>_x64.dmg` |
 | Debian and Ubuntu | `NuPrint_<version>_amd64.deb` |
 
-The installers aren't code-signed yet, so Windows and macOS warn on first launch. The [user guide](docs/user-guide.md#installing) shows how to get past the warning.
+The installers aren't code-signed yet, so Windows and macOS warn on first launch. The [user guide](docs/user-guide.md#installing) shows how to get past the warning, and the [code signing policy](docs/code-signing.md) shows how to check that a download was built by NuPrint's release workflow.
 
 Each release also has a preview of NuPrint drawn with [Slint](https://slint.dev) instead of a web view, in the `nuprint-slint_<version>_…` installers. It is less tested, and it keeps its own printers and queue.
 
@@ -72,6 +72,7 @@ Other printers show up as unknown devices and are never sent print commands. If 
 - [User guide](docs/user-guide.md): installing, printing, the queue, settings and troubleshooting
 - [Command line](docs/printer-interaction.md): the `nuprint` tool for scanning, previews and printing
 - [Building from source](docs/building.md): development setup, checks and the repository layout
+- [Code signing policy](docs/code-signing.md): what is signed and how to check a download
 - [All documentation](docs/README.md): architecture, printer protocol, validation records and the roadmap
 
 ## Contributing
