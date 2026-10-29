@@ -160,6 +160,35 @@ pub enum FaultPoint {
     AfterClaim,
     /// While recording the outcome, holding the job store's lock.
     WhilePersisting,
+    /// The dispatcher returns, without panicking, the next time it is woken outside shutdown.
+    StopDispatcher,
+}
+
+/// Holds the dispatcher inside a job's cleanup, still owning Bluetooth, until released.
+#[cfg(feature = "fault-injection")]
+pub struct CleanupGate {
+    reached: tokio::sync::Semaphore,
+    release: tokio::sync::Semaphore,
+}
+
+#[cfg(feature = "fault-injection")]
+impl Default for CleanupGate {
+    fn default() -> Self {
+        Self { reached: tokio::sync::Semaphore::new(0), release: tokio::sync::Semaphore::new(0) }
+    }
+}
+
+#[cfg(feature = "fault-injection")]
+impl CleanupGate {
+    /// Resolves once the dispatcher is held at the gate.
+    pub async fn wait_reached(&self) {
+        self.reached.acquire().await.expect("gate is never closed").forget();
+    }
+
+    /// Let the held dispatcher continue.
+    pub fn release(&self) {
+        self.release.add_permits(1);
+    }
 }
 
 #[cfg(feature = "fault-injection")]
@@ -216,6 +245,8 @@ struct Inner {
     fault: OnceLock<ServiceFault>,
     #[cfg(feature = "fault-injection")]
     injected: Mutex<Option<FaultPoint>>,
+    #[cfg(feature = "fault-injection")]
+    gate: Mutex<Option<Arc<CleanupGate>>>,
     last_check: Mutex<Option<PrinterCheck>>,
     _temp: Option<tempfile::TempDir>,
 }
@@ -506,6 +537,8 @@ impl AppService {
             fault: OnceLock::new(),
             #[cfg(feature = "fault-injection")]
             injected: Mutex::new(None),
+            #[cfg(feature = "fault-injection")]
+            gate: Mutex::new(None),
             last_check: Mutex::new(None),
             _temp: temp,
         });
@@ -702,13 +735,51 @@ impl AppService {
     }
 
     #[cfg(feature = "fault-injection")]
+    fn take_injected(&self, point: FaultPoint) -> bool {
+        let mut armed = relock(&self.inner.injected);
+        (*armed == Some(point)).then(|| armed.take()).is_some()
+    }
+
+    #[cfg(feature = "fault-injection")]
     fn maybe_panic(&self, point: FaultPoint) {
-        let hit = {
-            let mut armed = relock(&self.inner.injected);
-            (*armed == Some(point)).then(|| armed.take())
-        };
-        if hit.is_some() {
+        if self.take_injected(point) {
             panic!("injected dispatcher fault at {point:?}");
+        }
+    }
+
+    /// Test seam: hold the dispatcher in its next job's cleanup until `gate` is released.
+    #[cfg(feature = "fault-injection")]
+    pub fn inject_cleanup_gate(&self, gate: Arc<CleanupGate>) {
+        *relock(&self.inner.gate) = Some(gate);
+    }
+
+    #[cfg(feature = "fault-injection")]
+    async fn hold_cleanup(&self) {
+        let gate = relock(&self.inner.gate).take();
+        if let Some(gate) = gate {
+            gate.reached.add_permits(1);
+            gate.release.acquire().await.expect("gate is never closed").forget();
+        }
+    }
+
+    /// Test seam: a thread panics while holding the store lock with a transaction left open,
+    /// the one state `Store::is_consistent` rejects.
+    #[cfg(feature = "fault-injection")]
+    pub fn inject_store_corruption(&self) {
+        let inner = self.inner.clone();
+        let _ = std::thread::spawn(move || {
+            let store = inner.store.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            store.inject_open_transaction();
+            panic!("injected store fault");
+        })
+        .join();
+    }
+
+    /// Test seam: kill the supervisor task, as a runtime abort would.
+    #[cfg(feature = "fault-injection")]
+    pub fn abort_supervisor(&self) {
+        if let Some(task) = relock(&self.inner.supervisor).as_ref() {
+            task.abort();
         }
     }
 
@@ -1859,6 +1930,10 @@ impl AppService {
                 _ = self.inner.shutdown.cancelled() => return,
                 _ = self.inner.wake.notified() => {}
             }
+            #[cfg(feature = "fault-injection")]
+            if self.take_injected(FaultPoint::StopDispatcher) {
+                return;
+            }
         }
     }
 
@@ -1935,6 +2010,8 @@ impl AppService {
         fault_point!(self, AfterClaim);
         self.emit_job(&job);
         let (result, sent) = self.execute_job(&mut job, &attempt_id, &cancel).await;
+        #[cfg(feature = "fault-injection")]
+        self.hold_cleanup().await;
         drop(hardware);
         // `sent` counts bytes that may have arrived, which can exceed what was confirmed written;
         // `job.bytes_sent` keeps the confirmed count.

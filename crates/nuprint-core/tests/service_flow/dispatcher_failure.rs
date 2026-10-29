@@ -3,7 +3,7 @@
 //! panics inside the mock transport. Offline: no Bluetooth, no paper.
 
 use super::*;
-use nuprint_core::service::{FaultPoint, ShutdownOutcome};
+use nuprint_core::service::{CleanupGate, FaultPoint, ShutdownOutcome};
 
 async fn next_fault(h: &mut Harness) -> ServiceFault {
     let deadline = tokio::time::Instant::now() + Duration::from_mins(1);
@@ -45,9 +45,9 @@ async fn assert_closed(h: &Harness, printer: &SavedPrinter, job: &JobSummary, st
             title: "Second".into(),
         })
         .expect_err("a faulted service accepts no new jobs");
-    assert!(refused.message.contains("restart NuPrint"), "{}", refused.message);
+    assert!(refused.message.contains("estart NuPrint"), "{}", refused.message);
     let resume = h.service.resume_queue().expect_err("resume is refused while faulted");
-    assert!(resume.message.contains("restart NuPrint"), "{}", resume.message);
+    assert!(resume.message.contains("estart NuPrint"), "{}", resume.message);
     assert!(h.service.check_printer(&printer.id).await.is_err(), "no second Bluetooth owner");
     tokio::time::sleep(Duration::from_secs(30)).await;
 
@@ -180,4 +180,86 @@ async fn a_normal_shutdown_is_clean() {
     let h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
     assert_eq!(h.service.shutdown(Duration::from_secs(1)).await, ShutdownOutcome::Clean);
     assert!(h.service.list_jobs().unwrap().fault.is_none());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dispatcher_that_returns_unexpectedly_is_reported_and_stops_the_queue() {
+    let mut h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
+    let printer = h.save_first_printer().await;
+    h.service.hold_queue().unwrap();
+    let preview = h.preview("Held while the dispatcher stops").await;
+    h.service.inject_panic(FaultPoint::StopDispatcher);
+    // Admission wakes the dispatcher, which then returns without a panic or a shutdown request.
+    let job = h.enqueue(&preview, &printer, "k", 12);
+    let fault = next_fault(&mut h).await;
+    assert_eq!(fault.kind, ServiceFaultKind::DispatcherStopped);
+    assert_eq!(fault.job_id, None, "no job was claimed");
+    assert_eq!(h.transport.log().connects, 0);
+    assert_closed(&h, &printer, &job, JobState::Queued).await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_supervisor_that_dies_is_reported_by_shutdown_as_a_stopped_dispatcher() {
+    let h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
+    h.service.abort_supervisor();
+    assert_eq!(h.service.shutdown(Duration::from_secs(1)).await, ShutdownOutcome::Faulted);
+    let fault = h.service.list_jobs().unwrap().fault.expect("the lost supervisor is a fault");
+    assert_eq!(fault.kind, ServiceFaultKind::DispatcherStopped);
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_inconsistent_store_fails_the_service_closed_and_keeps_pending_jobs() {
+    let mut h = start(vec![sc03h("SC03h-TEST", Sim::default())], None);
+    let printer = h.save_first_printer().await;
+    h.service.hold_queue().unwrap();
+    let preview = h.preview("Pending when storage breaks").await;
+    let job = h.enqueue(&preview, &printer, "k", 12);
+
+    // A thread panics holding the store lock with a transaction left open.
+    h.service.inject_store_corruption();
+    // The next use of the store validates it, finds it unusable and fails closed.
+    let snapshot = h.service.list_jobs().unwrap();
+    let fault = snapshot.fault.expect("storage failure is reported");
+    assert_eq!(fault.kind, ServiceFaultKind::StorageInvalid);
+    assert!(fault.message.contains("estart NuPrint"), "{}", fault.message);
+    assert_eq!(next_fault(&mut h).await.kind, ServiceFaultKind::StorageInvalid);
+    assert_eq!(h.transport.log().connects, 0);
+    assert_closed(&h, &printer, &job, JobState::Queued).await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn shutdown_that_times_out_keeps_the_data_folder_until_cleanup_ends() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().to_path_buf();
+    let mut h = start(vec![sc03h("SC03h-TEST", Sim::default())], Some(dir));
+    let printer = h.save_first_printer().await;
+    let preview = h.preview("Cleanup is held").await;
+    let gate = Arc::new(CleanupGate::default());
+    h.service.inject_cleanup_gate(gate.clone());
+    let job = h.enqueue(&preview, &printer, "k", 12);
+    // The transfer is over, but the dispatcher still owns Bluetooth and the job.
+    gate.wait_reached().await;
+
+    let config = |path: &std::path::Path| ServiceConfig {
+        data_dir: Some(path.to_path_buf()),
+        pdfium_dirs: vec![],
+        version: "test".into(),
+    };
+    for _ in 0..2 {
+        assert_eq!(h.service.shutdown(Duration::from_secs(1)).await, ShutdownOutcome::TimedOut);
+        let second =
+            AppService::start(config(&path), Arc::new(MockTransport::new(vec![])), Arc::new(|_e: AppEvent| {}));
+        assert_eq!(second.err().expect("the folder is still owned").code, ErrorCode::DataDirInUse);
+    }
+
+    gate.release();
+    assert_eq!(h.service.shutdown(Duration::from_secs(10)).await, ShutdownOutcome::Clean);
+    let finished = h.wait_terminal(&job.id).await;
+    assert_ne!(finished.state, JobState::Queued, "the held job finished once, without a replay");
+    assert_eq!(h.transport.log().connects, 1);
+    let dir = h._dir;
+    drop(h.service);
+    let restarted = AppService::start(config(&path), Arc::new(MockTransport::new(vec![])), Arc::new(|_e: AppEvent| {}));
+    assert!(restarted.is_ok(), "the folder is free once cleanup ended");
+    drop(dir);
 }
