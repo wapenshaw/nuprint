@@ -313,10 +313,16 @@ impl Env {
         let service = AppService::start(
             ServiceConfig { data_dir, pdfium_dirs: nuprint_render::pdfium_search_dirs(&[]), version: "bench".into() },
             Arc::new(MockTransport::new(vec![status_device("SC03h-BENCH")])),
-            Arc::new(move |e: AppEvent| {
-                if let AppEvent::JobChanged { job, .. } = e {
+            Arc::new(move |e: AppEvent| match e {
+                AppEvent::JobChanged { job, .. } => {
                     let _ = tx.send((job.id, job.state));
                 }
+                AppEvent::Log { line } => {
+                    if let Some(count) = line.message.strip_suffix(" log line(s) were not written to the log file") {
+                        LOG_LINES_LOST.fetch_add(count.parse().unwrap_or(0), Ordering::Relaxed);
+                    }
+                }
+                _ => {}
             }),
         )?;
         Ok((service, events))
@@ -419,6 +425,8 @@ fn minimal_pdf() -> Vec<u8> {
 }
 
 static GENERATION: AtomicU64 = AtomicU64::new(1);
+/// Log lines the file lost, summed from the writer's notices in the event stream.
+static LOG_LINES_LOST: AtomicU64 = AtomicU64::new(0);
 
 fn next_generation() -> f64 {
     GENERATION.fetch_add(1, Ordering::Relaxed) as f64
@@ -1056,6 +1064,7 @@ fn log_message(i: usize) -> String {
 
 async fn log_run(label: &str, persistent: bool, lines: usize) {
     let env = Env::start(persistent);
+    LOG_LINES_LOST.store(0, Ordering::Relaxed);
     for i in 0..200 {
         env.service.log(LogLevel::Info, log_message(i));
     }
@@ -1067,6 +1076,11 @@ async fn log_run(label: &str, persistent: bool, lines: usize) {
         lat.push(us(t.elapsed()));
     }
     let total = total.elapsed();
+    // Shutdown waits for the writer to finish the file, so this is the time to drain the queue.
+    let drained = Instant::now();
+    env.service.shutdown(Duration::from_secs(30)).await;
+    let drained = drained.elapsed();
+    let lost = LOG_LINES_LOST.load(Ordering::Relaxed);
     let files = env
         .data_dir
         .as_ref()
@@ -1095,7 +1109,7 @@ async fn log_run(label: &str, persistent: bool, lines: usize) {
         0.999,
     );
     println!(
-        "| {label} | {} | {} | {} | {} | {} | {} | {:.0} | {:?} | {files} |",
+        "| {label} | {} | {} | {} | {} | {} | {} | {:.0} | {:.0} | {lost} | {:?} | {files} |",
         s.n,
         num(s.median),
         num(s.p95),
@@ -1103,21 +1117,27 @@ async fn log_run(label: &str, persistent: bool, lines: usize) {
         num(p999),
         num(s.max),
         total.as_secs_f64() * 1000.0,
+        drained.as_secs_f64() * 1000.0,
         worst
     );
-    env.service.shutdown(Duration::from_secs(1)).await;
 }
 
 fn logging_section(o: &Opts) {
     println!("\n## Logging (`AppService::log`, per call, producer-side)");
     println!(
-        "\nEach call appends to the in-memory ring, emits to the (counting) event sink, calls `tracing` (no \
-         subscriber installed here, so that cost is a floor) and, with a data folder, stats, opens, appends and \
-         closes `logs/nuprint.log`. Rotation happens at 2,000,000 bytes (about 20,000 of these lines). Lines are \
-         about 95 bytes. `worst idx` are the indices of the three slowest calls.\n"
+        "\nEach call appends to the in-memory ring, emits to the event sink, calls `tracing` (no subscriber \
+         installed here, so that cost is a floor) and, with a data folder, queues the line for the log writer \
+         thread, which writes `logs/nuprint.log`. So the per-call times are the producer's cost, not a write to \
+         disk. `drain ms` is the shutdown that waits for the writer to finish the file, and `lost` counts lines \
+         the full queue turned away, which never reach the file. Rotation happens at 2,000,000 bytes (about \
+         20,000 of these lines). Lines are about 95 bytes. `worst idx` are the indices of the three slowest \
+         calls.\n"
     );
-    println!("| case | lines | median us | p95 us | p99 us | p99.9 us | max us | total ms | worst idx | files after |");
-    println!("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
+    println!(
+        "| case | lines | median us | p95 us | p99 us | p99.9 us | max us | total ms | drain ms | lost | worst idx \
+         | files after |"
+    );
+    println!("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
     let rt = runtime(2);
     rt.block_on(async {
         log_run("in-memory service (no file)", false, o.n(20_000)).await;
