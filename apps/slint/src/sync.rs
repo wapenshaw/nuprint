@@ -1,6 +1,8 @@
 //! Pushing state to the screens: each `sync_*` builds screen items from `State` and hands them to
 //! the UI thread.
 
+use std::collections::VecDeque;
+
 use nuprint_core::api::*;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
@@ -11,6 +13,40 @@ use crate::{Data, DeviceItem, LogItem, PrinterItem};
 
 /// The activity log keeps this many of the newest lines on screen.
 pub(crate) const MAX_LOG_LINES: usize = 500;
+
+/// How a batch of new log lines joins the rows on screen.
+#[derive(Debug, Default)]
+struct LogMerge {
+    /// Lines older than the newest row, each with the row index it goes in at, applied in order.
+    inserts: Vec<(usize, LogLine)>,
+    /// Lines newer than every row, oldest first; added after the inserts.
+    appends: Vec<LogLine>,
+    /// Rows to remove from the front afterwards.
+    trim: usize,
+}
+
+/// Merge `lines` into the rows whose sequence numbers are `shown`, and update `shown`.
+///
+/// Log events can arrive out of order: two threads log at once and the later sequence number is
+/// delivered first. The start-up snapshot can also repeat the first events. So lines are placed
+/// by sequence number, and a line already on screen is skipped.
+fn merge_logs(shown: &mut VecDeque<f64>, mut lines: Vec<LogLine>, max: usize) -> LogMerge {
+    lines.sort_by(|a, b| a.seq.total_cmp(&b.seq));
+    let mut merge = LogMerge::default();
+    for line in lines {
+        let Err(at) = shown.binary_search_by(|seq| seq.total_cmp(&line.seq)) else { continue };
+        shown.insert(at, line.seq);
+        // Sorted input puts every insert before the first append.
+        if at + 1 == shown.len() {
+            merge.appends.push(line);
+        } else {
+            merge.inserts.push((at, line));
+        }
+    }
+    merge.trim = shown.len().saturating_sub(max);
+    shown.drain(..merge.trim);
+    merge
+}
 
 impl Ctx {
     pub(crate) fn sync_status(&self) {
@@ -250,26 +286,76 @@ impl Ctx {
         }
         let this = self.clone();
         self.ui(move |ui| {
-            let lines = {
-                let mut st = this.state.lock().unwrap();
-                st.logs_queued = false;
-                std::mem::take(&mut st.new_logs)
-            };
-            let items = lines.iter().map(|l| {
-                let (level, tone) = level_label(l.level);
-                LogItem { time: time_of_day(l.at_ms).into(), level: level.into(), text: l.message.clone().into(), tone }
-            });
             let logs = ui.global::<Data>().get_logs();
             let Some(rows) = logs.as_any().downcast_ref::<VecModel<LogItem>>() else { return };
-            let excess = (rows.row_count() + lines.len()).saturating_sub(MAX_LOG_LINES);
-            if excess >= rows.row_count() {
-                rows.set_vec(items.skip(lines.len().saturating_sub(MAX_LOG_LINES)).collect::<Vec<_>>());
+            let merge = {
+                let mut st = this.state.lock().unwrap();
+                st.logs_queued = false;
+                let lines = std::mem::take(&mut st.new_logs);
+                merge_logs(&mut st.shown_logs, lines, MAX_LOG_LINES)
+            };
+            let item = |l: LogLine| {
+                let (level, tone) = level_label(l.level);
+                LogItem { time: time_of_day(l.at_ms).into(), level: level.into(), text: l.message.into(), tone }
+            };
+            for (at, line) in merge.inserts {
+                rows.insert(at, item(line));
+            }
+            let kept = rows.row_count();
+            if merge.trim >= kept {
+                rows.set_vec(merge.appends.into_iter().skip(merge.trim - kept).map(item).collect::<Vec<_>>());
             } else {
-                for _ in 0..excess {
+                for _ in 0..merge.trim {
                     rows.remove(0);
                 }
-                rows.extend(items);
+                rows.extend(merge.appends.into_iter().map(item));
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line(seq: f64) -> LogLine {
+        LogLine { seq, at_ms: 0.0, level: LogLevel::Info, message: format!("line {seq}") }
+    }
+
+    fn seqs(lines: &[LogLine]) -> Vec<f64> {
+        lines.iter().map(|l| l.seq).collect()
+    }
+
+    #[test]
+    fn a_line_delivered_after_a_newer_one_is_kept_in_order() {
+        let mut shown = VecDeque::new();
+        let merge = merge_logs(&mut shown, vec![line(2.0)], 10);
+        assert_eq!(seqs(&merge.appends), [2.0]);
+        // Sequence 1 was assigned first but its event arrived second.
+        let merge = merge_logs(&mut shown, vec![line(1.0)], 10);
+        assert_eq!(merge.inserts.iter().map(|(at, l)| (*at, l.seq)).collect::<Vec<_>>(), [(0, 1.0)]);
+        assert!(merge.appends.is_empty());
+        assert_eq!(shown, [1.0, 2.0]);
+    }
+
+    #[test]
+    fn repeated_lines_are_shown_once() {
+        let mut shown = VecDeque::new();
+        // The start-up snapshot and an event can carry the same line.
+        let merge = merge_logs(&mut shown, vec![line(3.0), line(1.0), line(3.0)], 10);
+        assert_eq!(seqs(&merge.appends), [1.0, 3.0]);
+        let merge = merge_logs(&mut shown, vec![line(1.0), line(4.0)], 10);
+        assert!(merge.inserts.is_empty());
+        assert_eq!(seqs(&merge.appends), [4.0]);
+        assert_eq!(shown, [1.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn only_the_newest_lines_stay() {
+        let mut shown: VecDeque<f64> = [1.0, 2.0, 3.0].into();
+        let merge = merge_logs(&mut shown, vec![line(5.0), line(4.0)], 3);
+        assert_eq!(seqs(&merge.appends), [4.0, 5.0]);
+        assert_eq!(merge.trim, 2);
+        assert_eq!(shown, [3.0, 4.0, 5.0]);
     }
 }

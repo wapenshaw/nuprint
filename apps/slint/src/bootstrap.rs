@@ -237,8 +237,8 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
         st.prefs = prefs;
         st.app_info = Some(service.app_info());
         st.profiles = service.profiles();
-        st.log_seq = logs.iter().map(|l| l.seq).fold(0.0, f64::max);
-        st.new_logs = logs;
+        // Events that arrived meanwhile may repeat these lines; the merge skips them.
+        st.new_logs.extend(logs);
     }
     ctx.sync_file(ui);
     // Before the window shows, so the first preview already knows the printer.

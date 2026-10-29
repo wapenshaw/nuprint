@@ -71,11 +71,8 @@ impl Ctx {
             AppEvent::PrintersChanged { .. } => self.refresh_printers(),
             AppEvent::Log { line } => {
                 {
+                    // Lines can arrive out of order; `sync_logs` places them by sequence number.
                     let mut st = self.state.lock().unwrap();
-                    if line.seq <= st.log_seq {
-                        return;
-                    }
-                    st.log_seq = line.seq;
                     st.new_logs.push(line);
                     if st.new_logs.len() > MAX_LOG_LINES {
                         st.new_logs.remove(0);
