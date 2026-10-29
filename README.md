@@ -38,16 +38,29 @@
 
 Get the installer for your system from the [latest release](https://github.com/wapenshaw/nuprint/releases/latest).
 
-| System | Installer |
-| --- | --- |
-| Windows 10 and 11 | `NuPrint_<version>_x64-setup.exe` (no admin rights needed) |
-| macOS 14+ on Apple silicon | `NuPrint_<version>_aarch64.dmg` |
-| macOS 14+ on Intel | `NuPrint_<version>_x64.dmg` |
-| Debian and Ubuntu | `NuPrint_<version>_amd64.deb` |
+| System | NuPrint | NuPrint Slint |
+| --- | --- | --- |
+| Windows 10 and 11 | `NuPrint_<version>_x64-setup.exe` | `nuprint-slint_<version>_x64-setup.exe` |
+| macOS 14+ on Apple silicon | `NuPrint_<version>_aarch64.dmg` | `nuprint-slint_<version>_aarch64.dmg` |
+| macOS 14+ on Intel | `NuPrint_<version>_x64.dmg` | `nuprint-slint_<version>_x64.dmg` |
+| Debian and Ubuntu | `NuPrint_<version>_amd64.deb` | `nuprint-slint_<version>_amd64.deb` |
 
-The installers aren't code-signed yet, so Windows and macOS warn on first launch. The [user guide](docs/user-guide.md#installing) shows how to get past the warning, and the [code signing policy](docs/code-signing.md) shows how to check that a download was built by NuPrint's release workflow.
+The Windows installers need no admin rights.
 
-Each release also has a preview of NuPrint drawn with [Slint](https://slint.dev) instead of a web view, in the `nuprint-slint_<version>_…` installers. It is less tested, and it keeps its own printers and queue.
+### Two apps, one engine
+
+NuPrint comes in two editions. They look and work the same, and share the same printing engine: rendering, printer support and the job queue.
+
+- **NuPrint** draws its window with the system's web view (through [Tauri](https://tauri.app)). It is the main app and the one tested on paper, on Windows and macOS.
+- **NuPrint Slint** draws its window natively with [Slint](https://slint.dev), with no web view involved. It is newer: its screens have been checked on Windows, but printing from it has not been tested on paper yet, and it [lacks two small options](docs/building.md#slint-app).
+
+Both can be installed side by side. Each keeps its own printers and queue.
+
+### Signing
+
+The installers aren't code-signed yet, so Windows and macOS warn on first launch; the [user guide](docs/user-guide.md#installing) shows how to get past the warning. Windows signing through the free [SignPath Foundation](https://signpath.org) programme is planned. The Mac apps are not notarized, which needs a paid Apple developer account.
+
+From the next release on, every installer comes with a GitHub build attestation: a signed record that it was built by NuPrint's release workflow from this repository. [Check a download](docs/code-signing.md#check-a-download) shows how to verify one, and the [code signing policy](docs/code-signing.md) has the details.
 
 ## Get printing
 

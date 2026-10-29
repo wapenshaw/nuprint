@@ -59,7 +59,7 @@ PDF tests skip themselves when PDFium has not been fetched. Set `NUPRINT_REQUIRE
 
 ## Slint app
 
-`apps/slint` is a second front end written in [Slint](https://slint.dev), driving the same `AppService` as the desktop app and CLI. It reproduces the desktop app's screens (toolbar with printer menu, text/image/PDF/test-pattern workspace, paper preview, print bar, queue drawer, settings with printers, appearance and diagnostics, and the save, remove, advanced and inspect dialogs) with its own light/dark themes and accents. It shows how the core can sit behind another UI and ships in each release as a preview; it has not been tried against a printer from an installer. Two things the desktop app has that it lacks: the app-icon choice only changes the header logo, not the window icon, and profile export is not offered in the advanced dialog. It keeps its own data folder (`NuPrint-Slint` under the local app data folder, or `NUPRINT_SLINT_DATA`; a `NuPrint-SlintDemo` folder from before the rename is moved there on first start), so it never touches the installed app's printers or jobs.
+`apps/slint` is a second front end written in [Slint](https://slint.dev), driving the same `AppService` as the desktop app and CLI. It reproduces the desktop app's screens (toolbar with printer menu, text/image/PDF/test-pattern workspace, paper preview, print bar, queue drawer, settings with printers, appearance and diagnostics, and the save, remove, advanced and inspect dialogs) with its own light/dark themes and accents. It ships in each release as NuPrint Slint, an alternative to the Tauri app for people who prefer a native window without a web view. It is less tested: printing from it has not been tested on paper yet. Two things the desktop app has that it lacks: the app-icon choice only changes the header logo, not the window icon, and profile export is not offered in the advanced dialog. It keeps its own data folder (`NuPrint-Slint` under the local app data folder, or `NUPRINT_SLINT_DATA`; a `NuPrint-SlintDemo` folder from before the rename is moved there on first start), so it never touches the installed app's printers or jobs.
 
 It draws with Skia on the CPU. Skia's default Direct3D path on Windows let game overlays attach to the window and flickered on an HDR, high-refresh monitor; set `SLINT_BACKEND` to choose another renderer. When the window moves to a monitor with a different scale, the app restores its previous logical size, because Slint otherwise grows the window during a title-bar drag. This workaround has not yet been confirmed on a real drag. A release build looks for `pdfium.dll` (or `libpdfium`) in `NUPRINT_PDFIUM_DIR`, in the `pdfium` folder its installer puts it in, or beside the executable; without it, PDF support shows as unavailable.
 
@@ -89,7 +89,7 @@ The installer lands in `target\release`. On macOS the release workflow builds th
 | `crates/nuprint-core` | Application service: profiles, sessions, job queue, SQLite storage, typed API |
 | `crates/nuprint-cli` | `nuprint` command-line tool |
 | `apps/tauri` | Tauri 2 host (`src-tauri`) and React frontend |
-| `apps/slint` | Slint front end over the same service (released as a preview) |
+| `apps/slint` | Slint front end over the same service (released as NuPrint Slint, beside the Tauri app) |
 | `profiles/` | Versioned printer model profiles with evidence |
 | `fixtures/` | Golden protocol vectors generated from the Python reference |
 | `poc/python` | Original Python/Tk app, kept runnable as the parity oracle ([its README](../poc/python/README.md)) |
