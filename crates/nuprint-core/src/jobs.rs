@@ -61,7 +61,35 @@ pub fn paper_mm(raster_mm_per_copy: f32, copies: u16, feed_mm: u16) -> f32 {
     raster_mm_per_copy * f32::from(copies) + f32::from(feed_mm)
 }
 
-/// Terminal state for a finished attempt.
+/// Terminal state for a finished attempt, and whether paper may already have moved.
+///
+/// `print_bytes_at_risk` is the session's [`at-risk count`](crate::session::PrinterSession::print_bytes_at_risk):
+/// confirmed writes plus a write that failed or was cancelled midway, since a failed write does
+/// not prove nothing arrived. The job's own `bytes_sent` is the smaller confirmed count and is
+/// never used here. A failure with any at-risk byte is [`JobState::Uncertain`] and is not
+/// replayed automatically; with none it is a clean [`JobState::Failed`].
+///
+/// ```
+/// use nuprint_core::api::JobState;
+/// use nuprint_core::jobs::classify;
+/// use nuprint_core::{AppError, ErrorCode};
+/// use nuprint_protocol::CompletionPolicy;
+///
+/// let dropped = Err(AppError::new(ErrorCode::ConnectionFailed, "link lost"));
+/// // Nothing was written: a plain failure, safe to retry.
+/// assert_eq!(classify(&dropped, 0), (JobState::Failed, false));
+/// // A write that failed midway may still have delivered bytes: uncertain, even though the
+/// // confirmed count (`bytes_sent`) could be zero.
+/// assert_eq!(classify(&dropped, 1), (JobState::Uncertain, true));
+///
+/// let cancelled = Err(AppError::cancelled());
+/// assert_eq!(classify(&cancelled, 0), (JobState::Cancelled, false));
+/// assert_eq!(classify(&cancelled, 48), (JobState::Cancelled, true));
+///
+/// // Success wording follows what the model can confirm, never that paper came out.
+/// assert_eq!(classify(&Ok(CompletionPolicy::StatusConfirmedReady), 48), (JobState::Completed, false));
+/// assert_eq!(classify(&Ok(CompletionPolicy::UnconfirmedTransfer), 48), (JobState::TransferUnconfirmed, false));
+/// ```
 pub fn classify(result: &Result<CompletionPolicy, AppError>, print_bytes_sent: usize) -> (JobState, bool) {
     match result {
         Ok(CompletionPolicy::StatusConfirmedReady) => (JobState::Completed, false),

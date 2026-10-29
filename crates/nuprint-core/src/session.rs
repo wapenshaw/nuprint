@@ -240,15 +240,17 @@ impl PrinterSession {
         self.state.borrow().status.clone()
     }
 
-    /// Bytes of print data written so far (excludes status queries). Non-zero means a
-    /// failure may have left partial output.
+    /// Bytes of print data whose writes completed successfully (excludes status queries): the
+    /// confirmed count shown as job progress. It can be lower than the bytes that reached the
+    /// printer, so do not use it alone to decide a failure left no output; use
+    /// [`Self::print_bytes_at_risk`] for that.
     pub fn print_bytes_submitted(&self) -> usize {
         self.print_bytes_submitted
     }
 
     /// Print bytes that may have reached the printer: the confirmed writes plus a write that
     /// failed, timed out or was cancelled midway. A failed write does not prove nothing arrived,
-    /// so this is what decides whether a failure is uncertain.
+    /// so this is what decides whether a failure is uncertain; see [`crate::jobs::classify`].
     pub fn print_bytes_at_risk(&self) -> usize {
         self.print_bytes_submitted + self.print_bytes_in_flight
     }
@@ -354,8 +356,15 @@ impl PrinterSession {
         })
     }
 
-    /// Execute a driver plan. On error, [`Self::print_bytes_submitted`] tells the caller
-    /// whether output may be partial.
+    /// Execute a driver plan. On error, [`Self::print_bytes_at_risk`] tells the caller whether
+    /// output may be partial; [`Self::print_bytes_submitted`] only counts confirmed writes.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Cancelled`] when `cancel` fires, a printer fault code (paper out, cover open,
+    /// overheated, low power or busy) from a status check or between chunks,
+    /// [`ErrorCode::BufferTimeout`] when flow control stays paused too long, and transport
+    /// failures such as a disconnect or write timeout. A plan is never replayed after an error.
     pub async fn execute(
         &mut self,
         plan: &ExchangePlan,

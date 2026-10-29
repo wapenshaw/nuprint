@@ -283,6 +283,11 @@ impl ModelProfile {
     /// A user-edited copy of `base`: the keys in `doc` replace the base's, identity stays
     /// the base's, and the result must pass the same validation as a built-in profile plus
     /// sanity limits on values that would otherwise stall or flood the link.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::InvalidInput`] when `doc` is not an object, names a key outside the
+    /// editable set, or produces values that fail validation or the edit limits.
     pub fn customized(base: &ModelProfile, doc: &serde_json::Value, id: String, revision: u32) -> AppResult<Self> {
         let invalid = |msg: String| AppError::new(ErrorCode::InvalidInput, msg);
         let serde_json::Value::Object(edits) = doc else {
@@ -555,6 +560,35 @@ impl ProfileRegistry {
     }
 
     /// Exact revision lookup for queued jobs; a different revision is never substituted.
+    ///
+    /// A profile is identified by `(id, revision)`, and a published revision never changes:
+    /// editing a custom profile publishes the next revision, and a job keeps printing with the
+    /// one it was planned for. [`Self::get`] returns the newest revision instead.
+    ///
+    /// ```
+    /// use nuprint_core::profile::{ModelProfile, ProfileRegistry};
+    ///
+    /// let registry = ProfileRegistry::builtin()?;
+    /// let base = registry.get("sc03h-iprint-384").expect("built-in profile");
+    /// let edit = |speed: u8| {
+    ///     let mut doc = base.profile.tunable_doc();
+    ///     doc["driver"]["print_speed"] = speed.into();
+    ///     ModelProfile::customized(&base.profile, &doc, "custom:p".into(), 1)
+    /// };
+    ///
+    /// registry.add_custom(edit(11)?)?;
+    /// // Revision 1 is taken for good; a second edit under it is refused, not substituted.
+    /// assert!(registry.add_custom(edit(12)?).is_err());
+    /// assert_eq!(registry.get_revision("custom:p", 1).unwrap().profile.driver["print_speed"], 11);
+    /// assert!(registry.get_revision("custom:p", 2).is_none());
+    /// assert_eq!(registry.next_custom_revision("custom:p"), 2);
+    ///
+    /// // A built-in profile answers only for its own revision.
+    /// let built_in = base.profile.revision;
+    /// assert!(registry.get_revision("sc03h-iprint-384", built_in).is_some());
+    /// assert!(registry.get_revision("sc03h-iprint-384", built_in + 1).is_none());
+    /// # Ok::<(), nuprint_core::AppError>(())
+    /// ```
     pub fn get_revision(&self, id: &str, revision: u32) -> Option<ResolvedProfile> {
         if let Some(p) = self.profiles.get(id) {
             return (p.profile.revision == revision).then(|| p.clone());
@@ -568,6 +602,10 @@ impl ProfileRegistry {
     }
 
     /// Add a profile edited on this computer. It must name a built-in profile it derives from.
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Self::prepare_custom`] and [`Self::publish_custom`].
     pub fn add_custom(&self, profile: ModelProfile) -> AppResult<ResolvedProfile> {
         let resolved = self.prepare_custom(profile)?;
         self.publish_custom(resolved.clone())?;
@@ -576,6 +614,11 @@ impl ProfileRegistry {
 
     /// Check an edited profile and build its driver without making it visible, so it can be
     /// stored first and published with [`Self::publish_custom`] only once that succeeded.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`] when the profile is invalid, has no `derived_from`, does not
+    /// derive from a built-in profile, or reuses a built-in profile's ID.
     pub fn prepare_custom(&self, profile: ModelProfile) -> AppResult<ResolvedProfile> {
         profile.validate()?;
         let derived =
@@ -589,6 +632,10 @@ impl ProfileRegistry {
 
     /// Make a prepared profile visible. A revision is immutable once published, because queued
     /// jobs print with exactly the revision they name, so publishing one twice is refused.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`] when `(id, revision)` is already published.
     pub fn publish_custom(&self, resolved: ResolvedProfile) -> AppResult<()> {
         let key = (resolved.profile.id.clone(), resolved.profile.revision);
         let mut custom = self.custom.write().unwrap_or_else(PoisonError::into_inner);
