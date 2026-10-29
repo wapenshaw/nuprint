@@ -117,12 +117,7 @@ Earlier pedantic/missing-doc lint counts below are historical estimates from the
 
 The Rust skill's rule is "don't guess, measure": profile a release build before and after each of these changes.
 
-- **P2 · Keep blocking I/O off the async workers** (Simplify, refined by Rust review). Preview rendering and PDF page counting already run through `spawn_blocking`. These still run synchronously inside async Tauri commands, on Tokio worker threads:
-  - `import_source` reads the whole file with `fs::read`;
-  - preview PNG and diagnostics export use `fs::write`;
-  - profile export writes synchronously, and job-preview responses load stored pages and encode PNGs on async workers;
-  - every store call takes the SQLite mutex;
-  Move the file reads and writes behind `spawn_blocking` or `tokio::fs`.
+- **P2 · Keep blocking I/O off the async workers** (resolved): source import (now bounded to the accepted size as it reads), preview and profile saves and diagnostics export run on blocking threads (`99fc80f`); Tauri serves job-page previews on one (`d276d56`); Slint reloads printers and jobs off its UI thread (`1a71a08`). Store calls still take the SQLite mutex directly. That is a measured decision, not an oversight: see [performance](performance.md#decisions-from-the-measurements).
 - **P2 · Persistent log writer** (resolved): `AppService::log` no longer opens the file for each line. A writer thread (`log_writer.rs`) keeps the handle open and tracks its size.
 - **P2 · Remove the extra query per job** (Simplify; resolved): `list_jobs` issued one additional query per job; `Store::list_jobs_with_pages` now loads the pages in one query.
 - **P3 · Use one transaction for `clear_history`** (Simplify).
