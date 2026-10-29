@@ -126,6 +126,7 @@ impl From<TransportError> for AppError {
                 ErrorCode::Disconnected,
                 "Bluetooth disconnected. Some paper may already have printed; check before retrying.",
             ),
+            TransportError::Cancelled => return AppError::cancelled(),
             TransportError::EndpointMissing(_) => {
                 (ErrorCode::ServiceMismatch, "This device does not offer the print service its profile requires.")
             }

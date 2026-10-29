@@ -215,15 +215,37 @@ impl Transport for BleTransport {
         result
     }
 
-    async fn connect(&self, backend_id: &str, timeout: Duration) -> Result<Box<dyn Link>, TransportError> {
-        let adapter = self.ensure_powered().await?;
-        let peripheral = self.find_peripheral(adapter, backend_id).await?;
-        tokio::time::timeout(timeout, peripheral.connect())
-            .await
-            .map_err(|_| TransportError::Timeout("connection"))?
-            .map_err(map_err)?;
-        // From here on, every failure must disconnect before returning.
-        match BleLink::open(backend_id.to_owned(), peripheral.clone(), timeout).await {
+    async fn connect(
+        &self,
+        backend_id: &str,
+        timeout: Duration,
+        cancel: &CancellationToken,
+    ) -> Result<Box<dyn Link>, TransportError> {
+        let find = async {
+            let adapter = self.ensure_powered().await?;
+            self.find_peripheral(adapter, backend_id).await
+        };
+        // Nothing is connected yet, so stopping here needs no cleanup.
+        let peripheral = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(TransportError::Cancelled),
+            found = find => found?,
+        };
+        // Once `connect` has been called the device may be connected whatever happens next, even
+        // when the call timed out, so every failure from here on disconnects before returning.
+        let open = async {
+            tokio::time::timeout(timeout, peripheral.connect())
+                .await
+                .map_err(|_| TransportError::Timeout("connection"))?
+                .map_err(map_err)?;
+            BleLink::open(backend_id.to_owned(), peripheral.clone(), timeout).await
+        };
+        let opened = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => Err(TransportError::Cancelled),
+            opened = open => opened,
+        };
+        match opened {
             Ok(link) => Ok(Box::new(link)),
             Err(error) => {
                 let _ = tokio::time::timeout(Duration::from_secs(10), peripheral.disconnect()).await;

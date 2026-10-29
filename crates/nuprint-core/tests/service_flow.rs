@@ -1031,3 +1031,53 @@ async fn a_profile_edit_that_cannot_be_saved_changes_nothing() {
     assert_eq!(preview.profile_revision, 1);
     h.enqueue(&preview, &printer, "after-failed-save", 0);
 }
+
+/// Connects at once, then spends 20 s discovering services.
+fn slow_to_discover() -> MockTransport {
+    MockTransport::new(vec![sc03h("SC03h-TEST", Sim::default())]).with_discovery_delay(Duration::from_secs(20))
+}
+
+#[tokio::test(start_paused = true)]
+async fn cancelling_while_services_are_discovered_disconnects_first() {
+    let mut h = start_on(slow_to_discover(), None);
+    let printer = h.save_first_printer().await;
+    let preview = h.preview("Cancelled while connecting").await;
+    let job = h.enqueue(&preview, &printer, "k", 12);
+    while h.transport.log().connects == 0 {
+        tokio::task::yield_now().await;
+    }
+    h.service.cancel_job(&job.id).unwrap();
+    let done = h.wait_terminal(&job.id).await;
+    assert_eq!(done.state, JobState::Cancelled);
+    assert!(!done.partial_output_possible);
+    let log = h.transport.log();
+    assert_eq!((log.connects, log.disconnects), (1, 1), "the half-open connection was closed");
+    assert!(log.writes.is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_cancelled_inspection_disconnects_before_bluetooth_is_free() {
+    let h = start_on(slow_to_discover(), None);
+    let found = h.service.find_first_supported(Duration::from_secs(5)).await.unwrap();
+    let service = h.service.clone();
+    let inspection = tokio::spawn(async move { service.inspect_device(&found.discovery_id).await });
+    while h.transport.log().connects == 0 {
+        tokio::task::yield_now().await;
+    }
+    h.service.cancel_inspections();
+    assert_eq!(inspection.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(h.transport.log().disconnects, 1, "disconnected before the inspection returned");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_link_that_stops_answering_fails_the_job_and_disconnects() {
+    let connect = MockTransport::new(vec![sc03h("SC03h-TEST", Sim::default())]).with_hanging_connection_state();
+    let mut h = start_on(connect, None);
+    let printer = h.save_first_printer().await;
+    let preview = h.preview("Stalled").await;
+    let job = h.enqueue(&preview, &printer, "k", 12);
+    let done = h.wait_terminal(&job.id).await;
+    assert_eq!(done.state, JobState::Failed, "it stopped before the first print write");
+    assert_eq!(done.error.unwrap().code, ErrorCode::ConnectionFailed);
+    assert_eq!(h.transport.log().disconnects, 1);
+}

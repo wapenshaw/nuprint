@@ -124,7 +124,9 @@ impl PrinterSession {
         cancel: &CancellationToken,
     ) -> AppResult<Self> {
         let t = &resolved.profile.transport.timeouts;
-        let link = cancellable(cancel, transport.connect(backend_id, Duration::from_millis(t.connect_ms))).await??;
+        // Not wrapped in `cancellable`: the transport stops on `cancel` itself and disconnects
+        // first, where dropping the attempt could leave a half-open connection behind.
+        let link = transport.connect(backend_id, Duration::from_millis(t.connect_ms), cancel).await?;
         match Self::bind(link, resolved, log.clone(), cancel).await {
             Ok(session) => Ok(session),
             Err((link, error)) => {
@@ -249,9 +251,17 @@ impl PrinterSession {
         self.print_bytes_submitted + self.print_bytes_in_flight
     }
 
-    async fn check_faults(&self) -> AppResult<()> {
-        if !self.state.borrow().stream_open || !self.link.is_connected().await {
+    async fn check_faults(&self, cancel: &CancellationToken) -> AppResult<()> {
+        if !self.state.borrow().stream_open {
             return Err(AppError::from(nuprint_transport::TransportError::Disconnected));
+        }
+        // Bounded and cancellable, so a backend that stops answering cannot stall the transfer,
+        // and the cleanup after it, indefinitely.
+        let limit = Duration::from_millis(self.resolved.profile.transport.timeouts.write_ms);
+        match cancellable(cancel, tokio::time::timeout(limit, self.link.is_connected())).await? {
+            Ok(true) => {}
+            Ok(false) => return Err(AppError::from(nuprint_transport::TransportError::Disconnected)),
+            Err(_) => return Err(AppError::from(nuprint_transport::TransportError::Timeout("connection state"))),
         }
         if let Some(status) = &self.state.borrow().status
             && let Some(flag) = status.blocking_fault()
@@ -290,11 +300,11 @@ impl PrinterSession {
                 return Err(AppError::cancelled());
             }
             if print_data {
-                self.check_faults().await?;
+                self.check_faults(cancel).await?;
             }
             self.wait_writable(cancel).await?;
             if print_data {
-                self.check_faults().await?;
+                self.check_faults(cancel).await?;
             }
             let end = (offset + self.chunk).min(data.len());
             if print_data {
