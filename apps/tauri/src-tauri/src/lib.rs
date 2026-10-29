@@ -2,6 +2,8 @@
 //! typed commands, one event channel, a scoped preview-image protocol and native
 //! dialogs run from Rust (file-system paths never cross the IPC boundary).
 
+#![warn(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -367,6 +369,12 @@ fn preview_response(app: &AppHandle, path: &str) -> Response<Vec<u8>> {
     .unwrap_or_else(|_| Response::new(Vec::new()))
 }
 
+/// Build and run the desktop app.
+///
+/// # Panics
+///
+/// When Tauri cannot build the application, for example because the bundled configuration is
+/// invalid. That is a broken build, not a runtime condition to recover from.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
