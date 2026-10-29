@@ -12,7 +12,7 @@ use crate::jobs::summarize;
 use crate::store::{JobRow, now_ms};
 
 use super::logging::private;
-use super::{AppService, MAX_QUEUE_JOBS, MAX_RETAINED_BYTES};
+use super::{AppService, MAX_QUEUE_JOBS, MAX_RETAINED_BYTES, relock};
 
 impl AppService {
     fn job_summary(&self, job: &JobRow) -> AppResult<JobSummary> {
@@ -174,6 +174,36 @@ impl AppService {
             jobs,
             fault: self.inner.fault.get().cloned(),
         })
+    }
+
+    /// Whether a job is being printed now. An app asks before it closes to install an update;
+    /// closing cancels the job, and a job cancelled after print data was sent becomes uncertain.
+    pub fn is_printing(&self) -> bool {
+        relock(&self.inner.active).is_some()
+    }
+
+    /// Stop starting jobs while an update installs. The check for a printing job and the stop
+    /// happen under the lock the dispatcher takes to start one, so no job can start in between.
+    /// Jobs start again when the returned hold is dropped, after a failed install, unless the
+    /// service was shut down for the installer meanwhile; only a new service starts them then. Call
+    /// [`UpdateHold::keep`] when the app is closing into the new version.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::PrinterBusy`] while a job is printing, and [`ErrorCode::InvalidInput`] while
+    /// another update is installing.
+    pub fn hold_for_update(&self) -> AppResult<UpdateHold> {
+        let active = relock(&self.inner.active);
+        if active.is_some() {
+            return Err(AppError::new(
+                ErrorCode::PrinterBusy,
+                "A job is printing. Install the update when it has finished.",
+            ));
+        }
+        if self.inner.updating.swap(true, Ordering::Relaxed) {
+            return Err(AppError::invalid("An update is already being installed."));
+        }
+        Ok(UpdateHold { service: Some(self.clone()) })
     }
 
     /// One job by ID.
@@ -352,5 +382,28 @@ impl AppService {
         }
         self.inner.wake.notify_one();
         self.list_jobs()
+    }
+}
+
+/// Keeps jobs from starting while an update installs; see [`AppService::hold_for_update`].
+#[must_use = "jobs start again as soon as the hold is dropped"]
+pub struct UpdateHold {
+    service: Option<AppService>,
+}
+
+impl UpdateHold {
+    /// Leave jobs stopped: the app is closing into the new version, and its waiting jobs start there.
+    pub fn keep(mut self) {
+        self.service = None;
+    }
+}
+
+impl Drop for UpdateHold {
+    fn drop(&mut self) {
+        if let Some(service) = self.service.take() {
+            let _active = relock(&service.inner.active);
+            service.inner.updating.store(false, Ordering::Relaxed);
+            service.inner.wake.notify_one();
+        }
     }
 }

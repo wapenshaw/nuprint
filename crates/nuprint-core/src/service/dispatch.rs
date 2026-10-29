@@ -131,6 +131,7 @@ impl AppService {
     pub(super) async fn dispatch_loop(self) {
         loop {
             while !self.inner.held.load(Ordering::Relaxed)
+                && !self.inner.updating.load(Ordering::Relaxed)
                 && !self.inner.shutdown.is_cancelled()
                 && self.inner.fault.get().is_none()
             {
@@ -190,8 +191,15 @@ impl AppService {
 
     async fn run_job(&self, queued: JobRow) {
         let cancel = self.inner.shutdown.child_token();
-        // Active before claimed: a cancel that misses the queued row still finds the job here.
-        *relock(&self.inner.active) = Some(ActiveJob { job_id: queued.id.clone(), cancel: cancel.clone() });
+        {
+            let mut active = relock(&self.inner.active);
+            // An update began installing after the loop looked; the job stays queued.
+            if self.inner.updating.load(Ordering::Relaxed) {
+                return;
+            }
+            // Active before claimed: a cancel that misses the queued row still finds the job here.
+            *active = Some(ActiveJob { job_id: queued.id.clone(), cancel: cancel.clone() });
+        }
         fault_point!(self, BeforeClaim);
         let hardware = tokio::select! {
             guard = self.inner.hardware.lock() => Some(self.hold_hardware(guard, HardwareUse::Printing)),
