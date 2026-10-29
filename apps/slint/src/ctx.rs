@@ -138,6 +138,7 @@ impl Ctx {
         let waiting = queue.jobs.iter().filter(|j| matches!(j.state, JobState::Queued | JobState::Held)).count();
         let can_clear = queue.jobs.iter().any(|j| j.state.is_terminal());
         let has_held = queue.jobs.iter().any(|j| j.state == JobState::Held);
+        let job_active = queue.jobs.iter().any(|j| j.state.is_active());
         let held = queue.held;
         let fault = queue.fault.as_ref().map(|f| f.message.clone()).unwrap_or_default();
         {
@@ -152,6 +153,7 @@ impl Ctx {
             d.set_queue_held(held);
             d.set_queue_fault(fault.into());
             d.set_has_held_jobs(has_held && !held);
+            d.set_job_active(job_active);
             d.set_can_clear(can_clear);
             d.set_waiting_text(if waiting == 0 {
                 "Nothing waiting".into()

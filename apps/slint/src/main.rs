@@ -15,10 +15,14 @@ mod labels;
 mod preview;
 mod state;
 mod sync;
+mod update;
 mod view;
 
 slint::include_modules!();
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    bootstrap::run()
+    bootstrap::run()?;
+    // Everything `run` held is closed now, the data folder included, so a new version can open it.
+    update::relaunch_if_installed();
+    Ok(())
 }

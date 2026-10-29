@@ -8,11 +8,15 @@ use nuprint_core::api::*;
 use serde::{Deserialize, Serialize};
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
+/// Missing fields (from an older version's file) take their defaults.
 #[derive(Serialize, Deserialize, Default, Clone, Copy)]
+#[serde(default)]
 pub(crate) struct Prefs {
     pub(crate) mode: i32,
     pub(crate) accent: i32,
     pub(crate) icon: i32,
+    /// Check for a newer release at start. Off until the user turns it on.
+    pub(crate) check_updates: bool,
 }
 
 #[derive(Clone)]
@@ -73,4 +77,6 @@ pub(crate) struct State {
     pub(crate) save_candidates: Vec<ProfileMatch>,
     pub(crate) adv_doc: Option<PrinterProfileDoc>,
     pub(crate) adv_typing: HashMap<usize, String>,
+    /// The update the last check found, for installing it.
+    pub(crate) update: Option<cargo_packager_updater::Update>,
 }
