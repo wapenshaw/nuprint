@@ -29,6 +29,8 @@ use crate::store::{CustomProfileRow, JobRow, PrinterRow, Store, now_ms};
 pub const MAX_QUEUE_JOBS: i64 = 100;
 pub const MAX_RETAINED_BYTES: i64 = 256 * 1024 * 1024;
 const MAX_LOG_LINES: usize = 500;
+/// IDs of profiles edited on this computer start with this, followed by the printer's ID.
+const CUSTOM_PROFILE_PREFIX: &str = "custom:";
 const MAX_SNAPSHOTS: usize = 16;
 const MAX_SOURCES: usize = 8;
 const LOG_ROTATE_BYTES: u64 = 2_000_000;
@@ -150,6 +152,8 @@ const PRIVATE_START: char = '\u{1}';
 const PRIVATE_END: char = '\u{2}';
 
 fn private(text: &str) -> String {
+    // A marker inside the text would end the span early and leave the rest of it unredacted.
+    let text = text.replace([PRIVATE_START, PRIVATE_END], "");
     format!("{PRIVATE_START}{text}{PRIVATE_END}")
 }
 
@@ -647,12 +651,14 @@ impl AppService {
         })
         .await?;
         // Revalidate identity: a device under this ID must still match the profile's name rules.
+        // The message names neither the device nor an edited profile, because errors are logged
+        // and kept with jobs.
         if let Some(name) = &adv.local_name
             && !resolved.profile.matches_name(name)
         {
             return Err(AppError::new(
                 ErrorCode::UnsupportedProfile,
-                format!("The device now advertises as {name}, which does not match {}.", resolved.profile.display_name),
+                "The device now advertises a different name, which does not match this printer's profile.",
             ));
         }
         self.inner.discovered.lock().unwrap().insert(adv.backend_id.clone(), adv);
@@ -894,7 +900,7 @@ impl AppService {
         let mut store = self.store();
         let mut row = store.get_printer(&request.printer_id)?.ok_or_else(|| AppError::not_found("Printer"))?;
         let base = self.base_profile(&row)?;
-        let custom_id = format!("custom:{}", row.id);
+        let custom_id = format!("{CUSTOM_PROFILE_PREFIX}{}", row.id);
         let revision =
             self.inner.registry.next_custom_revision(&custom_id).max(store.max_custom_revision(&custom_id)? + 1);
         let profile = ModelProfile::customized(&base.profile, &doc, custom_id, revision)?;
@@ -1258,7 +1264,7 @@ impl AppService {
             ));
         }
         resolved.check_job_options(request.density, request.feed_mm, Some(request.copies))?;
-        let title: String = request.title.trim().chars().take(120).collect();
+        let title: String = request.title.trim().chars().filter(|c| !c.is_control()).take(120).collect();
         let now = now_ms();
         let mut job = JobRow {
             id: Uuid::new_v4().to_string(),
@@ -1706,6 +1712,7 @@ impl AppService {
         let mut printers = self.list_printers()?;
         let mut last_check = self.inner.last_check.lock().unwrap().clone();
         let mut recent_jobs = self.list_jobs()?.jobs;
+        let mut profiles = self.profiles();
         recent_jobs.truncate(20);
         if !include_identifiers {
             app.data_dir = app.data_dir.map(|_| "<app data directory>".into());
@@ -1713,6 +1720,15 @@ impl AppService {
                 p.name = format!("Printer {}", i + 1);
                 p.backend_id = "<redacted>".into();
                 p.address = None;
+                // Edited settings carry a name the owner typed.
+                if p.customized {
+                    p.profile_name = "<redacted>".into();
+                }
+            }
+            for profile in &mut profiles {
+                if profile.id.starts_with(CUSTOM_PROFILE_PREFIX) {
+                    profile.display_name = "<redacted>".into();
+                }
             }
             if let Some(check) = &mut last_check {
                 check.printer_id = "<redacted>".into();
@@ -1722,13 +1738,17 @@ impl AppService {
             for job in &mut recent_jobs {
                 job.title = "<redacted>".into();
                 job.printer_name = "<redacted>".into();
+                // Backend details can name the device or its address; the code and message stay.
+                if let Some(error) = &mut job.error {
+                    error.detail = None;
+                }
             }
         }
         Ok(DiagnosticsReport {
             generated_ms: now_ms() as f64,
             app,
             adapter: self.adapter_status().await,
-            profiles: self.profiles(),
+            profiles,
             printers,
             last_check,
             recent_jobs,

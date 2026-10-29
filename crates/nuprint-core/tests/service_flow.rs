@@ -1081,3 +1081,100 @@ async fn a_link_that_stops_answering_fails_the_job_and_disconnects() {
     assert_eq!(done.error.unwrap().code, ErrorCode::ConnectionFailed);
     assert_eq!(h.transport.log().disconnects, 1);
 }
+
+/// A mock printer whose advertised name can change after it was saved.
+struct RenamingTransport {
+    inner: MockTransport,
+    advertisement: Advertisement,
+    renamed: std::sync::atomic::AtomicBool,
+}
+
+#[async_trait::async_trait]
+impl nuprint_transport::Transport for RenamingTransport {
+    fn kind(&self) -> nuprint_transport::TransportKind {
+        nuprint_transport::TransportKind::BleGatt
+    }
+
+    async fn adapter_state(&self) -> nuprint_transport::AdapterState {
+        nuprint_transport::AdapterState::PoweredOn
+    }
+
+    async fn scan(
+        &self,
+        _duration: Duration,
+        sink: mpsc::Sender<Advertisement>,
+        _cancel: tokio_util::sync::CancellationToken,
+    ) -> Result<(), TransportError> {
+        let mut advertisement = self.advertisement.clone();
+        if self.renamed.load(Ordering::SeqCst) {
+            advertisement.local_name = Some("RENAMED-PRIVATE".into());
+        }
+        let _ = sink.send(advertisement).await;
+        Ok(())
+    }
+
+    async fn connect(
+        &self,
+        backend_id: &str,
+        timeout: Duration,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> Result<Box<dyn nuprint_transport::Link>, TransportError> {
+        self.inner.connect(backend_id, timeout, cancel).await
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn redacted_diagnostics_hide_names_in_errors_edits_and_odd_titles() {
+    let device = sc03h("SC03h-PRIVATE", Sim::default());
+    let transport = Arc::new(RenamingTransport {
+        advertisement: device.advertisement.clone(),
+        inner: MockTransport::new(vec![device]),
+        renamed: false.into(),
+    });
+    let config = ServiceConfig { data_dir: None, pdfium_dirs: vec![], version: "test".into() };
+    let service = AppService::start(config, transport.clone(), Arc::new(|_: AppEvent| {})).unwrap();
+    service.hold_queue().unwrap();
+    let found = service.find_first_supported(Duration::from_secs(5)).await.unwrap();
+    let request = SavePrinterRequest {
+        discovery_id: found.discovery_id,
+        profile_id: PROFILE.into(),
+        acknowledge_experimental: true,
+    };
+    let printer = service.save_printer(request).unwrap();
+
+    // A name the owner typed into edited settings.
+    let doc = service.printer_profile_doc(&printer.id).unwrap();
+    let mut json: serde_json::Value = serde_json::from_str(&doc.current_json).unwrap();
+    json["display_name"] = "Desk printer of PRIVATE-OWNER".into();
+    let request = SavePrinterProfileRequest { printer_id: printer.id.clone(), json: json.to_string() };
+    let printer = service.save_printer_profile(request).unwrap();
+
+    // A title holding the end-of-redaction marker.
+    let source = SourceSpec::TestPattern;
+    let preview = PreviewRequest { generation: 1.0, profile_id: printer.profile_id.clone(), source };
+    let preview = service.render_preview(preview).await.unwrap();
+    service
+        .enqueue(EnqueueRequest {
+            snapshot_id: preview.snapshot_id,
+            printer_id: printer.id.clone(),
+            copies: 1,
+            density: D::Normal,
+            feed_mm: 0,
+            idempotency_key: "k".into(),
+            title: "Note\u{2} PRIVATE-TITLE".into(),
+        })
+        .unwrap();
+
+    // The saved device now advertises a name that does not match its profile.
+    transport.renamed.store(true, Ordering::SeqCst);
+    let refused = service.check_printer(&printer.id).await.unwrap_err();
+    assert_eq!(refused.code, ErrorCode::UnsupportedProfile);
+    service.remove_printer(&printer.id).unwrap();
+
+    let redacted = serde_json::to_string(&service.diagnostics_report(false).await.unwrap()).unwrap();
+    for secret in ["SC03h-PRIVATE", "PRIVATE-OWNER", "PRIVATE-TITLE", "RENAMED-PRIVATE"] {
+        assert!(!redacted.contains(secret), "{secret} leaked: {redacted}");
+    }
+    let full = serde_json::to_string(&service.diagnostics_report(true).await.unwrap()).unwrap();
+    assert!(full.contains("PRIVATE-TITLE"), "the title itself is kept");
+}
