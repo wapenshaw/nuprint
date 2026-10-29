@@ -36,7 +36,7 @@ NuPrint is one window. On the left is what to print, on the right its paper prev
 
 ### The queue
 
-After **Print**, the status bar at the bottom shows the latest job's state and data transfer, with **Cancel** while it can still be cancelled. It stays there with the outcome until the next message or **Dismiss**; **View queue** opens the full history in the **Queue** panel. Each job there shows its receipt while NuPrint keeps its content (waiting, failed or uncertain jobs); completed jobs keep none, so they show blank paper of the length they used.
+After **Print**, the status bar at the bottom shows the latest job's state and data transfer, with **Cancel** while it can still be cancelled. It stays there with the outcome until the next message or **Dismiss**; **View queue** opens the full history in the **Queue** panel. Each job there shows its receipt. Waiting, failed and uncertain jobs keep their print data so they can be printed again. A completed job's print data is deleted, but its details and a preview of its first page stay for 30 days, until you remove the job or clear history. That preview can show what was printed, so remove the job if that matters. A job with no preview shows blank paper of the length it used.
 
 Jobs go to a durable queue, so they survive restarts. If the app stops during a transfer, the job is marked **uncertain** and never resent automatically; check the paper and retry if needed. "Transfer complete · printer reports ready" means the printer accepted the data and reported ready, not that someone saw the paper.
 
