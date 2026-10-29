@@ -95,7 +95,7 @@ Keep roll and heat settings within the verified profile. Do not deliberately exh
 - Exercise keyboard navigation and readable focus indicators; validate screen-reader behavior before claiming accessibility support.
 - Build from a clean clone using the lock file. The APK, `.tools/`, system Java and existing build outputs must not be required.
 - Launch the packaged app on the supported Windows x64 matrix, including a PC without separately installed Python. Exercise BLE, PDF and image paths to catch bundled native-library/import issues.
-- Check cancellation and exit while connecting/transferring; verify Bluetooth becomes available to a new session afterwards.
+- Check cancellation and exit while connecting/transferring; verify Bluetooth becomes available to a new session afterwards. For the connecting half without printing, run `cargo run -p nuprint-cli --example cancel_connect` with the printer on: it cancels an inspection at seven delays from 0 to 6 s, runs a connection check after each and prints a timeline showing whether the disconnect came before the next connection. Neither step sends print data.
 - Verify log rotation, source-content exclusion, diagnostics export, storage quota and retention behavior as implemented.
 - For installers, test install/update/uninstall and preservation of user designs. Verify actual signing status and include third-party notices.
 
