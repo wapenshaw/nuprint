@@ -25,6 +25,19 @@ struct LogMerge {
     trim: usize,
 }
 
+/// Add a line waiting for the UI thread. Past `max` waiting lines, the oldest by sequence number
+/// go, as the screen would trim them anyway, rather than the first to arrive, which can be the
+/// newest. Repeats go too.
+pub(crate) fn queue_log(pending: &mut Vec<LogLine>, line: LogLine, max: usize) {
+    pending.push(line);
+    if pending.len() > max {
+        pending.sort_by(|a, b| a.seq.total_cmp(&b.seq));
+        pending.dedup_by(|a, b| a.seq == b.seq);
+        let excess = pending.len().saturating_sub(max);
+        pending.drain(..excess);
+    }
+}
+
 /// Merge `lines` into the rows whose sequence numbers are `shown`, and update `shown`.
 ///
 /// Log events can arrive out of order: two threads log at once and the later sequence number is
@@ -348,6 +361,22 @@ mod tests {
         assert!(merge.inserts.is_empty());
         assert_eq!(seqs(&merge.appends), [4.0]);
         assert_eq!(shown, [1.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn a_burst_waiting_for_the_ui_keeps_the_newest_lines() {
+        let mut pending = Vec::new();
+        // The newest line arrives first, then 500 older ones, all before the UI thread runs.
+        queue_log(&mut pending, line(501.0), 500);
+        for seq in 1..=500 {
+            queue_log(&mut pending, line(f64::from(seq)), 500);
+        }
+        // A repeat past the cap does not take a place.
+        queue_log(&mut pending, line(501.0), 500);
+        let mut shown = VecDeque::new();
+        let merge = merge_logs(&mut shown, pending, 500);
+        assert_eq!(merge.trim, 0);
+        assert_eq!(seqs(&merge.appends), (2..=501).map(f64::from).collect::<Vec<_>>());
     }
 
     #[test]
