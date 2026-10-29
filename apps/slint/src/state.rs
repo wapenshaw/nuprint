@@ -1,6 +1,6 @@
 //! Plain mirrors of what the screens show, kept between UI callbacks and service events.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -63,7 +63,8 @@ pub(crate) struct State {
     pub(crate) thumbs: HashMap<String, SharedPixelBuffer<Rgba8Pixel>>,
     pub(crate) tracked: Option<String>,
     pub(crate) status: Option<Status>,
-    pub(crate) log_seq: f64,
+    /// Sequence numbers of the activity log's rows, oldest first. Only the UI thread changes it.
+    pub(crate) shown_logs: VecDeque<f64>,
     /// Log lines not on screen yet, and whether the UI thread is already due to add them.
     pub(crate) new_logs: Vec<LogLine>,
     pub(crate) logs_queued: bool,
