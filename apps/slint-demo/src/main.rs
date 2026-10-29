@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data_dir = data_dir();
     let config = ServiceConfig {
         data_dir: Some(data_dir.clone()),
-        pdfium_dirs: nuprint_render::pdfium_search_dirs(&[]),
+        pdfium_dirs: nuprint_render::pdfium_search_dirs(bundled_pdfium_dir().as_slice()),
         version: env!("CARGO_PKG_VERSION").into(),
     };
     select_backend()?;
@@ -204,6 +204,21 @@ fn keep_size_across_monitors(ui: &AppWindow) {
 }
 
 /// A separate data folder, so this app never touches the installed app's printers or jobs.
+/// Where the installers put PDFium (see `[package.metadata.packager]` in Cargo.toml): beside the
+/// executable on Windows, in the app bundle's `Resources` on macOS and under
+/// `/usr/lib/nuprint-slint` in the Debian package.
+fn bundled_pdfium_dir() -> Option<PathBuf> {
+    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let resources = if cfg!(target_os = "macos") {
+        exe_dir.join("../Resources")
+    } else if cfg!(target_os = "windows") {
+        exe_dir
+    } else {
+        exe_dir.join("../lib").join(env!("CARGO_BIN_NAME"))
+    };
+    Some(resources.join("pdfium"))
+}
+
 fn data_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("NUPRINT_SLINT_DATA") {
         return PathBuf::from(dir);
