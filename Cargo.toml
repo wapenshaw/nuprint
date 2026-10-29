@@ -25,6 +25,17 @@ license = "MIT"
 repository = "https://github.com/wapenshaw/nuprint"
 publish = false
 
+# Shared by every member through `[lints] workspace = true`. Clippy's default groups and
+# CI's `-D warnings` still apply; these add a few checks the defaults leave out.
+[workspace.lints.clippy]
+await_holding_lock = "warn"
+large_enum_variant = "warn"
+needless_collect = "warn"
+redundant_clone = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "warn"
+
 [workspace.dependencies]
 nuprint-protocol = { path = "crates/nuprint-protocol" }
 nuprint-transport = { path = "crates/nuprint-transport" }
