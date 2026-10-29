@@ -2,3 +2,6 @@
 apps/tauri/src/bindings/** linguist-generated=true -whitespace
 # Upstream licence text, kept verbatim.
 crates/nuprint-render/assets/fonts/OFL.txt -whitespace
+# Third-party agent skills, kept as published.
+.claude/skills/rust-best-practices/** -whitespace
+.claude/skills/tauri-v2/** -whitespace
