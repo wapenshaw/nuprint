@@ -64,9 +64,9 @@ Resolved in `fa293c0`: a check now records only firmware and last-seen time on a
 
 Reproduction: delay mock connection by two seconds, start a check, set feed to zero after one second, then await the check. Saved feed returns to 12. Update only diagnostic columns on an existing row, or use a revision-aware merge. Cover settings changes, custom-profile save/reset and printer deletion while a check is pending.
 
-#### R7 · P2 · Cancelling connection establishment bypasses disconnect cleanup — resolved in code; hardware unverified
+#### R7 · P2 · Cancelling connection establishment bypasses disconnect cleanup — resolved; checked on Windows hardware
 
-Resolved in `d46260f`: `Transport::connect` takes the cancellation token and disconnects before returning on any failure after the device may have connected, and a staged mock test cancels during service discovery. Cancellation at a known native stage has not been observed on hardware. This is the 2026-10-13 review's R7; the 2026-10-29 review's R7 (limits on edited settings) is a different issue, fixed in `3fcfaf4`.
+Resolved in `d46260f`: `Transport::connect` takes the cancellation token and disconnects before returning on any failure after the device may have connected, and a staged mock test cancels during service discovery. On 2026-10-29, `cancel_connect` cancelled eleven connections to SC03h-3DE8 on Windows, while the link was established and during service discovery, and every next connection check succeeded ([validation](validation.md)). The same session found that cancelling a search right after it started could leave the next Windows scan silent; that is fixed by restarting a scan that hears nothing for 2 s. macOS and Linux are unchecked. This is the 2026-10-13 review's R7; the 2026-10-29 review's R7 (limits on edited settings) is a different issue, fixed in `3fcfaf4`.
 
 [`PrinterSession::open`](../crates/nuprint-core/src/session.rs) and `inspect_device` cancel by dropping the `transport.connect` future. In [`BleTransport::connect`](../crates/nuprint-transport/src/ble.rs), the peripheral can already be connected while `BleLink::open` awaits service discovery/notifications. Dropping that future bypasses its error branch's explicit disconnect; `BleLink::drop` only aborts the notification forwarder.
 
