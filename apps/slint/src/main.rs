@@ -7,18 +7,17 @@
 
 mod bootstrap;
 mod labels;
+mod state;
 
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use labels::*;
 use nuprint_core::api::*;
 use nuprint_core::{AppError, AppService, ErrorCode};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel, Weak};
+use state::{CheckView, Prefs, State, Status};
 
 slint::include_modules!();
 
@@ -31,70 +30,6 @@ const SIZE_PRESETS: [u16; 15] = [12, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56,
 const PREVIEW_DEBOUNCE: Duration = Duration::from_millis(250);
 const FEED_DEBOUNCE: Duration = Duration::from_millis(400);
 const PRINT_GUARD: Duration = Duration::from_millis(800);
-
-#[derive(Serialize, Deserialize, Default, Clone, Copy)]
-struct Prefs {
-    mode: i32,
-    accent: i32,
-    icon: i32,
-}
-
-#[derive(Clone)]
-struct Status {
-    text: String,
-    tone: i32,
-    action: Option<(&'static str, &'static str)>,
-}
-
-/// What the last connection check of one printer showed.
-#[derive(Clone, Default)]
-struct CheckView {
-    ok: bool,
-    line: String,
-    flags: String,
-    firmware: String,
-    error: String,
-    paper: bool,
-}
-
-/// Plain mirrors of what the screens show. Slint objects stay on the UI thread.
-#[derive(Default)]
-struct State {
-    prefs: Prefs,
-    data_dir: PathBuf,
-    app_info: Option<AppInfo>,
-    profiles: Vec<ProfileSummary>,
-    printers: Vec<SavedPrinter>,
-    selected: Option<String>,
-    applied_printer: Option<String>,
-    checks: HashMap<String, CheckView>,
-    checking: Option<String>,
-    last_check: Option<(String, PrinterCheck)>,
-    adapter: Option<AdapterStatus>,
-    found: Vec<DiscoveredPrinter>,
-    scan: Option<String>,
-    scan_error: String,
-    image_src: Option<SourceInfo>,
-    pdf_src: Option<SourceInfo>,
-    preview: Option<PreviewResult>,
-    preview_error: bool,
-    req_seq: u64,
-    generation: f64,
-    feed_seq: u64,
-    last_print: Option<Instant>,
-    jobs: Vec<JobSummary>,
-    held: bool,
-    thumbs: HashMap<String, SharedPixelBuffer<Rgba8Pixel>>,
-    tracked: Option<String>,
-    status: Option<Status>,
-    log_seq: f64,
-    logs: Vec<LogLine>,
-    dialog_device: Option<String>,
-    dialog_printer: Option<String>,
-    save_candidates: Vec<ProfileMatch>,
-    adv_doc: Option<PrinterProfileDoc>,
-    adv_typing: HashMap<usize, String>,
-}
 
 #[derive(Clone)]
 struct Ctx {
