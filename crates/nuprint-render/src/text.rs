@@ -119,6 +119,22 @@ fn is_invisible(c: char) -> bool {
 }
 
 /// Render text into the canonical bitmap: wrapped by glyph width, thresholded without dithering.
+///
+/// # Errors
+///
+/// [`RenderError::EmptyText`] for blank text, [`RenderError::InvalidParam`] for an invalid
+/// target, size (12-96), line spacing (0.8-3.0), margins or an over-long text, and
+/// [`RenderError::TooLong`] when the laid-out page exceeds the target's maximum height.
+///
+/// ```
+/// use nuprint_render::{RenderError, RenderTarget, TextParams, render_text};
+///
+/// let blank = TextParams { text: "   ".into(), ..TextParams::default() };
+/// assert!(matches!(render_text(&blank, &RenderTarget::default()), Err(RenderError::EmptyText)));
+///
+/// let tiny = TextParams { text: "x".into(), size_px: 4, ..TextParams::default() };
+/// assert!(matches!(render_text(&tiny, &RenderTarget::default()), Err(RenderError::InvalidParam(_))));
+/// ```
 pub fn render_text(params: &TextParams, target: &RenderTarget) -> Result<RenderOutput, RenderError> {
     validate(params, target)?;
     let family_name = match params.family {

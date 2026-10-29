@@ -8,6 +8,31 @@
 //! Text uses only the fonts bundled in `assets/fonts`; system fonts are never consulted so a
 //! given input renders to the same bitmap on every platform. The preview PNG
 //! ([`encode_png`]) is the printed bitmap, not a separate render path.
+//!
+//! ```
+//! use nuprint_render::{RenderTarget, TextParams, decode_png_mono, encode_png, render_text};
+//!
+//! let params = TextParams { text: "NuPrint".into(), ..TextParams::default() };
+//! let target = RenderTarget::default(); // SC03h: 384 dots wide
+//!
+//! let page = render_text(&params, &target)?;
+//! assert_eq!(page.bitmap.width(), 384);
+//! assert!(page.bitmap.black_pixels() > 0);
+//! assert!(page.warnings.is_empty());
+//!
+//! // Rendering is deterministic: the bundled fonts give the same bits every time.
+//! assert_eq!(page.bitmap, render_text(&params, &target)?.bitmap);
+//!
+//! // The preview PNG is the printed bitmap and reads back exactly.
+//! let png = encode_png(&page.bitmap);
+//! assert_eq!(&png[..4], b"\x89PNG");
+//! assert_eq!(decode_png_mono(&png)?, page.bitmap);
+//! # Ok::<(), nuprint_render::RenderError>(())
+//! ```
+//!
+//! PDF pages go through [`PdfEngine`], which needs a native PDFium library. Its examples are
+//! compile-checked only; the behavior is exercised by `tests/pdf.rs`, which CI runs with
+//! `NUPRINT_REQUIRE_PDFIUM=1` so a missing library fails instead of skipping.
 
 mod codec;
 mod pattern;

@@ -65,6 +65,27 @@ impl std::fmt::Debug for PdfEngine {
 impl PdfEngine {
     /// Bind PDFium from the first of `search_dirs` that holds the platform library, then from
     /// the system library path. Later calls return the already loaded engine.
+    ///
+    /// # Errors
+    ///
+    /// [`RenderError::PdfUnavailable`] when no PDFium library can be loaded.
+    ///
+    /// The example only compiles; running it needs PDFium. The behavior is covered by the
+    /// integration suite in `tests/pdf.rs` (set `NUPRINT_REQUIRE_PDFIUM=1` to make a missing
+    /// library fail rather than skip).
+    ///
+    /// ```no_run
+    /// use nuprint_render::{ImageParams, PdfEngine, RenderTarget, pdfium_search_dirs};
+    ///
+    /// # fn main() -> Result<(), nuprint_render::RenderError> {
+    /// let engine = PdfEngine::load(&pdfium_search_dirs(&[]))?;
+    /// let pdf = std::fs::read("document.pdf").expect("a PDF to render");
+    /// let pages = engine.page_count(&pdf, None)?;
+    /// let first = engine.render_page(&pdf, None, 1, &ImageParams::default(), &RenderTarget::default())?;
+    /// assert!(pages >= 1 && first.bitmap.width() == 384);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn load(search_dirs: &[PathBuf]) -> Result<Self, RenderError> {
         let mut loaded = LOADED.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if let Some(existing) = loaded.as_ref() {
@@ -101,6 +122,12 @@ impl PdfEngine {
     }
 
     /// Number of pages in the document.
+    ///
+    /// # Errors
+    ///
+    /// [`RenderError::SourceTooLarge`], [`RenderError::PdfPasswordRequired`] when the document
+    /// is encrypted and the password is missing or wrong, and [`RenderError::Pdf`] when it
+    /// cannot be parsed.
     pub fn page_count(&self, bytes: &[u8], password: Option<&str>) -> Result<u32, RenderError> {
         check_source_size(bytes.len())?;
         let pdfium = self.lock();
@@ -109,6 +136,11 @@ impl PdfEngine {
     }
 
     /// Render one page (1-based) at the target width.
+    ///
+    /// # Errors
+    ///
+    /// Those of [`Self::page_count`], plus [`RenderError::InvalidParam`] for a bad target or
+    /// tone settings, [`RenderError::PdfPageOutOfRange`] and [`RenderError::TooLong`].
     pub fn render_page(
         &self,
         bytes: &[u8],
