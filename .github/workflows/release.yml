@@ -71,6 +71,11 @@ jobs:
             pdfium: linux-x64
             bundle: deb
     runs-on: ${{ matrix.os }}
+    # id-token and attestations: write let the job sign build provenance for its installers.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     env:
       TAG: ${{ needs.release-please.outputs.tag || inputs.tag }}
     steps:
@@ -175,6 +180,13 @@ jobs:
             deb) cp "$bundle"/*.deb "$release"/nuprint-slint_*.deb dist/ ;;
           esac
           ls -l dist
+
+      # Signed build provenance, free for public repositories: anyone can check that an
+      # installer was built by this workflow from this repository with
+      # `gh attestation verify <file> --repo wapenshaw/nuprint`.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*
 
       - uses: actions/upload-artifact@v7
         with:
