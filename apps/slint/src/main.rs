@@ -1751,3 +1751,51 @@ fn wire(ui: &AppWindow, ctx: &Ctx) {
         c.save_prefs();
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nuprint_core::profile::ProfileRegistry;
+
+    fn printer(profile_id: &str, profile_revision: u32) -> SavedPrinter {
+        SavedPrinter {
+            id: "p1".into(),
+            name: "Test printer".into(),
+            backend_id: "mock".into(),
+            address: None,
+            profile_id: profile_id.into(),
+            profile_revision,
+            profile_name: "Edited".into(),
+            support: SupportLevel::Experimental,
+            firmware: None,
+            last_seen_ms: None,
+            settings: PrinterSettings { density: Density::Normal, feed_mm: 12 },
+            profile_available: true,
+            customized: true,
+        }
+    }
+
+    #[test]
+    fn the_selected_printer_gets_exactly_its_profile_revision() {
+        let builtin = ProfileRegistry::builtin().unwrap().summaries().remove(0);
+        let custom = |revision| ProfileSummary { id: "custom:p1".into(), revision, ..builtin.clone() };
+        let mut st = State {
+            profiles: vec![builtin.clone(), custom(1), custom(2)],
+            printers: vec![printer("custom:p1", 2)],
+            selected: Some("p1".into()),
+            ..State::default()
+        };
+        assert_eq!(Ctx::selected_profile(&st).map(|p| (p.id, p.revision)), Some(("custom:p1".into(), 2)));
+
+        // A revision the catalog has not loaded yet selects nothing rather than an older one.
+        st.printers[0].profile_revision = 3;
+        assert!(Ctx::selected_profile(&st).is_none());
+        st.profiles.push(custom(3));
+        assert_eq!(Ctx::selected_profile(&st).map(|p| p.revision), Some(3));
+
+        st.printers[0].profile_available = false;
+        assert!(Ctx::selected_profile(&st).is_none());
+        st.selected = None;
+        assert!(Ctx::selected_profile(&st).is_none());
+    }
+}
