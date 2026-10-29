@@ -53,6 +53,8 @@ cargo test --workspace --locked
 cd apps\desktop; npm run typecheck; npm test
 ```
 
+PDF tests skip themselves when PDFium has not been fetched. Set `NUPRINT_REQUIRE_PDFIUM=1` to make them fail instead; CI does.
+
 [Validation](validation.md#routine-offline-checks) adds the Python reference checks, and [CONTRIBUTING.md](../CONTRIBUTING.md) lists what a pull request needs.
 
 ## Slint demo
