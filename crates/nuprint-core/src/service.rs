@@ -2,8 +2,7 @@
 //! Bluetooth activity for this process. The Tauri host and the CLI both drive it.
 
 use std::collections::{HashMap, VecDeque};
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -23,6 +22,7 @@ use uuid::Uuid;
 use crate::api::*;
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::jobs::{classify, summarize};
+use crate::log_writer::LogWriter;
 use crate::profile::{ModelProfile, ProfileRegistry, ResolvedProfile};
 use crate::session::{LogFn, PrinterSession, SessionEvent, locate};
 use crate::store::{CustomProfileRow, JobRow, PrinterRow, Store, now_ms};
@@ -34,7 +34,8 @@ const MAX_LOG_LINES: usize = 500;
 const CUSTOM_PROFILE_PREFIX: &str = "custom:";
 const MAX_SNAPSHOTS: usize = 16;
 const MAX_SOURCES: usize = 8;
-const LOG_ROTATE_BYTES: u64 = 2_000_000;
+/// How long shutdown and a diagnostics export wait for buffered log lines to reach the file.
+const LOG_FLUSH_WAIT: Duration = Duration::from_secs(2);
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
 
 /// Receives events for the UI or CLI. Must not block.
@@ -154,7 +155,7 @@ struct Inner {
     events: Arc<dyn EventSink>,
     seq: AtomicU64,
     logs: Mutex<VecDeque<LogLine>>,
-    log_file: Option<PathBuf>,
+    log_writer: Option<Arc<LogWriter>>,
     pdf: Mutex<Option<AppResult<PdfEngine>>>,
     sources: Recent<Source>,
     snapshots: Recent<Snapshot>,
@@ -367,7 +368,7 @@ impl AppService {
     /// Must be called within a Tokio runtime.
     pub fn start(config: ServiceConfig, transport: Arc<dyn Transport>, events: Arc<dyn EventSink>) -> AppResult<Self> {
         let registry = ProfileRegistry::builtin()?;
-        let (mut store, temp, log_file) = match &config.data_dir {
+        let (mut store, temp, log_path) = match &config.data_dir {
             Some(dir) => {
                 fs::create_dir_all(dir.join("logs"))?;
                 (Store::open(dir)?, None, Some(dir.join("logs").join("nuprint.log")))
@@ -395,7 +396,7 @@ impl AppService {
             events,
             seq: AtomicU64::new(0),
             logs: Mutex::new(VecDeque::new()),
-            log_file,
+            log_writer: log_path.map(|path| Arc::new(LogWriter::to_file(path))),
             pdf: Mutex::new(None),
             sources: Recent::new(MAX_SOURCES),
             snapshots: Recent::new(MAX_SNAPSHOTS),
@@ -433,6 +434,15 @@ impl AppService {
         let supervisor = service.clone();
         let task = tokio::spawn(async move { supervisor.supervise(worker).await });
         *relock(&service.inner.supervisor) = Some(task);
+        if let Some(writer) = &service.inner.log_writer {
+            // Weak: the writer thread must not keep the service (and its data folder lock) alive.
+            let weak = Arc::downgrade(&service.inner);
+            writer.set_notifier(Arc::new(move |level, message| {
+                if let Some(inner) = weak.upgrade() {
+                    AppService { inner }.record(level, message, false);
+                }
+            }));
+        }
         Ok(service)
     }
 
@@ -465,6 +475,9 @@ impl AppService {
         if relock(&self.inner.active).is_some() {
             return ShutdownOutcome::TimedOut;
         }
+        // The dispatcher has ended; later lines stay in memory. On a timeout the file stays open,
+        // because the dispatcher may still log while it cleans up.
+        self.close_log_file().await;
         if self.inner.fault.get().is_some() { ShutdownOutcome::Faulted } else { ShutdownOutcome::Clean }
     }
 
@@ -613,30 +626,50 @@ impl AppService {
     // ------------------------------------------------------------ logging
 
     pub fn log(&self, level: LogLevel, message: String) {
-        let line = LogLine { seq: self.next_seq(), at_ms: now_ms() as f64, level, message };
-        {
+        self.record(level, message, true);
+    }
+
+    /// Add a line to the in-memory log and the UI. The file gets it too when `to_file`; the
+    /// writer's own health notices pass false so a failing file cannot log about itself.
+    fn record(&self, level: LogLevel, message: String, to_file: bool) {
+        let at_ms = now_ms();
+        // Everything that allocates happens before the lock; the markers stay in the ring.
+        let plain = unmark(&message, None);
+        let file_line = to_file.then(|| format!("{at_ms} {level:?} {plain}\n"));
+        let line = {
             let mut logs = self.inner.logs.lock().unwrap();
+            // Sequence, ring order and file order are all decided under this lock.
+            let seq = self.next_seq();
             if logs.len() >= MAX_LOG_LINES {
                 logs.pop_front();
             }
-            logs.push_back(line.clone());
-        }
-        let line = LogLine { message: unmark(&line.message, None), ..line };
+            logs.push_back(LogLine { seq, at_ms: at_ms as f64, level, message });
+            if let (Some(writer), Some(text)) = (&self.inner.log_writer, file_line) {
+                writer.submit(level, text);
+            }
+            LogLine { seq, at_ms: at_ms as f64, level, message: plain }
+        };
         match level {
             LogLevel::Error => tracing::error!("{}", line.message),
             LogLevel::Warn => tracing::warn!("{}", line.message),
             LogLevel::Info => tracing::info!("{}", line.message),
             LogLevel::Debug => tracing::debug!("{}", line.message),
         }
-        if let Some(path) = &self.inner.log_file {
-            if fs::metadata(path).is_ok_and(|m| m.len() > LOG_ROTATE_BYTES) {
-                let _ = fs::rename(path, path.with_added_extension("1"));
-            }
-            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
-                let _ = writeln!(file, "{} {:?} {}", line.at_ms as i64, line.level, line.message);
-            }
-        }
         self.emit(AppEvent::Log { line });
+    }
+
+    /// Wait (bounded) for buffered lines to be written. Without a data folder there is no file.
+    async fn flush_log_file(&self) {
+        if let Some(writer) = self.inner.log_writer.clone() {
+            let _ = tokio::task::spawn_blocking(move || writer.flush(LOG_FLUSH_WAIT)).await;
+        }
+    }
+
+    /// Write what is buffered and stop the file writer; later lines reach only the in-memory log.
+    async fn close_log_file(&self) {
+        if let Some(writer) = self.inner.log_writer.clone() {
+            let _ = tokio::task::spawn_blocking(move || writer.close(LOG_FLUSH_WAIT)).await;
+        }
     }
 
     fn logger(&self) -> LogFn {
@@ -1975,6 +2008,7 @@ impl AppService {
     }
 
     pub async fn export_diagnostics(&self, path: &Path, include_identifiers: bool) -> AppResult<()> {
+        self.flush_log_file().await;
         let report = self.diagnostics_report(include_identifiers).await?;
         let json = serde_json::to_string_pretty(&report).map_err(AppError::internal)?;
         fs::write(path, json)?;
@@ -2009,3 +2043,7 @@ mod tests {
         assert!(saved.contains("size_px"), "{saved}");
     }
 }
+
+#[cfg(test)]
+#[path = "log_tests.rs"]
+mod log_tests;

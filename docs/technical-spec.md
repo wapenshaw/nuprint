@@ -48,7 +48,7 @@ Individual waits are bounded. The nominal post-transfer deadline is checked betw
 | Section | Implemented | Not yet implemented |
 | --- | --- | --- |
 | 2 Architecture | Crates and host as below; React UI; `nuprint` CLI | Separate render process (rendering runs on Tokio's blocking pool in-process) |
-| 3 Persistence | `state.sqlite3` (migrations with pre-migration backup, newer-schema refusal), `jobs/<id>/page-N.bin` written atomically and SHA-256-verified before dispatch, printers, preferences, attempts, events, retention | Templates; rotating log files (the log is in memory and in diagnostics exports); startup cleanup of orphan temporary assets |
+| 3 Persistence | `state.sqlite3` (migrations with pre-migration backup, newer-schema refusal), `jobs/<id>/page-N.bin` written atomically and SHA-256-verified before dispatch, printers, preferences, attempts, events, retention | Templates; log-file search or export UI (the log is in memory, in `logs/nuprint.log` and in diagnostics exports); startup cleanup of orphan temporary assets |
 | 4 Job states | All terminal states, restart recovery, explicit retry as a new attempt with a new idempotency key | `Preparing`: rendering happens before admission, so jobs start `Queued` (or `Held` while the queue is held) |
 | 5 Concurrency | One in-process dispatcher, a hardware mutex shared with checks/inspection, cancellation tokens, bounded cleanup; exit cancels an active job and persists its outcome | Cross-process single instance, local IPC, user-chosen close action, tray mode |
 | 6 Render | Canonical bitmap shared by preview/PNG/encoding, generation IDs, text/image/single PDF page, feed once after the final copy | Design documents, QR/barcode, multi-page ranges |

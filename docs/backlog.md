@@ -122,8 +122,8 @@ The Rust skill's rule is "don't guess, measure": profile a release build before 
   - preview PNG and diagnostics export use `fs::write`;
   - profile export writes synchronously, and job-preview responses load stored pages and encode PNGs on async workers;
   - every store call takes the SQLite mutex;
-  - every log line reopens the log file.
-  Move the file reads and writes behind `spawn_blocking` or `tokio::fs`, and keep a persistent log-file handle.
+  Move the file reads and writes behind `spawn_blocking` or `tokio::fs`.
+- **P2 · Persistent log writer** (resolved): `AppService::log` no longer opens the file for each line. A writer thread (`log_writer.rs`) keeps the handle open and tracks its size.
 - **P2 · Remove the extra query per job** (Simplify; resolved): `list_jobs` issued one additional query per job; `Store::list_jobs_with_pages` now loads the pages in one query.
 - **P3 · Use one transaction for `clear_history`** (Simplify).
 - **P3 · Preview caching** (Simplify): measure whether decoding the same source again for each preview request costs enough to cache it.
