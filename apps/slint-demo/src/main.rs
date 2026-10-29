@@ -445,11 +445,14 @@ impl Ctx {
 
     // -------------------------------------------------------------- printers
 
+    /// Reload printers together with the profile list: saving or resetting edited settings
+    /// changes which profile, and which revision, a printer uses.
     fn refresh_printers(&self) {
         let printers = match self.service.list_printers() {
             Ok(printers) => printers,
             Err(e) => return self.fail(&e),
         };
+        let profiles = self.service.profiles();
         let mut selected =
             self.service.selected_printer().ok().flatten().filter(|id| printers.iter().any(|p| &p.id == id));
         if selected.is_none() {
@@ -463,6 +466,7 @@ impl Ctx {
         {
             let mut st = self.state.lock().unwrap();
             st.printers = printers;
+            st.profiles = profiles;
             st.selected = selected;
             let saved: Vec<_> = st.printers.iter().filter_map(|p| p.address.clone()).collect();
             for device in &mut st.found {
@@ -482,7 +486,7 @@ impl Ctx {
         if !printer.profile_available {
             return None;
         }
-        st.profiles.iter().find(|p| p.id == printer.profile_id).cloned()
+        st.profiles.iter().find(|p| p.id == printer.profile_id && p.revision == printer.profile_revision).cloned()
     }
 
     fn sync_printers(&self) {
