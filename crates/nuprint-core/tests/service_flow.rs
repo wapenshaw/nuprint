@@ -30,6 +30,8 @@ struct Sim {
     pause_after_rows: Option<usize>,
     /// Drop the connection after this many raster rows.
     disconnect_after_rows: Option<usize>,
+    /// Drop the connection when asked for status, before any print data.
+    disconnect_on_status: bool,
 }
 
 fn notify(op: u8, payload: &[u8]) -> Notification {
@@ -72,6 +74,7 @@ fn sc03h(name: &str, sim: Sim) -> MockDevice {
                     let mut out = Vec::new();
                     for frame in decoder.feed(data) {
                         match frame.opcode {
+                            opcode::STATUS if sim.disconnect_on_status => return Err(TransportError::Disconnected),
                             opcode::STATUS if !sim.mute && !(sim.mute_after_print && rows > 0) => {
                                 let n = queries.fetch_add(1, Ordering::Relaxed);
                                 let status = sim.statuses.get(n).or(sim.statuses.last()).copied().unwrap_or(0);
@@ -488,8 +491,22 @@ async fn disconnect_mid_transfer_is_uncertain_and_never_replayed() {
     assert_eq!(done.state, JobState::Uncertain);
     assert!(done.partial_output_possible);
     assert!(done.state_text.contains("check before retrying"));
+    let message = done.error.unwrap().message;
+    assert_eq!(message.matches("paper may").count(), 1, "{message}");
     tokio::time::sleep(Duration::from_secs(5)).await;
     assert_eq!(h.transport.log().connects, 1, "no automatic reconnect or replay");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_disconnect_before_print_data_does_not_warn_about_paper() {
+    let mut h = start(vec![sc03h("SC03h-TEST", Sim { disconnect_on_status: true, ..Sim::default() })], None);
+    let printer = h.save_first_printer().await;
+    let preview = h.preview("Never sent").await;
+    let done = h.wait_terminal(&h.enqueue(&preview, &printer, "k", 12).id).await;
+    assert_eq!(done.state, JobState::Failed);
+    assert!(!done.partial_output_possible);
+    let error = done.error.unwrap();
+    assert_eq!((error.code, error.message.as_str()), (ErrorCode::Disconnected, "Bluetooth disconnected."));
 }
 
 #[tokio::test(start_paused = true)]
@@ -560,6 +577,18 @@ async fn silent_printer_fails_with_status_timeout() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_printer_that_stays_busy_is_uncertain_with_one_reminder() {
+    let mut h = start(vec![sc03h("SC03h-TEST", Sim { statuses: vec![0x00, 0x80], ..Sim::default() })], None);
+    let printer = h.save_first_printer().await;
+    let preview = h.preview("Busy").await;
+    let done = h.wait_terminal(&h.enqueue(&preview, &printer, "k", 12).id).await;
+    assert_eq!(done.state, JobState::Uncertain);
+    let error = done.error.unwrap();
+    assert_eq!(error.code, ErrorCode::OutcomeUncertain);
+    assert!(!error.message.contains("Some paper may"), "its own reminder is not repeated: {}", error.message);
+}
+
+#[tokio::test(start_paused = true)]
 async fn the_ready_deadline_bounds_a_long_status_wait() {
     let sim = Sim { mute_after_print: true, ..Sim::default() };
     let mut h = start(vec![sc03h("SC03h-TEST", sim)], None);
@@ -581,6 +610,8 @@ async fn the_ready_deadline_bounds_a_long_status_wait() {
     let started = tokio::time::Instant::now();
     let done = h.wait_terminal(&h.enqueue(&preview, &custom, "k", 12).id).await;
     assert_eq!(done.state, JobState::Uncertain);
+    let message = done.error.unwrap().message;
+    assert_eq!(message.matches("paper may").count(), 1, "{message}");
     // Settling (2 s) plus the deadline, not the 60 s a single status query may take.
     let waited = started.elapsed();
     assert!(waited < Duration::from_secs(10), "{waited:?}");

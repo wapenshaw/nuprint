@@ -124,7 +124,8 @@ impl From<TransportError> for AppError {
             ),
             TransportError::Disconnected => (
                 ErrorCode::Disconnected,
-                "Bluetooth disconnected. Some paper may already have printed; check before retrying.",
+                // Whether paper may have printed depends on what was sent; run_job adds that.
+                "Bluetooth disconnected.",
             ),
             TransportError::Cancelled => return AppError::cancelled(),
             TransportError::EndpointMissing(_) => {
