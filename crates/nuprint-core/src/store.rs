@@ -4,6 +4,7 @@
 //! `state.sqlite3` (jobs, pages, attempts, events, printers, preferences) and
 //! `jobs/<job-id>/page-<n>.bin` (canonical packed rows, written atomically).
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -576,6 +577,28 @@ impl Store {
         Ok(rows)
     }
 
+    /// [`Self::list_jobs`] with each job's pages, read in one query rather than one per job.
+    pub fn list_jobs_with_pages(&self, limit: usize) -> AppResult<Vec<(JobRow, Vec<PageRow>)>> {
+        let jobs = self.list_jobs(limit)?;
+        let mut stmt = self.conn.prepare(
+            "SELECT p.* FROM pages p
+             JOIN (SELECT id FROM jobs ORDER BY created_ms DESC, rowid DESC LIMIT ?1) j ON j.id = p.job_id
+             ORDER BY p.idx",
+        )?;
+        let mut pages: HashMap<String, Vec<PageRow>> = HashMap::with_capacity(jobs.len());
+        for page in stmt.query_map([limit as i64], page_from_row)? {
+            let page = page?;
+            pages.entry(page.job_id.clone()).or_default().push(page);
+        }
+        Ok(jobs
+            .into_iter()
+            .map(|job| {
+                let job_pages = pages.remove(&job.id).unwrap_or_default();
+                (job, job_pages)
+            })
+            .collect())
+    }
+
     pub fn next_queued(&self) -> AppResult<Option<JobRow>> {
         Ok(self
             .conn
@@ -958,6 +981,27 @@ mod tests {
         assert!(dir.path().join("jobs").join(&saved).exists());
         assert!(dir.path().join("jobs/not-a-job").exists(), "only folders named like a job are removed");
         assert_eq!(store.load_page(&store.pages(&saved).unwrap()[0]).unwrap().height(), 1);
+    }
+
+    #[test]
+    fn jobs_are_listed_with_their_own_pages_in_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = Store::open(dir.path()).unwrap();
+        let page = |rows| MonoBitmap::new(384, rows).unwrap();
+        store.insert_job(&job("two", JobState::Queued), &[(1, page(1)), (2, page(2))], &[1, 1]).unwrap();
+        store.insert_job(&job("none", JobState::Queued), &[], &[]).unwrap();
+        store.insert_job(&job("one", JobState::Queued), &[(3, page(3))], &[1]).unwrap();
+        let listed = store.list_jobs_with_pages(10).unwrap();
+        let ids: Vec<_> = listed.iter().map(|(job, _)| job.id.as_str()).collect();
+        assert_eq!(ids, store.list_jobs(10).unwrap().iter().map(|j| j.id.as_str()).collect::<Vec<_>>());
+        for (job, pages) in &listed {
+            assert_eq!(pages, &store.pages(&job.id).unwrap(), "{}", job.id);
+        }
+        assert_eq!(
+            listed.iter().find(|(j, _)| j.id == "two").unwrap().1.iter().map(|p| p.idx).collect::<Vec<_>>(),
+            [0, 1]
+        );
+        assert_eq!(store.list_jobs_with_pages(1).unwrap().len(), 1);
     }
 
     #[test]
