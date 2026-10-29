@@ -47,6 +47,8 @@ Get the installer for your system from the [latest release](https://github.com/w
 
 The installers aren't code-signed yet, so Windows and macOS warn on first launch. The [user guide](docs/user-guide.md#installing) shows how to get past the warning.
 
+Each release also has a preview of NuPrint drawn with [Slint](https://slint.dev) instead of a web view, in the `nuprint-slint_<version>_…` installers. It is less tested, and it keeps its own printers and queue.
+
 ## Get printing
 
 1. Turn the printer on and close its phone app.

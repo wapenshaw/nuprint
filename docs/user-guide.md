@@ -23,6 +23,8 @@ Download the installer for your system from [Releases](https://github.com/wapens
 
 The installers are not code-signed yet. On Windows, SmartScreen may warn about an unrecognised app: choose **More info → Run anyway**. On macOS, the first launch is blocked: open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint. The `nuprint` CLI is built from source (see [building from source](building.md)).
 
+Each release also carries a preview of the app drawn with Slint, as `nuprint-slint_<version>_x64-setup.exe`, `nuprint-slint_<version>_aarch64.dmg`, `nuprint-slint_<version>_x64.dmg` and `nuprint-slint_<version>_amd64.deb`. It installs as **NuPrint Slint** beside NuPrint and keeps its own printers and queue. It is a preview: it has not been tested with a printer from an installer, and the [Slint notes](building.md#slint-demo) list what it lacks.
+
 ## Using the desktop app
 
 NuPrint is one window. On the left is what to print, on the right its paper preview with the print bar underneath. The toolbar holds the printer button, **Queue** and **Settings** (Ctrl+, or ⌘,). The queue slides in over the preview, and settings open on top. Neither moves anything in the window.

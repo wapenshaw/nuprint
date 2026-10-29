@@ -3,7 +3,8 @@ name: Release
 # release-please keeps a release pull request open from the commits on master.
 # Merging it tags vX.Y.Z and opens a draft release; the jobs below build the
 # desktop installers, attach them with SHA256SUMS and publish the draft, so a
-# release is never visible without its installers.
+# release is never visible without its installers. Each runner builds the Tauri
+# app's installer and, as a preview, the Slint app's (apps/slint-demo).
 #
 # A manual run builds every installer without releasing anything; give it a
 # tag to rebuild and replace the installers of that existing release.
@@ -90,7 +91,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential pkg-config libssl-dev libdbus-1-dev \
-            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
+            libfontconfig1-dev libxkbcommon-dev
 
       # rustup reads the pinned toolchain from rust-toolchain.toml.
       - name: Rust toolchain
@@ -124,15 +126,53 @@ jobs:
           npm ci
           npx tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
 
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --version 0.11.8 --locked
+
+      # The Slint app as a preview. cargo-packager reads its settings from
+      # apps/slint-demo/Cargo.toml, which takes PDFium from target/slint-pdfium. On macOS
+      # it signs only with the identity in that config and there is no Developer ID yet,
+      # so the app bundle is signed ad hoc here, as the Tauri build is, then put in a DMG.
+      - name: Build Slint installer
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          PDFIUM: vendor/pdfium/${{ matrix.pdfium }}
+        run: |
+          case "$RUNNER_OS" in
+            Windows) lib="$PDFIUM/bin/pdfium.dll" ;;
+            macOS) lib="$PDFIUM/lib/libpdfium.dylib" ;;
+            *) lib="$PDFIUM/lib/libpdfium.so" ;;
+          esac
+          mkdir -p target/slint-pdfium
+          cp "$lib" "$PDFIUM/LICENSE" target/slint-pdfium/
+          cargo build -p nuprint-slint-demo --release --locked --target "$TARGET"
+          release="target/$TARGET/release"
+          if [ "$RUNNER_OS" != macOS ]; then
+            cargo packager -p nuprint-slint-demo --release --target "$TARGET" -f ${{ matrix.bundle }}
+            exit 0
+          fi
+          cargo packager -p nuprint-slint-demo --release --target "$TARGET" -f app
+          codesign --force --deep --sign - "$release/NuPrint Slint.app"
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          arch=${TARGET%%-*}
+          [ "$arch" = x86_64 ] && arch=x64
+          mkdir -p target/slint-dmg
+          cp -R "$release/NuPrint Slint.app" target/slint-dmg/
+          ln -s /Applications target/slint-dmg/Applications
+          hdiutil create -volname "NuPrint Slint" -srcfolder target/slint-dmg -ov -format UDZO \
+            "$release/nuprint-slint_${version}_${arch}.dmg"
+
       - name: Stage
         shell: bash
         run: |
           mkdir dist
-          bundle="target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}"
+          release="target/${{ matrix.target }}/release"
+          bundle="$release/bundle/${{ matrix.bundle }}"
           case "${{ matrix.bundle }}" in
-            nsis) cp "$bundle"/*-setup.exe dist/ ;;
-            dmg) cp "$bundle"/*.dmg dist/ ;;
-            deb) cp "$bundle"/*.deb dist/ ;;
+            nsis) cp "$bundle"/*-setup.exe "$release"/nuprint-slint_*-setup.exe dist/ ;;
+            dmg) cp "$bundle"/*.dmg "$release"/nuprint-slint_*.dmg dist/ ;;
+            deb) cp "$bundle"/*.deb "$release"/nuprint-slint_*.deb dist/ ;;
           esac
           ls -l dist
 
