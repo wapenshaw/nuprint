@@ -780,6 +780,12 @@ impl Store {
 
     // ------------------------------------------------------------ lifecycle
 
+    /// Test seam: leave a transaction open, as a panic mid-transaction without rollback would.
+    #[cfg(feature = "fault-injection")]
+    pub fn inject_open_transaction(&self) {
+        self.conn.execute_batch("BEGIN").expect("begin");
+    }
+
     /// Whether the connection is usable after a thread panicked while holding it: no transaction
     /// is left open (an unwound `Transaction` rolls back) and a query still runs.
     pub fn is_consistent(&self) -> bool {
