@@ -429,31 +429,7 @@ impl Store {
     }
 
     pub fn upsert_printer(&self, p: &PrinterRow) -> AppResult<()> {
-        self.conn.execute(
-            "INSERT INTO printers (id, name, backend_kind, backend_id, address, profile_id, profile_revision,
-                                   base_profile_id, firmware, last_seen_ms, density, feed_mm, created_ms)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-             ON CONFLICT(id) DO UPDATE SET name = excluded.name, backend_id = excluded.backend_id,
-                 address = excluded.address, profile_id = excluded.profile_id,
-                 profile_revision = excluded.profile_revision, base_profile_id = excluded.base_profile_id,
-                 firmware = excluded.firmware,
-                 last_seen_ms = excluded.last_seen_ms, density = excluded.density, feed_mm = excluded.feed_mm",
-            params![
-                p.id,
-                p.name,
-                p.backend_kind,
-                p.backend_id,
-                p.address,
-                p.profile_id,
-                p.profile_revision,
-                p.base_profile_id,
-                p.firmware,
-                p.last_seen_ms,
-                p.density.as_str(),
-                p.feed_mm,
-                p.created_ms
-            ],
-        )?;
+        upsert_printer_row(&self.conn, p)?;
         Ok(())
     }
 
@@ -480,11 +456,31 @@ impl Store {
     // ------------------------------------------------------------ custom profiles
 
     pub fn insert_custom_profile(&self, row: &CustomProfileRow, base_profile_id: &str) -> AppResult<()> {
-        self.conn.execute(
-            "INSERT INTO custom_profiles (id, revision, base_profile_id, json, created_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![row.id, row.revision, base_profile_id, row.json, now_ms()],
-        )?;
+        insert_custom_profile_row(&self.conn, row, base_profile_id)?;
         Ok(())
+    }
+
+    /// Store a new revision of a printer's edited profile and point the printer at it, in one
+    /// transaction: either both are saved or neither is.
+    pub fn save_custom_profile(
+        &mut self,
+        row: &CustomProfileRow,
+        base_profile_id: &str,
+        printer: &PrinterRow,
+    ) -> AppResult<()> {
+        let tx = self.conn.transaction()?;
+        insert_custom_profile_row(&tx, row, base_profile_id)?;
+        upsert_printer_row(&tx, printer)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// The newest stored revision of a custom profile, including one the registry skipped
+    /// because it no longer validates; 0 when there is none.
+    pub fn max_custom_revision(&self, id: &str) -> AppResult<u32> {
+        Ok(self
+            .conn
+            .query_row("SELECT COALESCE(MAX(revision), 0) FROM custom_profiles WHERE id = ?1", [id], |r| r.get(0))?)
     }
 
     /// Every stored revision, oldest first, so the registry can resolve queued jobs exactly.
@@ -780,6 +776,43 @@ impl Store {
         }
         Ok(())
     }
+}
+
+fn upsert_printer_row(conn: &Connection, p: &PrinterRow) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO printers (id, name, backend_kind, backend_id, address, profile_id, profile_revision,
+                               base_profile_id, firmware, last_seen_ms, density, feed_mm, created_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, backend_id = excluded.backend_id,
+             address = excluded.address, profile_id = excluded.profile_id,
+             profile_revision = excluded.profile_revision, base_profile_id = excluded.base_profile_id,
+             firmware = excluded.firmware,
+             last_seen_ms = excluded.last_seen_ms, density = excluded.density, feed_mm = excluded.feed_mm",
+        params![
+            p.id,
+            p.name,
+            p.backend_kind,
+            p.backend_id,
+            p.address,
+            p.profile_id,
+            p.profile_revision,
+            p.base_profile_id,
+            p.firmware,
+            p.last_seen_ms,
+            p.density.as_str(),
+            p.feed_mm,
+            p.created_ms
+        ],
+    )?;
+    Ok(())
+}
+
+fn insert_custom_profile_row(conn: &Connection, row: &CustomProfileRow, base_profile_id: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO custom_profiles (id, revision, base_profile_id, json, created_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![row.id, row.revision, base_profile_id, row.json, now_ms()],
+    )?;
+    Ok(())
 }
 
 fn insert_job_row(conn: &Connection, j: &JobRow) -> rusqlite::Result<()> {

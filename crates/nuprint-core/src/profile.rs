@@ -559,6 +559,14 @@ impl ProfileRegistry {
 
     /// Add a profile edited on this computer. It must name a built-in profile it derives from.
     pub fn add_custom(&self, profile: ModelProfile) -> AppResult<ResolvedProfile> {
+        let resolved = self.prepare_custom(profile)?;
+        self.publish_custom(resolved.clone())?;
+        Ok(resolved)
+    }
+
+    /// Check an edited profile and build its driver without making it visible, so it can be
+    /// stored first and published with [`Self::publish_custom`] only once that succeeded.
+    pub fn prepare_custom(&self, profile: ModelProfile) -> AppResult<ResolvedProfile> {
         profile.validate()?;
         let derived =
             profile.derived_from.as_deref().ok_or_else(|| AppError::internal("custom profile has no base"))?;
@@ -566,10 +574,19 @@ impl ProfileRegistry {
             return Err(AppError::internal("custom profile does not derive from a built-in profile"));
         }
         let driver = profile.driver().map_err(AppError::internal)?;
-        let resolved = ResolvedProfile { profile: Arc::new(profile), driver };
+        Ok(ResolvedProfile { profile: Arc::new(profile), driver })
+    }
+
+    /// Make a prepared profile visible. A revision is immutable once published, because queued
+    /// jobs print with exactly the revision they name, so publishing one twice is refused.
+    pub fn publish_custom(&self, resolved: ResolvedProfile) -> AppResult<()> {
         let key = (resolved.profile.id.clone(), resolved.profile.revision);
-        self.custom.write().unwrap_or_else(PoisonError::into_inner).insert(key, resolved.clone());
-        Ok(resolved)
+        let mut custom = self.custom.write().unwrap_or_else(PoisonError::into_inner);
+        if custom.contains_key(&key) {
+            return Err(AppError::internal(format!("{} revision {} already exists", key.0, key.1)));
+        }
+        custom.insert(key, resolved);
+        Ok(())
     }
 
     /// The next free revision for a custom profile ID.
@@ -766,5 +783,21 @@ mod tests {
         assert!(mutate(&|v| v["match"]["name_prefixes"] = serde_json::json!([])).is_err());
         assert!(mutate(&|v| v["driver"]["feed"]["default_mm"] = 13.into()).is_err());
         assert!(mutate(&|v| v["schema_version"] = 2.into()).is_err());
+    }
+
+    #[test]
+    fn a_published_revision_is_never_replaced() {
+        let registry = registry();
+        let base = registry.get("sc03h-iprint-384").unwrap();
+        let edit = |speed: u8| {
+            let mut doc = base.profile.tunable_doc();
+            doc["driver"]["print_speed"] = speed.into();
+            ModelProfile::customized(&base.profile, &doc, "custom:p".into(), 1).unwrap()
+        };
+        let prepared = registry.prepare_custom(edit(11)).unwrap();
+        assert!(registry.get("custom:p").is_none(), "preparing publishes nothing");
+        registry.publish_custom(prepared).unwrap();
+        assert!(registry.add_custom(edit(12)).is_err());
+        assert_eq!(registry.get_revision("custom:p", 1).unwrap().profile.driver["print_speed"], 11);
     }
 }
