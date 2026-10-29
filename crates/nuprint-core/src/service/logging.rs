@@ -91,9 +91,11 @@ impl AppService {
     }
 
     /// Write what is buffered and stop the file writer; later lines reach only the in-memory log.
-    pub(super) async fn close_log_file(&self) {
-        if let Some(writer) = self.inner.log_writer.clone() {
-            let _ = tokio::task::spawn_blocking(move || writer.close(LOG_FLUSH_WAIT)).await;
+    /// False when the writer did not finish in time; it then keeps the data folder until it does.
+    pub(super) async fn close_log_file(&self) -> bool {
+        match self.inner.log_writer.clone() {
+            Some(writer) => tokio::task::spawn_blocking(move || writer.close(LOG_FLUSH_WAIT)).await.unwrap_or(false),
+            None => true,
         }
     }
 

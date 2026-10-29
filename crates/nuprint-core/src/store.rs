@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nuprint_protocol::{Density, MonoBitmap};
@@ -303,7 +304,8 @@ pub struct Store {
     root: PathBuf,
     revision: i64,
     /// Held while the store is open: one NuPrint owns a data folder, its queue and its recovery.
-    _lock: Option<fs::File>,
+    /// Shared with the log writer thread, which may outlive the store (see [`Self::owner_lock`]).
+    lock: Option<Arc<fs::File>>,
 }
 
 /// Take the exclusive owner lock of a data folder before anything reads or recovers its state. The
@@ -334,7 +336,7 @@ impl Store {
         let lock = lock_data_dir(data_dir)?;
         let existed = db_path.exists();
         let conn = Connection::open(&db_path)?;
-        Self::init(conn, data_dir.to_path_buf(), existed.then_some(db_path), Some(lock))
+        Self::init(conn, data_dir.to_path_buf(), existed.then_some(db_path), Some(Arc::new(lock)))
     }
 
     /// Non-persistent store (CLI one-shot use); assets go to `assets_dir`.
@@ -348,7 +350,19 @@ impl Store {
         Self::init(Connection::open_in_memory()?, assets_dir.to_path_buf(), None, None)
     }
 
-    fn init(conn: Connection, root: PathBuf, backup_from: Option<PathBuf>, lock: Option<fs::File>) -> AppResult<Self> {
+    /// The data folder's owner lock, for something that must keep the folder until it has
+    /// finished with it even after the store closes. The folder is free once every holder drops
+    /// it. `None` for an in-memory store.
+    pub(crate) fn owner_lock(&self) -> Option<Arc<fs::File>> {
+        self.lock.clone()
+    }
+
+    fn init(
+        conn: Connection,
+        root: PathBuf,
+        backup_from: Option<PathBuf>,
+        lock: Option<Arc<fs::File>>,
+    ) -> AppResult<Self> {
         conn.pragma_update(None, "foreign_keys", "ON")?;
         conn.pragma_update(None, "journal_mode", "WAL").ok();
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
@@ -394,7 +408,7 @@ impl Store {
             }
         }
         let revision = conn.query_row("SELECT COALESCE(MAX(revision), 0) FROM jobs", [], |r| r.get(0))?;
-        let store = Self { conn, root, revision, _lock: lock };
+        let store = Self { conn, root, revision, lock };
         store.tidy_assets();
         Ok(store)
     }
@@ -1372,6 +1386,18 @@ mod tests {
         assert_eq!(first.get_job("live").unwrap().unwrap().state, JobState::Sending);
         drop(first);
         assert!(Store::open(dir.path()).is_ok(), "the folder is free once the owner closes");
+    }
+
+    #[test]
+    fn a_shared_owner_lock_keeps_the_folder_after_the_store_closes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let held = store.owner_lock().expect("an on-disk store is locked");
+        drop(store);
+        let refused = Store::open(dir.path()).err().expect("still owned through the shared lock");
+        assert_eq!(refused.code, ErrorCode::DataDirInUse);
+        drop(held);
+        assert!(Store::open(dir.path()).is_ok());
     }
 
     #[test]

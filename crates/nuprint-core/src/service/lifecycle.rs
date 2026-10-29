@@ -19,7 +19,9 @@ impl AppService {
     /// exiting. A job that never settles is left for restart recovery, which marks it uncertain;
     /// it is never replayed. On [`ShutdownOutcome::TimedOut`] nothing is released: the dispatcher
     /// (which owns the Bluetooth session) and the supervisor keep the service, so the data folder
-    /// stays locked until their cleanup really ends. Safe to call more than once.
+    /// stays locked until their cleanup really ends. Last, the log file is finished, for up to two
+    /// seconds; when the disk stalls longer this also returns `TimedOut`, and the log writer keeps
+    /// the data folder until its write completes. Safe to call more than once.
     pub async fn shutdown(&self, wait: Duration) -> ShutdownOutcome {
         self.inner.shutdown.cancel();
         if let Some(active) = relock(&self.inner.active).as_ref() {
@@ -46,7 +48,9 @@ impl AppService {
         }
         // The dispatcher has ended; later lines stay in memory. On a timeout the file stays open,
         // because the dispatcher may still log while it cleans up.
-        self.close_log_file().await;
+        if !self.close_log_file().await {
+            return ShutdownOutcome::TimedOut;
+        }
         if self.inner.fault.get().is_some() { ShutdownOutcome::Faulted } else { ShutdownOutcome::Clean }
     }
 
