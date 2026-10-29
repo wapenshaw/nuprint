@@ -39,7 +39,7 @@ impl JobView {
     }
 }
 
-pub(crate) fn job_item(job: &JobSummary) -> JobItem {
+fn job_item(job: &JobSummary) -> JobItem {
     let progress = if job.bytes_total > 0.0 { (job.bytes_sent / job.bytes_total).clamp(0.0, 1.0) as f32 } else { 0.0 };
     let terminal = job.state.is_terminal();
     JobItem {
