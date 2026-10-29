@@ -14,7 +14,7 @@ use crate::callbacks::wire;
 use crate::ctx::Ctx;
 use crate::preview::SIZE_PRESETS;
 use crate::state::{Prefs, State};
-use crate::{AppWindow, Data, Theme};
+use crate::{AppWindow, Data, LogItem, Theme};
 
 const DEFAULT_TEXT: &str = "Hello from NuPrint!\n\nYour printer is ready.";
 
@@ -223,6 +223,7 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
     theme.set_font_family(font.into());
     theme.set_mono_family(mono.into());
     data.set_brand_icon(prefs.icon);
+    data.set_logs(ModelRc::new(VecModel::<LogItem>::default()));
 
     data.set_text_value(DEFAULT_TEXT.into());
     data.set_size_model(ModelRc::new(VecModel::from(
@@ -237,7 +238,7 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
         st.app_info = Some(service.app_info());
         st.profiles = service.profiles();
         st.log_seq = logs.iter().map(|l| l.seq).fold(0.0, f64::max);
-        st.logs = logs;
+        st.new_logs = logs;
     }
     ctx.sync_file(ui);
     // Before the window shows, so the first preview already knows the printer.
@@ -245,5 +246,6 @@ fn init(ui: &AppWindow, ctx: &Ctx) {
     ctx.load_jobs();
     ctx.refresh_adapter();
     ctx.sync_diagnostics();
+    ctx.sync_logs();
     ctx.schedule_preview(ui, true);
 }

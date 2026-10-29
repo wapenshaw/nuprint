@@ -2,12 +2,15 @@
 //! the UI thread.
 
 use nuprint_core::api::*;
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::ctx::Ctx;
 use crate::labels::*;
 use crate::view::*;
 use crate::{Data, DeviceItem, LogItem, PrinterItem};
+
+/// The activity log keeps this many of the newest lines on screen.
+pub(crate) const MAX_LOG_LINES: usize = 500;
 
 impl Ctx {
     pub(crate) fn sync_status(&self) {
@@ -226,21 +229,47 @@ impl Ctx {
             checks.push(fact("Checked at", format!("{} UTC", time_of_day(c.checked_ms)), false));
         }
         let has_check = st.last_check.is_some();
-        let logs: Vec<LogItem> = st
-            .logs
-            .iter()
-            .map(|l| {
-                let (level, tone) = level_label(l.level);
-                LogItem { time: time_of_day(l.at_ms).into(), level: level.into(), text: l.message.clone().into(), tone }
-            })
-            .collect();
         drop(st);
         self.ui(move |ui| {
             let d = ui.global::<Data>();
             d.set_app_facts(ModelRc::new(VecModel::from(app)));
             d.set_has_check(has_check);
             d.set_check_facts(ModelRc::new(VecModel::from(checks)));
-            d.set_logs(ModelRc::new(VecModel::from(logs)));
+        });
+    }
+
+    /// Add the new log lines to the activity log's rows, in one go for all the lines that arrived
+    /// before the UI thread got to them, rather than rebuilding every row for each line.
+    pub(crate) fn sync_logs(&self) {
+        {
+            let mut st = self.state.lock().unwrap();
+            if st.logs_queued {
+                return;
+            }
+            st.logs_queued = true;
+        }
+        let this = self.clone();
+        self.ui(move |ui| {
+            let lines = {
+                let mut st = this.state.lock().unwrap();
+                st.logs_queued = false;
+                std::mem::take(&mut st.new_logs)
+            };
+            let items = lines.iter().map(|l| {
+                let (level, tone) = level_label(l.level);
+                LogItem { time: time_of_day(l.at_ms).into(), level: level.into(), text: l.message.clone().into(), tone }
+            });
+            let logs = ui.global::<Data>().get_logs();
+            let Some(rows) = logs.as_any().downcast_ref::<VecModel<LogItem>>() else { return };
+            let excess = (rows.row_count() + lines.len()).saturating_sub(MAX_LOG_LINES);
+            if excess >= rows.row_count() {
+                rows.set_vec(items.skip(lines.len().saturating_sub(MAX_LOG_LINES)).collect::<Vec<_>>());
+            } else {
+                for _ in 0..excess {
+                    rows.remove(0);
+                }
+                rows.extend(items);
+            }
         });
     }
 }
