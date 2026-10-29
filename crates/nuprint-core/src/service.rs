@@ -637,7 +637,9 @@ impl AppService {
         let plain = unmark(&message, None);
         let file_line = to_file.then(|| format!("{at_ms} {level:?} {plain}\n"));
         let line = {
-            let mut logs = self.inner.logs.lock().unwrap();
+            // A bounded ring that is only pushed and popped whole, so a panic elsewhere while it
+            // was held cannot leave it half-changed; logging must keep working after a failure.
+            let mut logs = relock(&self.inner.logs);
             // Sequence, ring order and file order are all decided under this lock.
             let seq = self.next_seq();
             if logs.len() >= MAX_LOG_LINES {
@@ -678,13 +680,7 @@ impl AppService {
     }
 
     pub fn logs(&self) -> Vec<LogLine> {
-        self.inner
-            .logs
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|l| LogLine { message: unmark(&l.message, None), ..l.clone() })
-            .collect()
+        relock(&self.inner.logs).iter().map(|l| LogLine { message: unmark(&l.message, None), ..l.clone() }).collect()
     }
 
     /// The log for a diagnostics export: identifying text is replaced unless `include_identifiers`.
@@ -693,10 +689,7 @@ impl AppService {
             return self.logs();
         }
         let replacement = Some("<redacted>");
-        self.inner
-            .logs
-            .lock()
-            .unwrap()
+        relock(&self.inner.logs)
             .iter()
             .map(|l| LogLine { message: unmark(&l.message, replacement), ..l.clone() })
             .collect()

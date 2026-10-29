@@ -128,3 +128,20 @@ async fn an_unwritable_log_file_is_reported_once_in_memory_and_never_blocks_logg
     assert!(service.logs().iter().any(|l| l.message == "line 49"));
     service.shutdown(Duration::from_secs(5)).await;
 }
+
+#[tokio::test]
+async fn logging_keeps_working_after_a_panic_poisoned_the_ring() {
+    let (service, events) = start(None);
+    let inner = service.inner.clone();
+    let poisoner = std::thread::spawn(move || {
+        let _held = inner.logs.lock().unwrap();
+        panic!("poison the log ring");
+    });
+    assert!(poisoner.join().is_err());
+    assert!(service.inner.logs.is_poisoned());
+
+    service.log(LogLevel::Warn, "after the panic".into());
+    assert!(service.logs().iter().any(|l| l.message == "after the panic"));
+    assert!(events.lock().unwrap().iter().any(|l| l.message == "after the panic"));
+    service.shutdown(Duration::from_secs(5)).await;
+}
