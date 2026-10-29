@@ -47,7 +47,7 @@ pub(super) fn wire(ui: &AppWindow, ctx: &Ctx) {
                 Err(e) => {
                     let mut st = c2.state.lock().unwrap();
                     st.scan = None;
-                    st.scan_error = e.message.clone();
+                    st.scan_error = e.message;
                 }
             }
             c2.sync_scan();

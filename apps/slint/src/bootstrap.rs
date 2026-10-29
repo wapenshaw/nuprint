@@ -55,10 +55,9 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
     init(&ui, &ctx);
 
     // Service events arrive on any thread; fold them in on the UI thread.
-    let event_ctx = ctx.clone();
     runtime.spawn(async move {
         while let Some(event) = events.recv().await {
-            event_ctx.on_event(event);
+            ctx.on_event(event);
         }
     });
 
