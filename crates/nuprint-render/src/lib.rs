@@ -37,6 +37,8 @@ pub const MAX_TEXT_CHARS: usize = 20_000;
 
 /// Smallest printable width the renderer supports.
 pub const MIN_TARGET_WIDTH: u32 = 96;
+/// Largest printable width the renderer supports.
+pub const MAX_TARGET_WIDTH: u32 = 8192;
 /// Text must keep at least this many dots of line width after margins.
 pub const MIN_TEXT_LINE_WIDTH: u32 = 64;
 
@@ -57,9 +59,9 @@ impl Default for RenderTarget {
 
 impl RenderTarget {
     fn validate(&self) -> Result<(), RenderError> {
-        if self.width_dots < MIN_TARGET_WIDTH || self.width_dots > 8192 {
+        if !(MIN_TARGET_WIDTH..=MAX_TARGET_WIDTH).contains(&self.width_dots) {
             return Err(RenderError::InvalidParam(format!(
-                "The printable width must be between {MIN_TARGET_WIDTH} and 8192 dots (got {})",
+                "The printable width must be between {MIN_TARGET_WIDTH} and {MAX_TARGET_WIDTH} dots (got {})",
                 self.width_dots
             )));
         }

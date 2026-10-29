@@ -273,9 +273,11 @@ impl Iprint5178Params {
             return Err(format!("feed.max_mm must be at most {MAX_EDITED_FEED_MM}."));
         }
         let t = &self.timing;
-        if t.status_timeout_ms < MIN_EDITED_WAIT_MS || t.ready_poll_ms < MIN_EDITED_POLL_MS {
+        if !(MIN_EDITED_WAIT_MS..=MAX_EDITED_STATUS_WAIT_MS).contains(&t.status_timeout_ms)
+            || t.ready_poll_ms < MIN_EDITED_POLL_MS
+        {
             return Err(format!(
-                "status_timeout_ms must be at least {MIN_EDITED_WAIT_MS} and ready_poll_ms at least {MIN_EDITED_POLL_MS}."
+                "status_timeout_ms must be {MIN_EDITED_WAIT_MS}–{MAX_EDITED_STATUS_WAIT_MS} and ready_poll_ms at least {MIN_EDITED_POLL_MS}."
             ));
         }
         if t.ready_deadline_ms < t.ready_poll_ms || t.ready_deadline_ms > MAX_EDITED_READY_DEADLINE_MS {
@@ -294,8 +296,10 @@ const HEAT_FLOOR_DIVISOR: u32 = 4;
 const HEAT_CEILING_FACTOR: u32 = 2;
 /// More than this much extra paper per job is never intended.
 const MAX_EDITED_FEED_MM: u16 = 50;
-/// A status reply cannot arrive faster than this.
+/// A status reply cannot arrive faster than this...
 const MIN_EDITED_WAIT_MS: u64 = 500;
+/// ...and one that has not arrived after this long is not coming.
+const MAX_EDITED_STATUS_WAIT_MS: u64 = 60_000;
 /// Polling faster than this only spins.
 const MIN_EDITED_POLL_MS: u64 = 100;
 const MAX_EDITED_READY_DEADLINE_MS: u64 = 600_000;

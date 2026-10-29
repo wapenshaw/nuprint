@@ -24,6 +24,8 @@ use crate::profile::{BoundEndpoints, ResolvedProfile};
 pub type LogFn = Arc<dyn Fn(LogLevel, String) + Send + Sync>;
 
 const MAX_RAW_NOTIFICATIONS: usize = 64;
+/// Shortest wait for a status reply while polling for ready, even at the deadline.
+const MIN_READY_QUERY_WAIT: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone)]
 struct LiveState {
@@ -384,7 +386,11 @@ impl PrinterSession {
                     on_event(SessionEvent::Phase(JobState::WaitingForReady));
                     let until = tokio::time::Instant::now() + *deadline;
                     loop {
-                        let report = self.query_status(*query_timeout, cancel).await?;
+                        // The deadline bounds the whole wait, so one unanswered query cannot
+                        // outlast it; the floor still gives a reply time to arrive.
+                        let remaining = until.saturating_duration_since(tokio::time::Instant::now());
+                        let timeout = (*query_timeout).min(remaining.max(MIN_READY_QUERY_WAIT));
+                        let report = self.query_status(timeout, cancel).await?;
                         if let Some(flag) = report.blocking_fault() {
                             return Err(AppError::from_fault(flag));
                         }

@@ -100,10 +100,10 @@ An owner can tune a saved printer (Printers → Advanced) without waiting for a 
   | Heat (each darkness level) | A quarter to twice the built-in **normal** heat (SC03h: 1250–10000) |
   | Speeds, feed scale | `print_speed`, `feed_speed`, `feed_steps_per_mm` at least 1 |
   | Extra feed | `feed.max_mm` at most 50 |
-  | Status and readiness timing | `status_timeout_ms` at least 500, `ready_poll_ms` at least 100, `ready_deadline_ms` between the poll interval and 10 minutes, `settle_ms` at most 10 minutes |
+  | Status and readiness timing | `status_timeout_ms` 500–60000, `ready_poll_ms` at least 100, `ready_deadline_ms` between the poll interval and 10 minutes, `settle_ms` at most 10 minutes |
   | Writes | `max_chunk_bytes` 20–512 (the negotiated write size still lowers it at run time); `chunk_delay_ms` and `boundary_delay_ms` at most 120 s |
   | Connection | every timeout 500 ms–120 s; `min_notify_subscriptions` at least 1, because without status notifications nothing can print |
-  | Raster and media | `dots_per_mm` 1–50, `max_height` at most 20000, `wire_packing` unchanged, width a multiple of 8 and equal in `raster` and `driver` |
+  | Raster and media | `dots_per_mm` 1–50, `max_height` at most 20000, `wire_packing` unchanged, width 96–8192 dots, a multiple of 8 and equal in `raster` and `driver`, and width × `max_height` at most 67,108,864 dots |
   | Other | `max_copies` at most 100; `display_name` 1–60 characters without control characters |
 
   The GATT service and notification checks still run before anything is sent.

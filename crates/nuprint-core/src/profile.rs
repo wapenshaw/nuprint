@@ -6,8 +6,10 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, PoisonError, RwLock};
 
+use nuprint_protocol::bitmap::MAX_PIXELS;
 use nuprint_protocol::iprint::{self, Iprint5178Driver, Iprint5178Params};
 use nuprint_protocol::{Density, PrinterDriver};
+use nuprint_render::{MAX_TARGET_WIDTH, MIN_TARGET_WIDTH};
 use nuprint_transport::{Advertisement, Endpoint, ServiceInfo, Uuid, WriteMode};
 use serde::{Deserialize, Serialize};
 
@@ -248,6 +250,14 @@ impl ModelProfile {
         }
         if self.raster.width_dots == 0 || self.raster.max_height == 0 || self.raster.dots_per_mm <= 0.0 {
             return Err(self.invalid("raster dimensions must be positive"));
+        }
+        // A page the renderer or the bitmap type would refuse can never print.
+        let (width, height) = (self.raster.width_dots, self.raster.max_height);
+        if !(MIN_TARGET_WIDTH..=MAX_TARGET_WIDTH).contains(&width) {
+            return Err(self.invalid(&format!("width_dots must be {MIN_TARGET_WIDTH}–{MAX_TARGET_WIDTH}")));
+        }
+        if u64::from(width) * u64::from(height) > MAX_PIXELS {
+            return Err(self.invalid(&format!("width_dots × max_height must be at most {MAX_PIXELS} dots")));
         }
         if self.limits.max_copies == 0 {
             return Err(self.invalid("max_copies must be at least 1"));
@@ -712,6 +722,29 @@ mod tests {
             let edited = ModelProfile::customized(&p.profile, &p.profile.tunable_doc(), "custom:x".into(), 1);
             assert!(edited.is_ok(), "{}: {:?}", p.profile.id, edited.err().map(|e| e.message));
         }
+    }
+
+    #[test]
+    fn edited_sizes_and_status_waits_stay_within_what_can_print() {
+        let r = registry();
+        let base = &r.get("sc03h-iprint-384").unwrap().profile;
+        let edit = |width: u32, height: u32, status_ms: u64| {
+            let mut doc = base.tunable_doc();
+            doc["raster"]["width_dots"] = width.into();
+            doc["driver"]["width_dots"] = width.into();
+            doc["raster"]["max_height"] = height.into();
+            doc["driver"]["max_height"] = height.into();
+            doc["driver"]["timing"]["status_timeout_ms"] = status_ms.into();
+            ModelProfile::customized(base, &doc, "custom:p".into(), 1).map_err(|e| e.message)
+        };
+        assert!(edit(96, 4000, 3000).is_ok());
+        assert!(edit(88, 4000, 3000).unwrap_err().contains("width_dots"));
+        assert!(edit(8192, 8192, 3000).is_ok(), "exactly the largest bitmap");
+        assert!(edit(8200, 4000, 3000).unwrap_err().contains("width_dots"));
+        assert!(edit(8192, 8193, 3000).unwrap_err().contains("max_height"));
+        assert!(edit(384, 4000, 60_000).is_ok());
+        assert!(edit(384, 4000, 60_001).unwrap_err().contains("status_timeout_ms"));
+        assert!(edit(384, 4000, u64::MAX).unwrap_err().contains("status_timeout_ms"));
     }
 
     #[test]
