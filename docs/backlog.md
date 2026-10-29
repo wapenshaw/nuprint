@@ -118,7 +118,7 @@ The Rust skill's rule is "don't guess, measure": profile a release build before 
   - every store call takes the SQLite mutex;
   - every log line reopens the log file.
   Move the file reads and writes behind `spawn_blocking` or `tokio::fs`, and keep a persistent log-file handle.
-- **P2 · Remove the extra query per job** (Simplify): `list_jobs` issues one additional query per job; load them in one query.
+- **P2 · Remove the extra query per job** (Simplify; resolved): `list_jobs` issued one additional query per job; `Store::list_jobs_with_pages` now loads the pages in one query.
 - **P3 · Use one transaction for `clear_history`** (Simplify).
 - **P3 · Preview caching** (Simplify): measure whether decoding the same source again for each preview request costs enough to cache it.
 - **P3 · Reconnect without scanning** (Simplify): reconnect to a saved printer without a fresh scan (`AppService::connect_session`). This needs hardware validation on each OS.

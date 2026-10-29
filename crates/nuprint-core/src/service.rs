@@ -1343,11 +1343,7 @@ impl AppService {
 
     pub fn list_jobs(&self) -> AppResult<QueueSnapshot> {
         let store = self.store();
-        let rows = store.list_jobs(200)?;
-        let mut jobs = Vec::with_capacity(rows.len());
-        for row in &rows {
-            jobs.push(summarize(row, &store.pages(&row.id)?));
-        }
+        let jobs = store.list_jobs_with_pages(200)?.iter().map(|(row, pages)| summarize(row, pages)).collect();
         let seq = self.inner.seq.load(Ordering::SeqCst) as f64;
         Ok(QueueSnapshot {
             held: self.inner.held.load(Ordering::Relaxed),
