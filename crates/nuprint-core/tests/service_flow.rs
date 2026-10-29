@@ -24,6 +24,8 @@ struct Sim {
     statuses: Vec<u8>,
     /// Never answer status queries.
     mute: bool,
+    /// Stop answering status queries once print data has arrived on a connection.
+    mute_after_print: bool,
     /// Send a flow-pause after this many raster rows (resume must be injected).
     pause_after_rows: Option<usize>,
     /// Drop the connection after this many raster rows.
@@ -70,7 +72,7 @@ fn sc03h(name: &str, sim: Sim) -> MockDevice {
                     let mut out = Vec::new();
                     for frame in decoder.feed(data) {
                         match frame.opcode {
-                            opcode::STATUS if !sim.mute => {
+                            opcode::STATUS if !sim.mute && !(sim.mute_after_print && rows > 0) => {
                                 let n = queries.fetch_add(1, Ordering::Relaxed);
                                 let status = sim.statuses.get(n).or(sim.statuses.last()).copied().unwrap_or(0);
                                 out.push(notify(opcode::STATUS, &[status, 0x12, 0x27]));
@@ -555,6 +557,33 @@ async fn silent_printer_fails_with_status_timeout() {
     assert_eq!(done.state, JobState::Failed);
     assert_eq!(done.error.unwrap().code, ErrorCode::StatusTimeout);
     assert!(h.print_bytes_written().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_ready_deadline_bounds_a_long_status_wait() {
+    let sim = Sim { mute_after_print: true, ..Sim::default() };
+    let mut h = start(vec![sc03h("SC03h-TEST", sim)], None);
+    let printer = h.save_first_printer().await;
+    let request = edited(&h, &printer, |doc| {
+        doc["driver"]["timing"]["status_timeout_ms"] = 60_000.into();
+        doc["driver"]["timing"]["ready_deadline_ms"] = 5_000.into();
+    });
+    let custom = h.service.save_printer_profile(request).unwrap();
+    let preview = h
+        .service
+        .render_preview(PreviewRequest {
+            generation: 1.0,
+            profile_id: custom.profile_id.clone(),
+            source: SourceSpec::Text(TextSpec { text: "Wait".into(), ..TextSpec::default() }),
+        })
+        .await
+        .unwrap();
+    let started = tokio::time::Instant::now();
+    let done = h.wait_terminal(&h.enqueue(&preview, &custom, "k", 12).id).await;
+    assert_eq!(done.state, JobState::Uncertain);
+    // Settling (2 s) plus the deadline, not the 60 s a single status query may take.
+    let waited = started.elapsed();
+    assert!(waited < Duration::from_secs(10), "{waited:?}");
 }
 
 #[tokio::test(start_paused = true)]
