@@ -705,6 +705,7 @@ impl Ctx {
         let can_clear = queue.jobs.iter().any(|j| j.state.is_terminal());
         let has_held = queue.jobs.iter().any(|j| j.state == JobState::Held);
         let held = queue.held;
+        let fault = queue.fault.as_ref().map(|f| f.message.clone()).unwrap_or_default();
         {
             let mut st = self.state.lock().unwrap();
             st.held = held;
@@ -715,6 +716,7 @@ impl Ctx {
             d.set_jobs(ModelRc::new(VecModel::from(views.into_iter().map(JobView::into_item).collect::<Vec<_>>())));
             d.set_open_jobs(open);
             d.set_queue_held(held);
+            d.set_queue_fault(fault.into());
             d.set_has_held_jobs(has_held && !held);
             d.set_can_clear(can_clear);
             d.set_waiting_text(if waiting == 0 {
@@ -793,6 +795,10 @@ impl Ctx {
                 self.refresh_jobs();
             }
             AppEvent::JobRemoved { .. } => self.refresh_jobs(),
+            AppEvent::QueueFault { fault, .. } => {
+                self.notify(fault.message, 4, Some(("View queue", "queue")));
+                self.refresh_jobs();
+            }
             AppEvent::JobProgress { job_id, bytes_sent, bytes_total, .. } => {
                 let progress = if bytes_total > 0.0 { (bytes_sent / bytes_total).clamp(0.0, 1.0) as f32 } else { 0.0 };
                 let tracked = self.state.lock().unwrap().tracked.as_deref() == Some(job_id.as_str());

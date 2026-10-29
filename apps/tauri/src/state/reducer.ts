@@ -8,6 +8,7 @@ import type { LogLine } from "../bindings/LogLine";
 import type { PrinterCheck } from "../bindings/PrinterCheck";
 import type { ProfileSummary } from "../bindings/ProfileSummary";
 import type { SavedPrinter } from "../bindings/SavedPrinter";
+import type { ServiceFault } from "../bindings/ServiceFault";
 
 export const MAX_LOG_LINES = 500;
 
@@ -41,6 +42,7 @@ export interface AppData {
   selectedPrinterId: string | null;
   jobs: JobSummary[];
   queueHeld: boolean;
+  queueFault: ServiceFault | null;
   progress: Record<string, { sent: number; total: number }>;
   adapter: AdapterStatus;
   logs: LogLine[];
@@ -61,6 +63,7 @@ export const initialData: AppData = {
   selectedPrinterId: null,
   jobs: [],
   queueHeld: false,
+  queueFault: null,
   progress: {},
   adapter: "unknown",
   logs: [],
@@ -79,6 +82,7 @@ export type Action =
       selectedPrinterId: string | null;
       jobs: JobSummary[];
       queueHeld: boolean;
+      queueFault: ServiceFault | null;
       logs: LogLine[];
       adapter: AdapterStatus;
     }
@@ -87,7 +91,7 @@ export type Action =
   | { type: "printers"; printers: SavedPrinter[]; profiles?: ProfileSummary[]; selectedPrinterId?: string | null }
   | { type: "printer_updated"; printer: SavedPrinter }
   | { type: "selected"; id: string | null }
-  | { type: "queue"; jobs: JobSummary[]; held: boolean }
+  | { type: "queue"; jobs: JobSummary[]; held: boolean; fault: ServiceFault | null }
   | { type: "job_upsert"; job: JobSummary }
   | { type: "job_remove"; id: string }
   | { type: "adapter"; adapter: AdapterStatus }
@@ -156,6 +160,8 @@ function applyEvent(state: AppData, event: AppEvent): AppData {
         ...state,
         progress: { ...state.progress, [event.job_id]: { sent: event.bytes_sent, total: event.bytes_total } },
       };
+    case "queue_fault":
+      return { ...state, queueHeld: true, queueFault: event.fault };
     case "log":
       return { ...state, logs: appendLog(state.logs, event.line) };
     case "printers_changed":
@@ -177,6 +183,7 @@ export function reducer(state: AppData, action: Action): AppData {
         selectedPrinterId: action.selectedPrinterId,
         jobs: sortJobs(action.jobs),
         queueHeld: action.queueHeld,
+        queueFault: action.queueFault,
         logs: action.logs.slice(-MAX_LOG_LINES),
         adapter: action.adapter,
       };
@@ -196,7 +203,7 @@ export function reducer(state: AppData, action: Action): AppData {
     case "selected":
       return { ...state, selectedPrinterId: action.id };
     case "queue":
-      return { ...state, jobs: sortJobs(action.jobs), queueHeld: action.held };
+      return { ...state, jobs: sortJobs(action.jobs), queueHeld: action.held, queueFault: action.fault };
     case "job_upsert":
       return { ...state, jobs: upsertJob(state.jobs, action.job) };
     case "job_remove":

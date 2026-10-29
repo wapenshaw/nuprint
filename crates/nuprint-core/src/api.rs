@@ -530,6 +530,35 @@ pub struct QueueSnapshot {
     /// are already reflected in it.
     pub seq: f64,
     pub jobs: Vec<JobSummary>,
+    /// Set when the queue worker failed. Nothing starts until NuPrint is restarted.
+    #[ts(optional)]
+    pub fault: Option<ServiceFault>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ServiceFaultKind {
+    /// The queue worker panicked.
+    DispatcherPanicked,
+    /// The queue worker returned while the service was still running.
+    DispatcherStopped,
+    /// The saved queue failed validation after an internal failure.
+    StorageInvalid,
+}
+
+/// A failure of NuPrint's own queue worker. The service refuses to start jobs and to use
+/// Bluetooth until the app is restarted, because it cannot prove the failed worker released it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ServiceFault {
+    pub kind: ServiceFaultKind,
+    /// What happened and what to do, without printer names or job content.
+    pub message: String,
+    pub at_ms: f64,
+    /// The job that was claimed when the worker failed, if any. It is marked uncertain.
+    #[ts(optional)]
+    pub job_id: Option<String>,
 }
 
 // ---------------------------------------------------------------- events & diagnostics
@@ -587,6 +616,11 @@ pub enum AppEvent {
     },
     PrintersChanged {
         seq: f64,
+    },
+    /// The queue worker failed; see [`ServiceFault`]. Durable state is re-read with `list_jobs`.
+    QueueFault {
+        seq: f64,
+        fault: ServiceFault,
     },
     Log {
         line: LogLine,

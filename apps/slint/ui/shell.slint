@@ -566,12 +566,17 @@ export component QueueDrawer inherits Rectangle {
                     padding: 12px;
                     spacing: 10px;
                     alignment: start;
-                    if Data.queue-held: Note {
+                    if Data.queue-fault != "": Note {
+                        label: "Queue stopped";
+                        text: Data.queue-fault;
+                        tone: 4;
+                    }
+                    if Data.queue-held && Data.queue-fault == "": Note {
                         label: "Queue held";
                         text: "A job that is already printing will finish or can be cancelled, but waiting jobs will not start until you resume.";
                         tone: 3;
                     }
-                    if Data.has-held-jobs: Note {
+                    if Data.has-held-jobs && Data.queue-fault == "": Note {
                         label: "Jobs were held after restart";
                         text: "resume when ready. NuPrint never replays a half-sent job on its own, so check each job first.";
                         tone: 3;

@@ -95,7 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshQueue = useCallback(async () => {
     const snap = await api().listJobs();
-    dispatch({ type: "queue", jobs: snap.jobs, held: snap.held });
+    dispatch({ type: "queue", jobs: snap.jobs, held: snap.held, fault: snap.fault ?? null });
   }, []);
 
   const refreshPrinters = useCallback(async () => {
@@ -222,6 +222,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
       dispatch({ type: "event", event });
+      if (event.type === "queue_fault") {
+        notify(event.fault.message, "error");
+        refreshQueue().catch(() => undefined);
+      }
     };
 
     api()
@@ -260,6 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           selectedPrinterId: effectiveSelected,
           jobs: queue.jobs,
           queueHeld: queue.held,
+          queueFault: queue.fault ?? null,
           logs,
           adapter,
         });
@@ -278,7 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       unlisten?.();
     };
-  }, [refreshPrinters]);
+  }, [refreshPrinters, refreshQueue, notify]);
 
   const value = useMemo<AppContextValue>(() => {
     const selectedPrinter = data.printers.find((p) => p.id === data.selectedPrinterId) ?? null;

@@ -4,9 +4,10 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use nuprint_protocol::{CompletionPolicy, Density, ExchangePlan, MonoBitmap, PrintRequest, PrinterDriver};
@@ -82,7 +83,7 @@ impl<T> Recent<T> {
     }
 
     fn insert(&self, id: String, value: T) {
-        let mut items = self.items.lock().unwrap();
+        let mut items = relock(&self.items);
         if items.len() >= self.cap {
             items.pop_front();
         }
@@ -90,13 +91,59 @@ impl<T> Recent<T> {
     }
 
     fn get(&self, id: &str) -> Option<Arc<T>> {
-        self.items.lock().unwrap().iter().find(|(key, _)| key == id).map(|(_, value)| value.clone())
+        relock(&self.items).iter().find(|(key, _)| key == id).map(|(_, value)| value.clone())
     }
+}
+
+/// Lock a mutex whose contents stay valid after any single operation on them (a cache, a map of
+/// cancel tokens, a diagnostic holder, or the active-job slot, which is only ever replaced whole).
+/// A panic while holding it cannot leave a half-applied change, so the poison flag is cleared
+/// instead of panicking every later caller. Not for the job store: see `AppService::store`.
+fn relock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| {
+        mutex.clear_poison();
+        poisoned.into_inner()
+    })
 }
 
 struct ActiveJob {
     job_id: String,
     cancel: CancellationToken,
+}
+
+/// Where a test may make the dispatcher panic. Compiled only with the `fault-injection` feature.
+#[cfg(feature = "fault-injection")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FaultPoint {
+    /// After the job is marked active, before it is claimed.
+    BeforeClaim,
+    /// After the durable claim, before any Bluetooth I/O.
+    AfterClaim,
+    /// While recording the outcome, holding the job store's lock.
+    WhilePersisting,
+}
+
+#[cfg(feature = "fault-injection")]
+macro_rules! fault_point {
+    ($service:expr, $point:ident) => {
+        $service.maybe_panic(FaultPoint::$point)
+    };
+}
+#[cfg(not(feature = "fault-injection"))]
+macro_rules! fault_point {
+    ($service:expr, $point:ident) => {};
+}
+
+/// How [`AppService::shutdown`] ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShutdownOutcome {
+    /// The dispatcher and any active job ended. The service had not failed.
+    Clean,
+    /// Everything ended, but the service had failed (see [`ServiceFault`]).
+    Faulted,
+    /// The deadline passed. The dispatcher still owns the Bluetooth session and the data folder,
+    /// and keeps them until its cleanup ends; call `shutdown` again to keep waiting.
+    TimedOut,
 }
 
 struct Inner {
@@ -123,7 +170,13 @@ struct Inner {
     /// What currently holds `hardware`, so a refusal can say what to wait for.
     hardware_use: Mutex<Option<HardwareUse>>,
     shutdown: CancellationToken,
-    dispatcher: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// The supervisor, which owns the dispatcher's join handle.
+    supervisor: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// Set once, never cleared. Lock-free on purpose: reporting a failure must not depend on a
+    /// mutex that the failed task may have poisoned.
+    fault: OnceLock<ServiceFault>,
+    #[cfg(feature = "fault-injection")]
+    injected: Mutex<Option<FaultPoint>>,
     last_check: Mutex<Option<PrinterCheck>>,
     _temp: Option<tempfile::TempDir>,
 }
@@ -295,7 +348,7 @@ struct HardwareClaim<'a> {
 impl Drop for HardwareClaim<'_> {
     fn drop(&mut self) {
         // Runs before `_guard` is released, so it never clears a newer holder.
-        *self.holder.lock().unwrap() = None;
+        *relock(self.holder) = None;
     }
 }
 
@@ -356,7 +409,10 @@ impl AppService {
             hardware: tokio::sync::Mutex::new(()),
             hardware_use: Mutex::new(None),
             shutdown: CancellationToken::new(),
-            dispatcher: Mutex::new(None),
+            supervisor: Mutex::new(None),
+            fault: OnceLock::new(),
+            #[cfg(feature = "fault-injection")]
+            injected: Mutex::new(None),
             last_check: Mutex::new(None),
             _temp: temp,
         });
@@ -373,31 +429,177 @@ impl AppService {
             service.log(LogLevel::Info, format!("{held_jobs} queued job(s) were held after restart"));
         }
         let dispatcher = service.clone();
-        let task = tokio::spawn(async move { dispatcher.dispatch_loop().await });
-        *service.inner.dispatcher.lock().unwrap() = Some(task);
+        let worker = tokio::spawn(async move { dispatcher.dispatch_loop().await });
+        let supervisor = service.clone();
+        let task = tokio::spawn(async move { supervisor.supervise(worker).await });
+        *relock(&service.inner.supervisor) = Some(task);
         Ok(service)
     }
 
     /// Stop accepting work, cancel the active transfer and wait (bounded) for its outcome
-    /// to be persisted. Pending jobs stay queued/held for the next start.
-    pub async fn shutdown(&self, wait: Duration) {
+    /// to be persisted and the dispatcher to end. Pending jobs stay queued/held for the next
+    /// start. On [`ShutdownOutcome::TimedOut`] nothing is released: the dispatcher (which owns
+    /// the Bluetooth session) and the supervisor keep the service, so the data folder stays
+    /// locked until their cleanup really ends.
+    pub async fn shutdown(&self, wait: Duration) -> ShutdownOutcome {
         self.inner.shutdown.cancel();
-        if let Some(active) = self.inner.active.lock().unwrap().as_ref() {
+        if let Some(active) = relock(&self.inner.active).as_ref() {
             active.cancel.cancel();
         }
         let deadline = Instant::now() + wait;
-        while self.inner.active.lock().unwrap().is_some() && Instant::now() < deadline {
+        while relock(&self.inner.active).is_some() && Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        // The dispatcher holds the service (and so the data folder's owner lock) until it exits.
-        let task = self.inner.dispatcher.lock().unwrap().take();
-        if let Some(task) = task {
-            let _ = tokio::time::timeout(wait, task).await;
+        let task = relock(&self.inner.supervisor).take();
+        if let Some(mut task) = task {
+            match tokio::time::timeout(wait, &mut task).await {
+                Err(_) => {
+                    *relock(&self.inner.supervisor) = Some(task);
+                    return ShutdownOutcome::TimedOut;
+                }
+                // The supervisor itself died; the dispatcher's result was never classified.
+                Ok(Err(_)) => self.fail_closed(ServiceFaultKind::DispatcherStopped),
+                Ok(Ok(())) => {}
+            }
+        }
+        if relock(&self.inner.active).is_some() {
+            return ShutdownOutcome::TimedOut;
+        }
+        if self.inner.fault.get().is_some() { ShutdownOutcome::Faulted } else { ShutdownOutcome::Clean }
+    }
+
+    /// The saved queue. A thread that panicked while holding the lock leaves SQLite with at most
+    /// a rolled-back transaction, so the guard is recovered only after checking that: valid
+    /// storage clears the poison; storage that fails the check fails the service closed.
+    fn store(&self) -> MutexGuard<'_, Store> {
+        match self.inner.store.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                let guard = poisoned.into_inner();
+                if guard.is_consistent() {
+                    self.inner.store.clear_poison();
+                } else {
+                    self.fail_closed(ServiceFaultKind::StorageInvalid);
+                }
+                guard
+            }
         }
     }
 
-    fn store(&self) -> MutexGuard<'_, Store> {
-        self.inner.store.lock().unwrap()
+    /// The error for work refused because the service has failed, if it has.
+    fn fault_error(&self) -> Option<AppError> {
+        self.inner.fault.get().map(|fault| {
+            AppError::new(ErrorCode::Internal, fault.message.clone()).with_detail(format!("{:?}", fault.kind))
+        })
+    }
+
+    // ------------------------------------------------------------ supervision
+
+    /// Watch the dispatcher. It ends only at a requested shutdown; any other end is a failure.
+    async fn supervise(self, worker: tokio::task::JoinHandle<()>) {
+        let kind = match worker.await {
+            Ok(()) if self.inner.shutdown.is_cancelled() => return,
+            Err(e) if e.is_panic() => ServiceFaultKind::DispatcherPanicked,
+            Err(_) if self.inner.shutdown.is_cancelled() => return,
+            Ok(()) | Err(_) => ServiceFaultKind::DispatcherStopped,
+        };
+        self.fail_closed(kind);
+    }
+
+    /// Stop the service for good after a failure: record it (lock-free, first failure wins),
+    /// hold the queue, and reconcile the claimed attempt. Never panics and never requeues.
+    ///
+    /// Bluetooth is not released afterwards. Dropping the failed task is not proof that the native
+    /// connection ended, so `claim_hardware` refuses until the app restarts (increment B of the
+    /// follow-up plan may allow a bounded in-process recovery).
+    fn fail_closed(&self, kind: ServiceFaultKind) {
+        // A dead dispatcher can no longer finish its job, so its slot is released here. On a
+        // storage failure the dispatcher is still running and keeps its slot until it unwinds.
+        let dispatcher_gone = kind != ServiceFaultKind::StorageInvalid;
+        let job_id = {
+            let mut active = relock(&self.inner.active);
+            let id = active.as_ref().map(|a| {
+                a.cancel.cancel();
+                a.job_id.clone()
+            });
+            if dispatcher_gone {
+                *active = None;
+            }
+            id
+        };
+        let fault = ServiceFault {
+            kind,
+            message: match kind {
+                ServiceFaultKind::StorageInvalid => {
+                    "NuPrint's saved queue could not be checked after an internal error. Restart NuPrint; \
+                     nothing will be printed until then."
+                }
+                _ => {
+                    "NuPrint's print queue stopped working. Nothing will be printed or connected until you \
+                     restart NuPrint. Waiting jobs are kept. If a job was printing, check the paper before \
+                     printing it again."
+                }
+            }
+            .into(),
+            at_ms: now_ms() as f64,
+            job_id: job_id.clone(),
+        };
+        if self.inner.fault.set(fault.clone()).is_err() {
+            return;
+        }
+        self.inner.held.store(true, Ordering::Relaxed);
+        // The rest touches locks and callbacks that may be the reason for the failure.
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            // On a storage failure the caller may hold the poisoned store lock; leave the job for
+            // the restart recovery rather than lock it again here.
+            let note = match &job_id {
+                Some(job_id) if dispatcher_gone => self.reconcile_failed_attempt(job_id),
+                Some(_) => "the active job stays active and a restart will mark it uncertain",
+                None => "no job was active",
+            };
+            self.log(LogLevel::Error, format!("Queue stopped ({kind:?}); {note}. Restart NuPrint."));
+            self.emit(AppEvent::QueueFault { seq: self.next_seq(), fault });
+        }));
+    }
+
+    /// Mark the attempt the failed dispatcher had claimed as uncertain, if storage can be saved.
+    /// Otherwise it stays active and the next start marks it uncertain.
+    fn reconcile_failed_attempt(&self, job_id: &str) -> &'static str {
+        let result = {
+            let mut store = self.store();
+            if !store.is_consistent() {
+                return "storage is unusable, so a restart will mark the job uncertain";
+            }
+            store.mark_active_uncertain(
+                job_id,
+                "NuPrint's print queue failed while this job was printing. Check the paper; it was not resent.",
+            )
+        };
+        match result {
+            Ok(Some(job)) => {
+                self.emit_job(&job);
+                "the job was marked uncertain"
+            }
+            Ok(None) => "the job had not started or had finished",
+            Err(_) => "the job could not be saved, so a restart will mark it uncertain",
+        }
+    }
+
+    #[cfg(feature = "fault-injection")]
+    /// Test seam: make the dispatcher panic once, when it next reaches `point`.
+    pub fn inject_panic(&self, point: FaultPoint) {
+        *relock(&self.inner.injected) = Some(point);
+    }
+
+    #[cfg(feature = "fault-injection")]
+    fn maybe_panic(&self, point: FaultPoint) {
+        let hit = {
+            let mut armed = relock(&self.inner.injected);
+            (*armed == Some(point)).then(|| armed.take())
+        };
+        if hit.is_some() {
+            panic!("injected dispatcher fault at {point:?}");
+        }
     }
 
     fn next_seq(&self) -> f64 {
@@ -538,7 +740,7 @@ impl AppService {
         let include_unknown = request.include_unknown.unwrap_or(false);
         let scan_id = Uuid::new_v4().to_string();
         let cancel = self.inner.shutdown.child_token();
-        self.inner.scans.lock().unwrap().insert(scan_id.clone(), cancel.clone());
+        relock(&self.inner.scans).insert(scan_id.clone(), cancel.clone());
         let service = self.clone();
         let id = scan_id.clone();
         tokio::spawn(async move {
@@ -563,7 +765,7 @@ impl AppService {
                 if device.candidates.is_empty() && !include_unknown {
                     continue;
                 }
-                service.inner.discovered.lock().unwrap().insert(adv.backend_id.clone(), adv);
+                relock(&service.inner.discovered).insert(adv.backend_id.clone(), adv);
                 found += u32::from(previous.is_none());
                 service.emit(AppEvent::ScanDevice { scan_id: id.clone(), device });
             }
@@ -572,7 +774,7 @@ impl AppService {
                 Ok(Err(e)) => Some(AppError::from(e)),
                 Err(e) => Some(AppError::internal(e)),
             };
-            service.inner.scans.lock().unwrap().remove(&id);
+            relock(&service.inner.scans).remove(&id);
             service.log(LogLevel::Info, format!("Scan finished: {found} device(s)"));
             service.emit(AppEvent::ScanFinished { scan_id: id, found, error });
         });
@@ -580,7 +782,7 @@ impl AppService {
     }
 
     pub fn stop_scan(&self, scan_id: &str) {
-        if let Some(token) = self.inner.scans.lock().unwrap().get(scan_id) {
+        if let Some(token) = relock(&self.inner.scans).get(scan_id) {
             token.cancel();
         }
     }
@@ -594,7 +796,7 @@ impl AppService {
                 || a.local_name.as_deref() == Some(target)
         })
         .await?;
-        self.inner.discovered.lock().unwrap().insert(adv.backend_id.clone(), adv.clone());
+        relock(&self.inner.discovered).insert(adv.backend_id.clone(), adv.clone());
         Ok(self.discovered_printer(&adv))
     }
 
@@ -604,12 +806,12 @@ impl AppService {
         let registry = &self.inner.registry;
         let adv =
             locate(self.inner.transport.as_ref(), timeout, &cancel, |a| !registry.candidates(a).is_empty()).await?;
-        self.inner.discovered.lock().unwrap().insert(adv.backend_id.clone(), adv.clone());
+        relock(&self.inner.discovered).insert(adv.backend_id.clone(), adv.clone());
         Ok(self.discovered_printer(&adv))
     }
 
     fn discovered(&self, discovery_id: &str) -> AppResult<Advertisement> {
-        self.inner.discovered.lock().unwrap().get(discovery_id).cloned().ok_or_else(|| {
+        relock(&self.inner.discovered).get(discovery_id).cloned().ok_or_else(|| {
             AppError::new(ErrorCode::DeviceNotFound, "That device is no longer in the scan results. Scan again.")
         })
     }
@@ -617,10 +819,14 @@ impl AppService {
     /// Take the Bluetooth lock for a user action. Only an inspection is waited for, because it is
     /// short and bounded; behind a print or a check the action is refused as busy instead.
     async fn claim_hardware(&self, purpose: HardwareUse, cancel: &CancellationToken) -> AppResult<HardwareClaim<'_>> {
+        // After a dispatcher failure the old Bluetooth session may still be open.
+        if let Some(error) = self.fault_error() {
+            return Err(error);
+        }
         let guard = match self.inner.hardware.try_lock() {
             Ok(guard) => guard,
             Err(_) => {
-                let holder = *self.inner.hardware_use.lock().unwrap();
+                let holder = *relock(&self.inner.hardware_use);
                 if holder != Some(HardwareUse::Inspecting) {
                     return Err(busy(holder));
                 }
@@ -634,7 +840,7 @@ impl AppService {
     }
 
     fn hold_hardware<'a>(&'a self, guard: tokio::sync::MutexGuard<'a, ()>, purpose: HardwareUse) -> HardwareClaim<'a> {
-        *self.inner.hardware_use.lock().unwrap() = Some(purpose);
+        *relock(&self.inner.hardware_use) = Some(purpose);
         HardwareClaim { _guard: guard, holder: &self.inner.hardware_use }
     }
 
@@ -661,7 +867,7 @@ impl AppService {
                 "The device now advertises a different name, which does not match this printer's profile.",
             ));
         }
-        self.inner.discovered.lock().unwrap().insert(adv.backend_id.clone(), adv);
+        relock(&self.inner.discovered).insert(adv.backend_id.clone(), adv);
         PrinterSession::open(self.inner.transport.as_ref(), resolved, backend_id, self.logger(), cancel).await
     }
 
@@ -670,15 +876,15 @@ impl AppService {
     pub async fn inspect_device(&self, discovery_id: &str) -> AppResult<DeviceInspection> {
         let id = Uuid::new_v4().to_string();
         let cancel = self.inner.shutdown.child_token();
-        self.inner.inspections.lock().unwrap().insert(id.clone(), cancel.clone());
+        relock(&self.inner.inspections).insert(id.clone(), cancel.clone());
         let result = self.inspect(discovery_id, &cancel).await;
-        self.inner.inspections.lock().unwrap().remove(&id);
+        relock(&self.inner.inspections).remove(&id);
         result
     }
 
     /// Cancel every running inspection; each releases Bluetooth once it has disconnected.
     pub fn cancel_inspections(&self) {
-        for token in self.inner.inspections.lock().unwrap().values() {
+        for token in relock(&self.inner.inspections).values() {
             token.cancel();
         }
     }
@@ -1034,7 +1240,7 @@ impl AppService {
             checked_ms: now_ms() as f64,
         };
         self.log(LogLevel::Info, format!("Connection verified · {}", check.status_text));
-        *self.inner.last_check.lock().unwrap() = Some(check.clone());
+        *relock(&self.inner.last_check) = Some(check.clone());
         self.emit(AppEvent::PrintersChanged { seq: self.next_seq() });
         Ok(check)
     }
@@ -1301,6 +1507,10 @@ impl AppService {
     }
 
     fn admit(&self, mut job: JobRow, pages: &[(u32, MonoBitmap)]) -> AppResult<JobSummary> {
+        // A job added now would wait for a queue that cannot run until the app restarts.
+        if let Some(error) = self.fault_error() {
+            return Err(error);
+        }
         let mut store = self.store();
         if store.count_jobs_with_content()? >= MAX_QUEUE_JOBS {
             return Err(AppError::new(
@@ -1346,10 +1556,11 @@ impl AppService {
         let jobs = store.list_jobs_with_pages(200)?.iter().map(|(row, pages)| summarize(row, pages)).collect();
         let seq = self.inner.seq.load(Ordering::SeqCst) as f64;
         Ok(QueueSnapshot {
-            held: self.inner.held.load(Ordering::Relaxed),
+            held: self.inner.held.load(Ordering::Relaxed) || self.inner.fault.get().is_some(),
             revision: store.revision() as f64,
             seq,
             jobs,
+            fault: self.inner.fault.get().cloned(),
         })
     }
 
@@ -1460,6 +1671,9 @@ impl AppService {
     }
 
     pub fn resume_queue(&self) -> AppResult<QueueSnapshot> {
+        if let Some(error) = self.fault_error() {
+            return Err(error);
+        }
         self.inner.held.store(false, Ordering::Relaxed);
         let released = {
             let mut store = self.store();
@@ -1483,7 +1697,10 @@ impl AppService {
 
     async fn dispatch_loop(self) {
         loop {
-            while !self.inner.held.load(Ordering::Relaxed) && !self.inner.shutdown.is_cancelled() {
+            while !self.inner.held.load(Ordering::Relaxed)
+                && !self.inner.shutdown.is_cancelled()
+                && self.inner.fault.get().is_none()
+            {
                 let next = self.store().next_queued();
                 match next {
                     Ok(Some(job)) => self.run_job(job).await,
@@ -1524,7 +1741,7 @@ impl AppService {
     }
 
     fn cancel_active(&self, job_id: &str) -> bool {
-        let active = self.inner.active.lock().unwrap();
+        let active = relock(&self.inner.active);
         match active.as_ref() {
             Some(active) if active.job_id == job_id => {
                 active.cancel.cancel();
@@ -1537,7 +1754,8 @@ impl AppService {
     async fn run_job(&self, queued: JobRow) {
         let cancel = self.inner.shutdown.child_token();
         // Active before claimed: a cancel that misses the queued row still finds the job here.
-        *self.inner.active.lock().unwrap() = Some(ActiveJob { job_id: queued.id.clone(), cancel: cancel.clone() });
+        *relock(&self.inner.active) = Some(ActiveJob { job_id: queued.id.clone(), cancel: cancel.clone() });
+        fault_point!(self, BeforeClaim);
         let hardware = tokio::select! {
             guard = self.inner.hardware.lock() => Some(self.hold_hardware(guard, HardwareUse::Printing)),
             _ = cancel.cancelled() => None,
@@ -1550,7 +1768,7 @@ impl AppService {
                 Ok(None) => {}
                 Err(e) => self.log(LogLevel::Error, format!("Could not save the cancellation: {e}")),
             }
-            *self.inner.active.lock().unwrap() = None;
+            *relock(&self.inner.active) = None;
             return;
         };
         // Claim the job durably before any Bluetooth I/O. If it is no longer queued, or the claim
@@ -1560,16 +1778,17 @@ impl AppService {
         let mut job = match claimed {
             Ok(Some(job)) => job,
             Ok(None) => {
-                *self.inner.active.lock().unwrap() = None;
+                *relock(&self.inner.active) = None;
                 return;
             }
             Err(e) => {
                 self.log(LogLevel::Error, format!("Could not claim a job: {e}"));
                 self.pause_queue_for_storage_error("the start of a job");
-                *self.inner.active.lock().unwrap() = None;
+                *relock(&self.inner.active) = None;
                 return;
             }
         };
+        fault_point!(self, AfterClaim);
         self.emit_job(&job);
         let (result, sent) = self.execute_job(&mut job, &attempt_id, &cancel).await;
         drop(hardware);
@@ -1594,6 +1813,7 @@ impl AppService {
         };
         {
             let store = self.store();
+            fault_point!(self, WhilePersisting);
             if let Err(e) = store.finish_attempt(&attempt_id, state, result.as_ref().err().map(|e| e.code)) {
                 self.log(LogLevel::Error, format!("Could not record the attempt outcome: {e}"));
             }
@@ -1620,7 +1840,7 @@ impl AppService {
             }
             Err(e) => self.log(LogLevel::Error, format!("\"{}\": {}", private(&job.title), e.message)),
         }
-        *self.inner.active.lock().unwrap() = None;
+        *relock(&self.inner.active) = None;
     }
 
     /// Returns the outcome and the number of print bytes that may have reached the printer.
@@ -1707,7 +1927,7 @@ impl AppService {
     pub async fn diagnostics_report(&self, include_identifiers: bool) -> AppResult<DiagnosticsReport> {
         let mut app = self.app_info();
         let mut printers = self.list_printers()?;
-        let mut last_check = self.inner.last_check.lock().unwrap().clone();
+        let mut last_check = relock(&self.inner.last_check).clone();
         let mut recent_jobs = self.list_jobs()?.jobs;
         let mut profiles = self.profiles();
         recent_jobs.truncate(20);

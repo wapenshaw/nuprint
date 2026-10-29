@@ -3,9 +3,10 @@ import type { AppError } from "./AppError";
 import type { DiscoveredPrinter } from "./DiscoveredPrinter";
 import type { JobSummary } from "./JobSummary";
 import type { LogLine } from "./LogLine";
+import type { ServiceFault } from "./ServiceFault";
 
 /**
  * Single event channel `nuprint://event`. Events carry a sequence number; durable
  * state must be re-read with `list_jobs` after (re)subscribing.
  */
-export type AppEvent = { "type": "scan_device", scan_id: string, device: DiscoveredPrinter, } | { "type": "scan_finished", scan_id: string, found: number, error?: AppError, } | { "type": "job_changed", seq: number, job: JobSummary, queue_held: boolean, } | { "type": "job_removed", seq: number, job_id: string, } | { "type": "job_progress", seq: number, job_id: string, attempt_id: string, bytes_sent: number, bytes_total: number, } | { "type": "printers_changed", seq: number, } | { "type": "log", line: LogLine, };
+export type AppEvent = { "type": "scan_device", scan_id: string, device: DiscoveredPrinter, } | { "type": "scan_finished", scan_id: string, found: number, error?: AppError, } | { "type": "job_changed", seq: number, job: JobSummary, queue_held: boolean, } | { "type": "job_removed", seq: number, job_id: string, } | { "type": "job_progress", seq: number, job_id: string, attempt_id: string, bytes_sent: number, bytes_total: number, } | { "type": "printers_changed", seq: number, } | { "type": "queue_fault", seq: number, fault: ServiceFault, } | { "type": "log", line: LogLine, };

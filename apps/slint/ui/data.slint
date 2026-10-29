@@ -103,6 +103,8 @@ export global Data {
     in property <[JobItem]> jobs;
     in property <bool> queue-held: false;
     in property <bool> has-held-jobs: false;
+    /// Set when the queue worker failed; the queue stays stopped until the app restarts.
+    in property <string> queue-fault: "";
     in property <string> waiting-text;
     in property <bool> can-clear: false;
 
