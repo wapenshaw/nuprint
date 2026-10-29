@@ -223,6 +223,30 @@ One pass of the logging section at `bb6e479`.
 
 The calling thread no longer opens the file, so the occasional 8 to 10 ms stalls are gone (the largest single call in this pass was 28 µs). The harness does not report how many lines the bounded buffer dropped during the burst.
 
+### Compositing pictures onto white (`41a3d8c`)
+
+`cargo run -p nuprint-render --example composite --release`: `render_image` on a 6000 × 6000 picture at the default target, median of 7 runs, peak heap from a counting allocator. Two passes each; they agreed within 10%.
+
+| Input | ms, before | ms, after | peak heap MiB, before | after |
+| --- | ---: | ---: | ---: | ---: |
+| RGBA PNG | 243 | 219 | 309 | 172 |
+| RGB JPEG | 280 to 293 | 221 | 275 | 137 |
+| grey PNG | 430 to 445 | 147 | 206 | 70 |
+
+Every picture and PDF page used to be copied to RGBA before being reduced to grey. Eight-bit images are now read where they are and an opaque grey one is used as is; 16-bit and float images still take the copy. A unit test checks that every pixel format gives the same grey values as the RGBA path.
+
+### Slint activity log (`fa65a47`)
+
+Measured in the release Slint app with temporary instrumentation (not committed): the Diagnostics screen open, lines sent through `AppService::log` from another thread, and a 5 ms timer on the UI thread recording how late it fired. Two runs each.
+
+| Lines | UI timer late p95 ms, before | after | max ms, before | after |
+| --- | ---: | ---: | ---: | ---: |
+| 300, one every 2 ms | 27 to 31 | 2.6 | 31 to 33 | 3.4 to 3.6 |
+
+A burst of 500 lines was in the model within one 5 ms tick, against about 82 ms before; that run stopped as soon as the last line arrived, so the frame drawing it is not in the figure.
+
+Before, each line rebuilt all 500 rows (and the facts beside them); Slint only re-laid them out once per frame, so a burst cost one or two slow frames, while a steady stream cost a slow frame for every frame. Now the UI thread appends the lines that arrived since its last turn to the existing rows and drops the oldest past 500.
+
 ## Decisions from the measurements
 
 - **Step 3, storage boundary: no dedicated store worker.** A single store call measured 0.04 to 2 ms, and admission about 2 ms (6 ms for 20 copies of a 4,000-row page). Only sustained contention on a 2-worker runtime delayed other tasks (p95 6 ms), and moving calls into `spawn_blocking` traded that for 8 to 9 ms of call latency and half the churn throughput, because the store is one serialised connection either way. So store calls stay synchronous behind the mutex. File I/O, which has no such bound (a slow or network disk), moved to blocking threads instead. The Slint UI thread was not profiled; its store reloads now run off that thread, so the remaining UI-thread store work is single calls such as selecting a printer or enqueueing.
