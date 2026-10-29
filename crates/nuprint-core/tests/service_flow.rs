@@ -951,3 +951,48 @@ async fn redacted_diagnostics_leave_no_printer_name_or_title_anywhere() {
     assert!(!full.contains('\u{1}') && !full.contains('\u{2}'), "markers never leave the service");
     assert!(h.service.logs().iter().all(|l| !l.message.contains('\u{1}')));
 }
+
+fn slow_check(
+    h: &Harness,
+    printer: &SavedPrinter,
+) -> tokio::task::JoinHandle<Result<PrinterCheck, nuprint_core::AppError>> {
+    let (service, id) = (h.service.clone(), printer.id.clone());
+    tokio::spawn(async move { service.check_printer(&id).await })
+}
+
+/// Wait until a check started by [`slow_check`] has found the printer and is connecting.
+async fn until_connecting(h: &Harness) {
+    while h.transport.log().scans < 2 {
+        tokio::task::yield_now().await;
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_connection_check_keeps_settings_changed_while_it_waited() {
+    let connect =
+        MockTransport::new(vec![sc03h("SC03h-TEST", Sim::default())]).with_connect_delay(Duration::from_secs(2));
+    let h = start_on(connect, None);
+    let printer = h.save_first_printer().await;
+    let check = slow_check(&h, &printer);
+    until_connecting(&h).await;
+    let changed = PrinterSettings { density: D::Dark, feed_mm: 3 };
+    h.service.update_printer_settings(&printer.id, changed).unwrap();
+    let check = check.await.unwrap().unwrap();
+
+    let saved = h.service.list_printers().unwrap().remove(0);
+    assert_eq!(saved.settings, changed, "the check did not restore the old settings");
+    assert_eq!(saved.firmware.as_deref(), check.firmware.as_deref(), "the check still records what it read");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_connection_check_does_not_bring_back_a_removed_printer() {
+    let connect =
+        MockTransport::new(vec![sc03h("SC03h-TEST", Sim::default())]).with_connect_delay(Duration::from_secs(2));
+    let h = start_on(connect, None);
+    let printer = h.save_first_printer().await;
+    let check = slow_check(&h, &printer);
+    until_connecting(&h).await;
+    h.service.remove_printer(&printer.id).unwrap();
+    check.await.unwrap().unwrap();
+    assert!(h.service.list_printers().unwrap().is_empty());
+}
