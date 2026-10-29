@@ -158,6 +158,11 @@ impl AppService {
         self.job_summary(&job)
     }
 
+    /// The saved queue, newest first, with the queue's hold state and any service fault.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
     pub fn list_jobs(&self) -> AppResult<QueueSnapshot> {
         let store = self.store();
         let jobs = store.list_jobs_with_pages(200)?.iter().map(|(row, pages)| summarize(row, pages)).collect();
@@ -171,6 +176,11 @@ impl AppService {
         })
     }
 
+    /// One job by ID.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown job, or a storage error.
     pub fn get_job(&self, job_id: &str) -> AppResult<JobSummary> {
         let job = self.store().get_job(job_id)?.ok_or_else(|| AppError::not_found("Job"))?;
         self.job_summary(&job)
@@ -214,6 +224,16 @@ impl AppService {
         }
     }
 
+    /// Queue a finished job again from its saved print pages.
+    /// The same `idempotency_key` returns the job already queued for it.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown job, [`ErrorCode::InvalidInput`] when the job is not
+    /// finished or its print data was not kept, [`ErrorCode::UnsupportedProfile`] when its profile
+    /// revision is gone, and [`ErrorCode::RenderInvalid`] when a saved page is missing or damaged.
+    /// [`ErrorCode::QueueFull`] at the job or retained-data limit, [`ErrorCode::Internal`] after a
+    /// service failure, and a storage error.
     pub fn retry_job(&self, job_id: &str, idempotency_key: String) -> AppResult<JobSummary> {
         let existing = self.store().find_job_by_key(&idempotency_key)?;
         if let Some(existing) = existing {
@@ -256,6 +276,12 @@ impl AppService {
         self.admit(job, &pages)
     }
 
+    /// Delete a finished job and its saved data.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown job, [`ErrorCode::InvalidInput`] when the job has not
+    /// finished (cancel it first), and a storage error.
     pub fn remove_job(&self, job_id: &str) -> AppResult<()> {
         let mut store = self.store();
         let job = store.get_job(job_id)?.ok_or_else(|| AppError::not_found("Job"))?;
@@ -268,6 +294,11 @@ impl AppService {
         Ok(())
     }
 
+    /// Delete every finished job. Queued, held and active jobs stay.
+    ///
+    /// # Errors
+    ///
+    /// A storage error; jobs removed before it stay removed.
     pub fn clear_history(&self) -> AppResult<()> {
         let mut store = self.store();
         let removed: Vec<String> =
@@ -282,6 +313,11 @@ impl AppService {
         Ok(())
     }
 
+    /// Stop starting new jobs. The active job, if any, carries on.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
     pub fn hold_queue(&self) -> AppResult<QueueSnapshot> {
         self.inner.held.store(true, Ordering::Relaxed);
         self.store().set_pref("queue_held", &true)?;
@@ -289,6 +325,12 @@ impl AppService {
         self.list_jobs()
     }
 
+    /// Release held jobs and let the queue start them again.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::Internal`] when the service has failed and the queue cannot run until the app
+    /// restarts, and a storage error.
     pub fn resume_queue(&self) -> AppResult<QueueSnapshot> {
         if let Some(error) = self.fault_error() {
             return Err(error);

@@ -135,6 +135,14 @@ fn warning_text(warning: &RenderWarning) -> String {
 
 impl AppService {
     /// Copy a user-selected file into app-managed memory. Only the file name is kept.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::InvalidInput`] when the file cannot be opened or is a folder.
+    /// [`ErrorCode::RenderInvalid`] when it is over the size limit or not a recognised picture or
+    /// PDF, or a PDF is damaged. [`ErrorCode::PdfUnavailable`] when PDFium cannot be loaded.
+    /// [`ErrorCode::Cancelled`] when the service is shutting down. A PDF that needs a password is
+    /// not an error; its page count is left empty.
     pub async fn import_source(&self, path: &Path) -> AppResult<SourceInfo> {
         let owned = path.to_path_buf();
         let bytes = Arc::new(blocking_io(move || read_source(&owned)).await?);
@@ -172,6 +180,17 @@ impl AppService {
             .ok_or_else(|| AppError::not_found("The opened file").with_detail("open it again"))
     }
 
+    /// Render a source to the printer's canonical bitmap and keep it as a snapshot a job can be
+    /// admitted from. A request with an older `generation` than one already seen is refused.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::StalePreview`] when a newer request has replaced this one,
+    /// [`ErrorCode::Cancelled`] on shutdown, [`ErrorCode::NotFound`] for an unknown profile or opened
+    /// file, and [`ErrorCode::InvalidInput`] when the file's kind does not suit the source (a PDF
+    /// used as a picture, or the reverse). Rendering failures arrive as
+    /// [`ErrorCode::RenderInvalid`], [`ErrorCode::PdfUnavailable`] or
+    /// [`ErrorCode::PdfPasswordRequired`].
     pub async fn render_preview(&self, request: PreviewRequest) -> AppResult<PreviewResult> {
         let mut ticket = self.inner.renders.admit(request.generation)?;
         let resolved =
@@ -269,7 +288,11 @@ impl AppService {
             .ok_or_else(|| AppError::new(ErrorCode::StalePreview, "This preview has expired. Wait for it to refresh."))
     }
 
-    /// Fails with `StalePreview` once the snapshot has been evicted.
+    /// Check that a preview snapshot is still available to print.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::StalePreview`] once the snapshot has been replaced or evicted, or never existed.
     pub fn check_preview(&self, snapshot_id: &str) -> AppResult<()> {
         self.snapshot(snapshot_id).map(drop)
     }
@@ -295,6 +318,12 @@ impl AppService {
         Some(nuprint_render::encode_png(&bitmap))
     }
 
+    /// Write a preview snapshot's PNG to `path`.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::StalePreview`] as for [`Self::check_preview`], or an I/O error writing `path`
+    /// ([`ErrorCode::StorageFull`] on a full disk, otherwise [`ErrorCode::Internal`]).
     pub async fn save_preview_png(&self, snapshot_id: &str, path: &Path) -> AppResult<()> {
         let png = self.snapshot(snapshot_id)?.png.clone();
         let path = path.to_path_buf();

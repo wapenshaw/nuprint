@@ -13,6 +13,8 @@
 //! - **Confirmed and at-risk bytes differ.** `bytes_sent` counts confirmed writes, but whether a
 //!   failure is uncertain depends on bytes that may have arrived; see [`jobs::classify`].
 
+#![warn(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+
 pub mod api;
 pub mod error;
 pub mod jobs;

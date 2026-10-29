@@ -88,6 +88,13 @@ impl AppService {
         }
     }
 
+    /// Start a Bluetooth scan in the background. Devices and the end of the scan arrive as events.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::AdapterOff`], [`ErrorCode::AdapterAbsent`] or [`ErrorCode::PermissionDenied`]
+    /// when the adapter cannot scan. Failures during the scan itself are reported in the
+    /// `ScanFinished` event instead.
     pub async fn start_scan(&self, request: StartScanRequest) -> AppResult<ScanStarted> {
         let adapter = self.adapter_status().await;
         match adapter {
@@ -152,6 +159,11 @@ impl AppService {
     }
 
     /// Scan for one device by exact name, address or backend ID (CLI targeting).
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::DeviceNotFound`] when nothing matches within `timeout`,
+    /// [`ErrorCode::Cancelled`] on shutdown, and the adapter errors of the transport.
     pub async fn find_device(&self, target: &str, timeout: Duration) -> AppResult<DiscoveredPrinter> {
         let cancel = self.inner.shutdown.child_token();
         let adv = locate(self.inner.transport.as_ref(), timeout, &cancel, |a| {
@@ -165,6 +177,10 @@ impl AppService {
     }
 
     /// First supported device seen during a scan (CLI default target).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::find_device`].
     pub async fn find_first_supported(&self, timeout: Duration) -> AppResult<DiscoveredPrinter> {
         let cancel = self.inner.shutdown.child_token();
         let registry = &self.inner.registry;
@@ -182,6 +198,13 @@ impl AppService {
 
     /// Read-only GATT inspection; no vendor protocol bytes are written.
     /// [`Self::cancel_inspections`] stops it when nobody is waiting for the result any more.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::DeviceNotFound`] when `discovery_id` is not in the latest scan results or the
+    /// device is not found again, [`ErrorCode::PrinterBusy`] while a print or connection check holds
+    /// Bluetooth, [`ErrorCode::Internal`] after a service failure, [`ErrorCode::Cancelled`] when it is
+    /// cancelled, and connection errors from the transport.
     pub async fn inspect_device(&self, discovery_id: &str) -> AppResult<DeviceInspection> {
         let id = Uuid::new_v4().to_string();
         let cancel = self.inner.shutdown.child_token();
@@ -276,6 +299,11 @@ impl AppService {
         }
     }
 
+    /// Every saved printer, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
     pub fn list_printers(&self) -> AppResult<Vec<SavedPrinter>> {
         let rows = self.store().list_printers()?;
         Ok(rows.iter().map(|r| self.saved_printer(r)).collect())
@@ -285,6 +313,14 @@ impl AppService {
         self.store().get_printer(printer_id)?.ok_or_else(|| AppError::not_found("Printer"))
     }
 
+    /// Save a device from the latest scan as a printer, under a profile that matches it.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::DeviceNotFound`] when the device is no longer in the scan results,
+    /// [`ErrorCode::UnsupportedProfile`] when it does not match the chosen profile or the model is
+    /// not supported, [`ErrorCode::ExperimentalNotAcknowledged`] for an experimental printer without
+    /// `acknowledge_experimental`, and a storage error.
     pub fn save_printer(&self, request: SavePrinterRequest) -> AppResult<SavedPrinter> {
         let adv = self.discovered(&request.discovery_id)?;
         let os = self.inner.registry.os();
@@ -346,6 +382,11 @@ impl AppService {
         Ok(self.saved_printer(&row))
     }
 
+    /// Remove a saved printer.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown printer, or a storage error.
     pub fn remove_printer(&self, printer_id: &str) -> AppResult<()> {
         let store = self.store();
         if !store.delete_printer(printer_id)? {
@@ -389,6 +430,12 @@ impl AppService {
     }
 
     /// The settings a user may edit for this printer, with the built-in ones for comparison.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown printer, [`ErrorCode::UnsupportedProfile`] when its
+    /// profile or the built-in one it came from is unavailable in this version, and
+    /// [`ErrorCode::Internal`] when a profile cannot be serialized.
     pub fn printer_profile_doc(&self, printer_id: &str) -> AppResult<PrinterProfileDoc> {
         let row = self.printer_row(printer_id)?;
         let current = self.printer_profile(&row)?;
@@ -407,6 +454,14 @@ impl AppService {
     /// Store edited settings for one printer as a new revision of its own custom profile.
     /// Settings identical to the built-in ones go back to the built-in profile instead.
     /// Jobs already queued keep the revision they were rendered for.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::InvalidInput`] when `json` is not valid JSON or its settings fail
+    /// [`ModelProfile::customized`], [`ErrorCode::NotFound`] for an unknown printer,
+    /// [`ErrorCode::UnsupportedProfile`] when the built-in profile is unavailable,
+    /// [`ErrorCode::Internal`] when the new revision cannot be prepared or published, and a storage
+    /// error. Nothing is published if storing fails.
     pub fn save_printer_profile(&self, request: SavePrinterProfileRequest) -> AppResult<SavedPrinter> {
         let doc: serde_json::Value = serde_json::from_str(&request.json)
             .map_err(|e| AppError::invalid(format!("The settings are not valid JSON: {e}")))?;
@@ -445,6 +500,11 @@ impl AppService {
     }
 
     /// Go back to the built-in settings. Edited revisions stay stored for jobs that name them.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown printer, [`ErrorCode::UnsupportedProfile`] when the
+    /// built-in profile is unavailable, and a storage error.
     pub fn reset_printer_profile(&self, printer_id: &str) -> AppResult<SavedPrinter> {
         let store = self.store();
         let mut row = store.get_printer(printer_id)?.ok_or_else(|| AppError::not_found("Printer"))?;
@@ -466,6 +526,11 @@ impl AppService {
 
     /// The printer's settings as a complete profile file, for sharing. An edited profile gets a
     /// portable ID instead of this computer's printer ID.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown printer, [`ErrorCode::UnsupportedProfile`] when its
+    /// profile is unavailable, and [`ErrorCode::Internal`] when it cannot be serialized.
     pub fn export_printer_profile(&self, printer_id: &str) -> AppResult<String> {
         let row = self.printer_row(printer_id)?;
         let mut profile = (*self.printer_profile(&row)?.profile).clone();
@@ -477,6 +542,11 @@ impl AppService {
     }
 
     /// Write [`Self::export_printer_profile`] to a file the user chose.
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Self::export_printer_profile`], or an I/O error writing `path`
+    /// ([`ErrorCode::StorageFull`] on a full disk, otherwise [`ErrorCode::Internal`]).
     pub async fn save_printer_profile_file(&self, printer_id: &str, path: &Path) -> AppResult<()> {
         let json = self.export_printer_profile(printer_id)?;
         let path = path.to_path_buf();
@@ -484,11 +554,23 @@ impl AppService {
     }
 
     /// Reject darkness, extra feed or copies the profile does not accept, before any work.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown profile, and [`ErrorCode::InvalidInput`] when the
+    /// density, extra feed or copies are not accepted by it.
     pub fn check_job_options(&self, profile_id: &str, density: Density, feed_mm: u16, copies: u16) -> AppResult<()> {
         let resolved = self.inner.registry.get(profile_id).ok_or_else(|| AppError::not_found("Printer profile"))?;
         resolved.check_job_options(density, feed_mm, Some(copies))
     }
 
+    /// Change a printer's saved darkness and extra feed.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown printer, [`ErrorCode::UnsupportedProfile`] when its
+    /// profile is unavailable, [`ErrorCode::InvalidInput`] when the profile does not accept the
+    /// darkness or feed, and a storage error.
     pub fn update_printer_settings(&self, printer_id: &str, settings: PrinterSettings) -> AppResult<SavedPrinter> {
         // Read, check and write under one store lock, so a profile saved meanwhile is not undone.
         let store = self.store();
@@ -503,10 +585,20 @@ impl AppService {
         Ok(self.saved_printer(&row))
     }
 
+    /// The printer selected for printing, if one is.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
     pub fn selected_printer(&self) -> AppResult<Option<String>> {
         Ok(self.store().get_pref::<Option<String>>("selected_printer")?.flatten())
     }
 
+    /// Select a printer, or `None` to clear the choice.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] when `printer_id` names no saved printer, or a storage error.
     pub fn select_printer(&self, printer_id: Option<String>) -> AppResult<()> {
         if let Some(id) = &printer_id {
             self.printer_row(id)?;
@@ -517,6 +609,15 @@ impl AppService {
     }
 
     /// Connect and query status without printing.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::NotFound`] for an unknown printer, [`ErrorCode::UnsupportedProfile`] when its
+    /// profile is unavailable, [`ErrorCode::PrinterBusy`] while a print or another check holds
+    /// Bluetooth, [`ErrorCode::Internal`] after a service failure, and [`ErrorCode::Cancelled`] on
+    /// shutdown. Connecting can fail with [`ErrorCode::DeviceNotFound`],
+    /// [`ErrorCode::ConnectionFailed`] or [`ErrorCode::ServiceMismatch`], and a missing status reply
+    /// with [`ErrorCode::StatusTimeout`]. A successful check changes nothing on the printer.
     pub async fn check_printer(&self, printer_id: &str) -> AppResult<PrinterCheck> {
         let row = self.printer_row(printer_id)?;
         let resolved = self.printer_profile(&row)?.clone();
