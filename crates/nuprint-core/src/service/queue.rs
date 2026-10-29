@@ -86,7 +86,7 @@ impl AppService {
             source_kind: snapshot.source_kind.into(),
             printer_id: printer.id.clone(),
             printer_name: printer.name.clone(),
-            backend_id: printer.backend_id.clone(),
+            backend_id: printer.backend_id,
             profile_id: resolved.profile.id.clone(),
             profile_revision: resolved.profile.revision,
             protocol_id: resolved.driver.protocol_id().into(),
@@ -133,7 +133,7 @@ impl AppService {
             ));
         }
         job.revision = store.next_revision();
-        let driver = self.inner.registry.get_revision(&job.profile_id, job.profile_revision).map(|p| p.driver.clone());
+        let driver = self.inner.registry.get_revision(&job.profile_id, job.profile_revision).map(|p| p.driver);
         let per_page: Vec<i64> = pages
             .iter()
             .map(|(_, bitmap)| {

@@ -929,7 +929,7 @@ async fn a_second_service_cannot_share_a_running_data_folder() {
     let path = dir.path().to_path_buf();
     let h = start(vec![sc03h("SC03h-TEST", Sim::default())], Some(dir));
     let second = AppService::start(
-        ServiceConfig { data_dir: Some(path.clone()), pdfium_dirs: vec![], version: "test".into() },
+        ServiceConfig { data_dir: Some(path), pdfium_dirs: vec![], version: "test".into() },
         Arc::new(MockTransport::new(vec![])),
         Arc::new(|_e: AppEvent| {}),
     );
