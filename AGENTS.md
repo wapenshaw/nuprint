@@ -30,6 +30,7 @@ On 2026-10-12, the Python PoC connected to `SC03h-3DE8`, queried firmware `3.0.4
 | `fixtures/sc03h` | Golden vectors and verified strip generated from the Python PoC |
 | `poc/python` | Python/Tk PoC and fixture generator (`tools/gen_fixtures.py`) |
 | `scripts/` | Pinned PDFium download (`fetch-pdfium.ps1` / `.sh`) |
+| `site/` | nuprint.app: static site deployed to Cloudflare by `site.yml` and after each release; see `site/README.md` |
 | `docs/` | Evidence, operation guide, product and technical specifications |
 
 `apks/`, `.tools/`, `vendor/`, `target/`, `node_modules/`, `output/`, `.venv/` and Python `build/`/`dist/` are local, ignored artifacts. Never add the vendor APKs, decompiled vendor sources, PDFium binaries, local document content or build binaries to a source commit. A fresh clone should build without the APK or JADX.
