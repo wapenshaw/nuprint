@@ -300,3 +300,14 @@ jobs:
         run: |
           gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
           gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+
+  # nuprint.app links to the newest published release and shows its changelog;
+  # redeploy it now that this one is out.
+  site:
+    needs: publish
+    uses: ./.github/workflows/site.yml
+    permissions:
+      contents: read
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
