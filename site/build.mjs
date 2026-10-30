@@ -5,7 +5,7 @@
 // version in CHANGELOG.md. The changelog page shows only versions up to that tag,
 // so a release whose installers are still building never appears early.
 
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
@@ -77,8 +77,11 @@ const values = {
   RELEASES: published.map(renderRelease).join("\n"),
 };
 
-await rm(dist, { recursive: true, force: true });
+// Empty dist/ rather than delete it: `wrangler dev` keeps watching the folder.
 await mkdir(dist, { recursive: true });
+for (const entry of await readdir(dist)) {
+  await rm(`${dist}${entry}`, { recursive: true, force: true });
+}
 
 for (const page of ["index", "changelog", "404"]) {
   const template = await readFile(site(`src/${page}.html`), "utf8");
