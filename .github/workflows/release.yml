@@ -128,9 +128,12 @@ jobs:
           # No Apple Developer ID yet: sign ad hoc, so Gatekeeper offers "Open Anyway"
           # instead of calling the downloaded app damaged.
           APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && '-' || '' }}
+          # On macOS the .app bundle too: Tauri deletes it after making the DMG unless
+          # it was asked for, and "Updater files" archives it.
+          BUNDLES: ${{ matrix.bundle }}${{ runner.os == 'macOS' && ',app' || '' }}
         run: |
           npm ci
-          npx tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
+          npx tauri build --ci --target ${{ matrix.target }} --bundles "$BUNDLES"
 
       - name: Install cargo-packager
         run: cargo install cargo-packager --version 0.11.8 --locked
