@@ -1,0 +1,19 @@
+{
+  "name": "nuprint-site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "preview": "node build.mjs && wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@fontsource-variable/bricolage-grotesque": "5.3.0",
+    "@fontsource/space-mono": "5.3.0",
+    "marked": "18.1.1",
+    "wrangler": "4.151.1"
+  }
+}

@@ -29,3 +29,7 @@ apps/tauri/dist/
 .DS_Store
 Thumbs.db
 .idea/
+
+# nuprint.app (site/)
+site/dist/
+site/.wrangler/
