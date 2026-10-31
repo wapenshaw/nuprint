@@ -21,6 +21,13 @@ Download the installer for your system from [Releases](https://github.com/wapens
 
 The installers aren't code-signed yet, so the first launch needs one extra step. On Windows, if SmartScreen warns about an unrecognised app, choose **More info → Run anyway**. On macOS, open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint.
 
+On Linux, run these once so NuPrint can reach the printer ([why](linux.md)):
+
+```bash
+sudo sed -i 's/^#\?Experimental = .*/Experimental = true/' /etc/bluetooth/main.conf
+sudo systemctl restart bluetooth
+```
+
 Each release also has **NuPrint Slint**, a newer and less tested version of the same app. See [app details](app-details.md#nuprint-slint).
 
 ## Using the desktop app
@@ -64,4 +71,5 @@ A job is **uncertain** when NuPrint can't tell whether it printed, for example i
 - **Connected, but no status:** turn the printer off and on and check the connection again. On Windows, removing an old Bluetooth pairing for the printer can help.
 - **Blank paper:** the thermal side of the paper must face the print head.
 - **Stops halfway:** check the paper, the lid and the charge. After you cancel, a few rows already sent may still print.
+- **Linux:** if NuPrint says it tried Classic Bluetooth, run the two commands under [Installing](#installing). NuPrint doesn't need pairing; if you paired the printer in Bluetooth settings, choose **Forget**.
 - **macOS:** the first time you press **Find printers**, macOS asks whether NuPrint may use Bluetooth; choose **Allow**. If you refused, **Settings → Printers** offers **Open Bluetooth settings**: turn NuPrint on there, then find printers again.

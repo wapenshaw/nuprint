@@ -66,4 +66,6 @@ NuPrint also keeps a log file, `logs/nuprint.log`, in its data folder, with the 
 
 NuPrint never pairs or unpairs devices. It follows the printer's buffer pause and resume signals. Cancelling stops any further transfer, but rows already in the printer's buffer may still print. On macOS, **Open Bluetooth settings** goes to Privacy & Security → Bluetooth.
 
+On Linux, NuPrint asks BlueZ to connect over Bluetooth LE, which needs BlueZ's experimental features; [NuPrint on Linux](linux.md) explains why and how.
+
 For problems you see from the command line, see [diagnose by symptom](printer-interaction.md#diagnose-by-symptom).

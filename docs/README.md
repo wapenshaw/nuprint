@@ -6,6 +6,7 @@ NuPrint is a **Rust + Tauri app for Windows, macOS and Linux** with extensible p
 | --- | --- | --- |
 | [User guide](user-guide.md) | Supported printers, installing, the desktop app and troubleshooting; published at nuprint.app/guide with each release | Implemented |
 | [App details](app-details.md) | How the app behaves behind the guide: printer matching, queue recovery, updates, diagnostics and the log | Implemented |
+| [NuPrint on Linux](linux.md) | BlueZ setup, why the SC03h needs an LE-only connection, how NuPrint connects and disconnects, pairing, distributions and alternatives | Implemented; tested on Fedora 44 |
 | [Building from source](building.md) | Requirements, desktop and CLI builds, checks, the Slint app and the repository layout | Implemented |
 | [Product specification](app-spec.md) | Cross-platform scope, screens, workflows, milestones and acceptance criteria | V1 scope partly implemented; see validation |
 | [Rust + Tauri specification](rust-tauri-spec.md) | Stack, workspace, frontend/backend contracts, OS requirements and migration gates | Implemented on Windows (dev build), macOS (dev and packaged debug builds) and Linux (owner report); release packaging pending |
