@@ -161,7 +161,8 @@ for (const page of ["index", "guide", "changelog", "404"]) {
 }
 
 // Copied as they are: the site's own files, the fonts (self-hosted, so a visit
-// reaches no one but this site) and the app's icon and screenshot.
+// reaches no one but this site) and the app's icon and screenshot. site.yml deploys
+// when those app files change, so list any new one there too.
 const copies = {
   "style.css": site("src/style.css"),
   "download.js": site("src/download.js"),

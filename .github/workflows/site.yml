@@ -1,14 +1,20 @@
 name: Site
 
 # Builds nuprint.app (site/) and deploys it to Cloudflare as a static-assets Worker.
-# It runs when site/ changes on master, and release.yml calls it once a release is
-# published, so the download links, the changelog and the user guide move to the
-# new version only after its installers are up. The pages name the latest published
-# release; a draft never counts.
+# It runs when site/ changes on master, or one of the app files the site copies (the
+# icon and the screenshot below; keep them in step with build.mjs). release.yml also
+# calls it once a release is published, so the download links, the changelog and the
+# user guide move to the new version only after its installers are up. The pages name
+# the latest published release; a draft never counts.
 on:
   push:
     branches: [master]
-    paths: ["site/**", ".github/workflows/site.yml"]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+      - "apps/tauri/src/assets/app-icons/cube.svg"
+      - "apps/tauri/src-tauri/icons/128x128@2x.png"
+      - "docs/images/app-text.png"
   workflow_call:
     secrets:
       CLOUDFLARE_API_TOKEN:
