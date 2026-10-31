@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NuPrint cards</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* Each .card is one image at its exact pixel size. Motion is off so every card is a still. */
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  body { margin: 0; padding: 40px; background: #888; display: flex; flex-direction: column; gap: 40px; align-items: flex-start; }
+  .card { position: relative; overflow: hidden; background: var(--cream); color: var(--ink); font-family: var(--sans); flex: none; }
+  .card h1, .card h2, .card p { margin: 0; }
+  .card h1 { font-weight: 800; letter-spacing: -0.035em; line-height: 0.98; }
+  .card h1 em { font-style: normal; color: var(--accent); }
+  .eyebrow { font-size: 18px; }
+  .printer > .pop { opacity: 1; }
+  .shot { display: block; border-radius: 18px; box-shadow: 0 2px 0 rgba(74, 20, 38, 0.06), 0 30px 60px -20px rgba(74, 20, 38, 0.35), 0 0 0 1px rgba(74, 20, 38, 0.08); }
+  .site { font-family: var(--mono); font-weight: 700; letter-spacing: 0.04em; }
+  .brandmark { display: flex; align-items: center; gap: 14px; font-weight: 800; letter-spacing: -0.02em; }
+  .blob { position: absolute; border-radius: 50%; background: radial-gradient(circle, #ffd0dc 0, rgba(255, 208, 220, 0) 70%); }
+  /* The real preview cut out of the screenshot, as a slip of paper. */
+  .slip-crop { overflow: hidden; background: #fff; position: relative; }
+  .slip-crop img { position: absolute; max-width: none; }
+
+  /* 1. Link preview, 1200 × 630 */
+  #og { width: 1200px; height: 630px; display: grid; grid-template-columns: 1fr 380px; align-items: center; padding: 0 56px 0 72px; box-sizing: border-box; }
+  #og .copy { display: flex; flex-direction: column; gap: 26px; position: relative; z-index: 1; }
+  #og h1 { font-size: 84px; }
+  #og .lede { font-size: 25px; max-width: 660px; }
+  #og .foot { display: flex; align-items: center; gap: 18px; font-size: 20px; color: var(--muted); }
+  #og .foot .site { color: var(--ink); font-size: 22px; }
+  #og .stage { width: 330px; margin: 0 auto; }
+
+  /* 2. Lead image, 1920 × 1080 */
+  #lead { width: 1920px; height: 1080px; }
+  #lead .copy { position: absolute; left: 96px; top: 76px; display: flex; flex-direction: column; gap: 20px; }
+  #lead h1 { font-size: 80px; }
+  #lead .shot { position: absolute; left: 96px; top: 330px; width: 860px; }
+  #lead .stage { position: absolute; width: 560px; right: 130px; bottom: 56px; }
+  #lead .printer { margin-top: 12cqw; }
+  #lead .note { position: absolute; right: 130px; top: 250px; width: 560px; text-align: center; font-size: 34px; font-weight: 700; color: var(--link); line-height: 1.2; }
+  #lead .arrow { position: absolute; left: 905px; top: 470px; width: 400px; height: 200px; color: var(--link); }
+  #lead .site { position: absolute; right: 96px; top: 92px; font-size: 24px; color: var(--ink); }
+
+  /* 3. Pictures, 1080 × 1350 */
+  #pictures { width: 1080px; height: 1350px; background: #1b1418; color: #fbeef2; }
+  #pictures .copy { position: absolute; left: 72px; right: 72px; top: 84px; display: flex; flex-direction: column; gap: 22px; }
+  #pictures h1 { font-size: 96px; }
+  #pictures h1 em { color: #ff8fb0; }
+  #pictures .lede { font-size: 28px; line-height: 1.4; color: #d7bfc7; max-width: 900px; }
+  #pictures .shot { position: absolute; left: 90px; top: 470px; width: 900px; box-shadow: 0 30px 80px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+  #pictures .foot { position: absolute; left: 90px; right: 90px; bottom: 52px; display: flex; justify-content: space-between; align-items: center; font-size: 26px; }
+  #pictures .site { color: #ff8fb0; font-size: 24px; }
+
+  /* 4. Square, 1080 × 1080 */
+  #square { width: 1080px; height: 1080px; background: linear-gradient(160deg, #ffc4d3 0%, #f27a9c 100%); }
+  #square .stage { position: absolute; width: 470px; left: 305px; top: 236px; }
+  #square .stage .back ellipse:first-child { fill-opacity: 0.2; }
+  #square .top { position: absolute; left: 0; right: 0; top: 70px; text-align: center; color: #fff; }
+  #square .top h1 { font-size: 76px; color: #fff; text-shadow: 0 2px 24px rgba(160, 30, 70, 0.25); }
+  #square .bottom { position: absolute; left: 0; right: 0; bottom: 54px; text-align: center; color: #fff; font-size: 26px; }
+  #square .bottom .site { font-size: 30px; }
+</style>
+</head>
+<body>
+{{DEFS}}
+
+<!-- 1. Link preview -->
+<div class="card" id="og">
+  <div class="blob" style="width:900px;height:900px;right:-260px;top:-150px"></div>
+  <div class="copy">
+    <p class="eyebrow">Bluetooth thermal printing · Windows · macOS · Linux</p>
+    <h1>Little prints, straight from your <em>computer.</em></h1>
+    <p class="lede">Notes, pictures and PDF pages to a pocket thermal printer. No phone app, no pairing, no driver.</p>
+    <div class="foot">{{ICON 44}}<span class="site">nuprint.app</span><span>free and open source</span></div>
+  </div>
+  {{PRINTER receipt}}
+</div>
+
+<!-- 2. Lead image: the app and the paper it makes -->
+<div class="card" id="lead">
+  <div class="blob" style="width:1300px;height:1300px;right:-380px;top:-160px"></div>
+  <div class="copy">
+    <p class="eyebrow">Free and open source · Windows · macOS · Linux</p>
+    <h1>Print to your pocket<br>printer from your <em>computer.</em></h1>
+  </div>
+  <img class="shot" src="app-text.png" alt="">
+  <p class="note">What you see in the preview<br>is what comes out.</p>
+  <svg class="arrow" viewBox="0 0 400 200" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 120C120 20 260 30 370 110"/><path d="M322 112l50 0 -8 -48"/></svg>
+  {{PRINTER preview-text}}
+  <p class="site">nuprint.app</p>
+</div>
+
+<!-- 3. Pictures, in dark mode -->
+<div class="card" id="pictures">
+  <div class="copy">
+    <p class="eyebrow" style="color:#ff8fb0">Pictures and PDF pages too</p>
+    <h1>Every dot,<br><em>before</em> it prints.</h1>
+    <p class="lede">Open a photo, a drawing or a PDF page and see it at real size, dot for dot, on the paper it will use.</p>
+  </div>
+  <img class="shot" src="app-picture-dark.png" alt="">
+  <div class="foot"><span class="brandmark">{{ICON 52}}NuPrint</span><span class="site">nuprint.app</span></div>
+</div>
+
+<!-- 4. Square: the printer and its receipt -->
+<div class="card" id="square">
+  <div class="top"><h1>No phone app needed.</h1></div>
+  {{PRINTER receipt}}
+  <div class="bottom"><span class="site">nuprint.app</span> · Windows · macOS · Linux · free</div>
+</div>
+</body>
+</html>
