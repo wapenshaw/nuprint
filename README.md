@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/tauri/src-tauri/icons/128x128@2x.png" width="112" alt="NuPrint's little cube icon">
+  <img src="apps/tauri/src-tauri/icons/128x128@2x.png" width="112" alt="NuPrint's little printer icon">
 </p>
 
 <h1 align="center">NuPrint</h1>
