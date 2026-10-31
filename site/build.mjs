@@ -182,9 +182,28 @@ for (const entry of await readdir(dist)) {
   await rm(`${dist}${entry}`, { recursive: true, force: true });
 }
 
+// The app's icon and screenshots come from the release tag, like the guide, so a merge
+// that changes them waits for the release that ships it.
+const appFiles = new Map(
+  Object.entries({
+    "icon.svg": "apps/tauri/src/assets/app-icons/cube.svg",
+    "apple-touch-icon.png": "apps/tauri/src-tauri/icons/128x128@2x.png",
+    "images/app-text.png": "docs/images/app-text.png",
+    "images/app-picture-dark.png": "docs/images/app-picture-dark.png",
+    "images/settings-printers.png": "docs/images/settings-printers.png",
+    "images/settings-appearance-dark.png": "docs/images/settings-appearance-dark.png",
+  }).map(([to, from]) => [to, atTag(tag, from)]),
+);
+
 for (const page of ["index", "guide", "changelog", "404"]) {
-  const template = await readFile(site(`src/${page}.html`), "utf8");
-  await writeFile(`${dist}${page}.html`, fill(template, values));
+  let html = fill(await readFile(site(`src/${page}.html`), "utf8"), values);
+  // Sizes the screenshots, as renderGuide does, so the page doesn't jump as they load.
+  for (const [to, png] of appFiles) {
+    if (!to.startsWith("images/")) continue;
+    const { width, height } = pngSize(png);
+    html = html.replace(new RegExp(`src="/${to.replace(/\./g, "\\.")}"(?! width)`, "g"), `$& width="${width}" height="${height}"`);
+  }
+  await writeFile(`${dist}${page}.html`, html);
 }
 
 // Copied as they are: the site's own files and the fonts (self-hosted, so loading
@@ -207,17 +226,9 @@ for (const [to, from] of Object.entries(copies)) {
   await copyFile(from, `${dist}${to}`);
 }
 
-// The app's icon and screenshot come from the release tag, like the guide, so a merge
-// that changes them waits for the release that ships it.
-const appFiles = {
-  "icon.svg": "apps/tauri/src/assets/app-icons/cube.svg",
-  "apple-touch-icon.png": "apps/tauri/src-tauri/icons/128x128@2x.png",
-  "images/app-text.png": "docs/images/app-text.png",
-};
-
 await mkdir(`${dist}images`, { recursive: true });
-for (const [to, from] of Object.entries(appFiles)) {
-  await writeFile(`${dist}${to}`, atTag(tag, from));
+for (const [to, file] of appFiles) {
+  await writeFile(`${dist}${to}`, file);
 }
 
 for (const [name, png] of guide.images) {
