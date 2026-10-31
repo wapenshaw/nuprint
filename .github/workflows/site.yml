@@ -2,9 +2,9 @@ name: Site
 
 # Builds nuprint.app (site/) and deploys it to Cloudflare as a static-assets Worker.
 # It runs when site/ changes on master, and release.yml calls it once a release is
-# published, so the download links and the changelog move to the new version only
-# after its installers are up. The pages name the latest published release; a
-# draft never counts.
+# published, so the download links, the changelog and the user guide move to the
+# new version only after its installers are up. The pages name the latest published
+# release; a draft never counts.
 on:
   push:
     branches: [master]
@@ -47,6 +47,8 @@ jobs:
         run: |
           NUPRINT_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
           export NUPRINT_TAG
+          # The user guide is built from the release, not from master.
+          git fetch --no-tags --depth=1 origin "refs/tags/$NUPRINT_TAG:refs/tags/$NUPRINT_TAG"
           npm run build
 
       - name: Deploy
