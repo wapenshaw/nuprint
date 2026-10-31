@@ -5,6 +5,13 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.2.1](https://github.com/wapenshaw/nuprint/compare/v1.2.0...v1.2.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **transport:** connect and disconnect over le on linux ([7940366](https://github.com/wapenshaw/nuprint/commit/794036672b0e22f89a64a5536e6d703e38e5bfeb))
+
 ## [1.2.0](https://github.com/wapenshaw/nuprint/compare/v1.1.0...v1.2.0) (2026-10-31)
 
 
