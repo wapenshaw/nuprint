@@ -75,7 +75,7 @@ The [user guide](docs/user-guide.md) covers the queue, advanced printer settings
 
 | Printer | Status |
 | --- | --- |
-| ZEITEL **SC03h** (names starting `SC03h-`) | Tested on Windows and macOS. Experimental on Linux. |
+| ZEITEL **SC03h** (names starting `SC03h-`) | Tested on Windows, macOS and Linux. |
 | 34 models with the same vendor-app settings, such as X2h, X5h, X6h, SC04h, P1 and D1 | Experimental: offered with a badge and a confirmation, not yet tested on hardware |
 
 Other printers show up as unknown devices and are never sent print commands. If you own one of the experimental models, a [printer report](https://github.com/wapenshaw/nuprint/issues/new/choose) is the fastest way to get it supported. See [supported printers](docs/user-guide.md#supported-printers) for the details.

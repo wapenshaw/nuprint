@@ -15,7 +15,7 @@ NuPrint is implemented in [Rust + Tauri](rust-tauri-spec.md); the Python app in 
 | Slint app | Used for the checks above (Windows dev build). The Windows preview installer was built locally; the unpacked release app found its bundled PDFium. The release workflow built the macOS and Linux preview installers in run 40918957422 (commit `b2acb5d`); none of the Slint installers has been installed and tested with a printer. |
 | Release installers | The v1.0.0 installers (NSIS, two DMGs, `.deb`) were built by the release workflow and their checksums and `.deb` contents checked. On 2026-10-29 the owner installed the Tauri app's Apple silicon DMG from a build-only run of the release workflow (run 40918957422, commit `b2acb5d`) and printed with it on SC03h-3DE8; the owner reported it working. Gatekeeper blocked the first launch as unsigned ("Apple could not verify NuPrint.app is free of malware") until it was allowed under Privacy & Security → Open Anyway, as the [user guide](user-guide.md) describes. The Slint preview DMG, the Intel DMG, the NSIS installer and the `.deb` have not been installed and tested with a printer. |
 | Updates (2026-10-30) | Checking for updates and the Updates screens are covered by offline tests. The release workflow's manifest script was run on sample files, and a signature from the Tauri signer was verified with the Slint updater's verifier. No update has been installed yet: that needs a release with update manifests. Installing in place is untested on every system for both apps, and the NuPrint Slint Updates screen has not been looked at on screen. On Windows a failed install leaves the queue stopped, because it stops before the installer starts; the apps say to restart NuPrint to print again. |
-| Linux | Not tested on hardware. The SC03h profile is **experimental** on Linux. |
+| Desktop app (Linux, 2026-10-31) | The owner reported the Rust app working as expected on Linux with SC03h-3DE8, with no issues ([below](#linux-2026-10-31)). The SC03h profile is `verified_basic` on Linux, as on Windows and macOS. |
 | Python PoC (Windows) | Owner-confirmed correct 384 × 164-dot text strip on SC03h-3DE8. |
 | Other models | 34 **experimental** profiles for models whose vendor-app settings are identical to the SC03h (for example X2h, X5h, X6h, X7h, X103h, SC04h, P1, D1). None has been tested on hardware. |
 
@@ -133,7 +133,7 @@ Pre-release working tree, workspace version 0.2.0, Rust 1.98.0, Windows 11 Pro 1
 | Discovery/check | SC03h-3DE8 found and saved; firmware 3.0.49; status ready; write AE30/AE01, chunk 180 bytes (link limit 509) | Read-only check, no paper |
 | Print transfer | Two short "Hello from NuPrint!" text jobs, 4770 and 4760 bytes: fresh ready status before sending, ready after, clean disconnect, recorded as "Transfer complete · printer reports ready" | Started by the owner from the GUI; owner reported the prints working (no detailed paper inspection recorded) |
 
-Not yet validated for the Rust app: detailed paper inspection, packaged installers (bundled PDFium), Linux, pictures/PDF on paper, long jobs, real pause/resume, faults, cancellation during a transfer on hardware and reduced-feed calibration. The SC03h profile's `verified_basic` level on Windows rests on the Python evidence plus this owner report for short text from the Rust dev build.
+Not yet validated for the Rust app: detailed paper inspection, packaged installers (bundled PDFium), pictures/PDF on paper, long jobs, real pause/resume, faults, cancellation during a transfer on hardware and reduced-feed calibration. The SC03h profile's `verified_basic` level on Windows rests on the Python evidence plus this owner report for short text from the Rust dev build.
 
 ## macOS (2026-10-13)
 
@@ -149,6 +149,10 @@ Pre-release `macos-support` branch, workspace version 1.0.0, Rust 1.98.0, Node 2
 | Connection check | Not run on macOS; firmware not read here (3.0.49 on Windows for the same unit) | |
 
 The first scan right after granting permission in the packaged app found 0 devices; the next scan found the printer. Not yet reproduced or explained. Not yet validated on macOS: Check connection and firmware, Intel Macs, a signed/notarized release build, permission denial/regrant on hardware, pictures/PDF on paper, long jobs, real pause/resume, faults and cancellation on hardware. The SC03h profile's `verified_basic` level on macOS rests on these four owner-reported short text prints, one from a packaged debug build.
+
+## Linux (2026-10-31)
+
+The owner tested the Rust app on Linux with the same unit, SC03h-3DE8, and reported everything working as expected, with no issues. The distribution, the build (dev or `.deb`), the Bluetooth stack, the negotiated write size and the firmware were not recorded. The SC03h profile's `verified_basic` level on Linux rests on this owner report. Not yet recorded for Linux: those details, BlueZ permissions, X11 and Wayland, pictures/PDF on paper, long jobs, faults and cancellation on hardware.
 
 ## Evidence record format
 
