@@ -1,20 +1,16 @@
 name: Site
 
 # Builds nuprint.app (site/) and deploys it to Cloudflare as a static-assets Worker.
-# It runs when site/ changes on master, or one of the app files the site copies (the
-# icon and the screenshot below; keep them in step with build.mjs). release.yml also
-# calls it once a release is published, so the download links, the changelog and the
-# user guide move to the new version only after its installers are up. The pages name
-# the latest published release; a draft never counts.
+# It runs when site/ changes on master, and release.yml calls it once a release is
+# published, so the download links, the changelog, the user guide and the app's icon
+# and screenshot move to the new version only after its installers are up. The pages
+# name the latest published release; a draft never counts.
 on:
   push:
     branches: [master]
     paths:
       - "site/**"
       - ".github/workflows/site.yml"
-      - "apps/tauri/src/assets/app-icons/cube.svg"
-      - "apps/tauri/src-tauri/icons/128x128@2x.png"
-      - "docs/images/app-text.png"
   workflow_call:
     secrets:
       CLOUDFLARE_API_TOKEN:
@@ -56,7 +52,7 @@ jobs:
           # Its file names, so the page offers only the packages it has.
           NUPRINT_ASSETS="$(gh release view "$NUPRINT_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
           export NUPRINT_ASSETS
-          # The user guide is built from the release, not from master.
+          # The user guide, icon and screenshot are built from the release, not from master.
           git fetch --no-tags --depth=1 origin "refs/tags/$NUPRINT_TAG:refs/tags/$NUPRINT_TAG"
           npm run build
 
