@@ -64,7 +64,8 @@ const slug = (text) =>
 
 /**
  * A file as it was at a release tag (CI fetches the tag before building), or as it
- * is on disk with NUPRINT_GUIDE=local, to preview guide edits before they ship.
+ * is on disk with NUPRINT_GUIDE=local, to preview edits to the guide or app images
+ * before they ship.
  */
 const atTag = (tag, path) =>
   process.env.NUPRINT_GUIDE === "local"
@@ -185,9 +186,8 @@ for (const page of ["index", "guide", "changelog", "404"]) {
   await writeFile(`${dist}${page}.html`, fill(template, values));
 }
 
-// Copied as they are: the site's own files, the fonts (self-hosted, so a visit
-// reaches no one but this site) and the app's icon and screenshot. site.yml deploys
-// when those app files change, so list any new one there too.
+// Copied as they are: the site's own files and the fonts (self-hosted, so a visit
+// reaches no one but this site).
 const copies = {
   "style.css": site("src/style.css"),
   "download.js": site("src/download.js"),
@@ -197,14 +197,23 @@ const copies = {
   ),
   "fonts/space-mono-400.woff2": site("node_modules/@fontsource/space-mono/files/space-mono-latin-400-normal.woff2"),
   "fonts/space-mono-700.woff2": site("node_modules/@fontsource/space-mono/files/space-mono-latin-700-normal.woff2"),
-  "icon.svg": repo("apps/tauri/src/assets/app-icons/cube.svg"),
-  "apple-touch-icon.png": repo("apps/tauri/src-tauri/icons/128x128@2x.png"),
-  "og.png": repo("docs/images/app-text.png"),
 };
 
 for (const [to, from] of Object.entries(copies)) {
   await mkdir(dirname(`${dist}${to}`), { recursive: true });
   await copyFile(from, `${dist}${to}`);
+}
+
+// The app's icon and the screenshot for link previews come from the release tag,
+// like the guide, so a merge that changes them waits for the release that ships it.
+const appFiles = {
+  "icon.svg": "apps/tauri/src/assets/app-icons/cube.svg",
+  "apple-touch-icon.png": "apps/tauri/src-tauri/icons/128x128@2x.png",
+  "og.png": "docs/images/app-text.png",
+};
+
+for (const [to, from] of Object.entries(appFiles)) {
+  await writeFile(`${dist}${to}`, atTag(tag, from));
 }
 
 await mkdir(`${dist}images`, { recursive: true });
