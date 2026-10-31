@@ -48,7 +48,7 @@ A job is **uncertain** when NuPrint can't tell whether it printed, for example i
 
 **Settings → Appearance** sets light or dark mode (or matches the system), the accent colour (pink, indigo, coral, ocean or teal) and the app icon (little printer, curl, ribbon or air roll).
 
-![Settings → Appearance in dark mode with the teal accent](images/settings-appearance-dark.png)
+![Settings → Appearance in dark mode with the pink accent](images/settings-appearance-dark.png)
 
 ### Updates
 

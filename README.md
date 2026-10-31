@@ -30,7 +30,7 @@
 - **Yours to style.** Light or dark, four accent colours and four app icons.
 
 <p align="center">
-  <img src="docs/images/app-picture-dark.png" width="49%" alt="A picture dithered for thermal paper, in dark mode with the teal accent">
+  <img src="docs/images/app-picture-dark.png" width="49%" alt="A picture dithered for thermal paper, in dark mode with the pink accent">
   <img src="docs/images/settings-printers.png" width="49%" alt="Settings showing a saved, verified SC03h printer and the Find printers button">
 </p>
 
