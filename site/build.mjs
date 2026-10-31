@@ -18,6 +18,7 @@ const site = (path) => fileURLToPath(new URL(path, import.meta.url));
 const repo = (path) => site(`../${path}`);
 const dist = site("dist/");
 const REPO_URL = "https://github.com/wapenshaw/nuprint";
+const SITE_URL = "https://nuprint.app";
 
 /** CHANGELOG.md as `{ version, date, body }`, newest first (release-please's format). */
 function parseChangelog(text) {
@@ -191,6 +192,8 @@ for (const page of ["index", "guide", "changelog", "404"]) {
 const copies = {
   "style.css": site("src/style.css"),
   "download.js": site("src/download.js"),
+  // The link-preview card, drawn from art/cards.html (see README).
+  "og.png": site("src/og.png"),
   _headers: site("src/_headers"),
   "fonts/bricolage-grotesque.woff2": site(
     "node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2",
@@ -204,21 +207,34 @@ for (const [to, from] of Object.entries(copies)) {
   await copyFile(from, `${dist}${to}`);
 }
 
-// The app's icon and the screenshot for link previews come from the release tag,
-// like the guide, so a merge that changes them waits for the release that ships it.
+// The app's icon and screenshot come from the release tag, like the guide, so a merge
+// that changes them waits for the release that ships it.
 const appFiles = {
   "icon.svg": "apps/tauri/src/assets/app-icons/cube.svg",
   "apple-touch-icon.png": "apps/tauri/src-tauri/icons/128x128@2x.png",
-  "og.png": "docs/images/app-text.png",
+  "images/app-text.png": "docs/images/app-text.png",
 };
 
+await mkdir(`${dist}images`, { recursive: true });
 for (const [to, from] of Object.entries(appFiles)) {
   await writeFile(`${dist}${to}`, atTag(tag, from));
 }
 
-await mkdir(`${dist}images`, { recursive: true });
 for (const [name, png] of guide.images) {
   await writeFile(`${dist}images/${name}`, png);
 }
+
+// The pages search engines should list. Cloudflare puts its content signals above this
+// robots.txt; the Sitemap line still applies.
+const pages = ["", "guide", "changelog"];
+await writeFile(`${dist}robots.txt`, `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+await writeFile(
+  `${dist}sitemap.xml`,
+  `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages.map((page) => `<url><loc>${SITE_URL}/${page}</loc><lastmod>${published[0].date}</lastmod></url>`).join("\n")}
+</urlset>
+`,
+);
 
 console.log(`Built nuprint.app for ${tag} with ${published.length} releases in the changelog.`);
