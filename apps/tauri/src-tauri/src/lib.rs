@@ -281,7 +281,7 @@ async fn export_diagnostics(window: Window, svc: State<'_, AppService>, include_
 // ---------------------------------------------------------------- app icon
 
 /// The app icons offered in Settings › Appearance (`src/lib/theme.ts`). The bundle's own icon is the
-/// little cube; another choice replaces it in the Dock (macOS) or on the window and taskbar
+/// little printer (`cube`); another choice replaces it in the Dock (macOS) or on the window and taskbar
 /// while NuPrint runs. Finder, Launchpad and shortcuts keep the bundle icon.
 fn app_icon_png(icon: &str) -> Option<&'static [u8]> {
     match icon {

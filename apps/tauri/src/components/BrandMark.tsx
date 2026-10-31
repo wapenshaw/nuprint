@@ -19,11 +19,22 @@ const ACCENT = "var(--accent)";
 const GLYPHS: Record<AppIconId, ReactNode> = {
   cube: (
     <>
-      <path d="M8.6 10.5V5.2l1.13-1 1.13 1 1.14-1 1.13 1 1.14-1 1.13 1v5.3z" fill={INK} fillOpacity={0.72} />
-      <rect x="5" y="9.6" width="14" height="10.4" rx="3.6" fill={INK} />
-      <circle cx="10" cy="14.3" r="1" fill={ACCENT} />
-      <circle cx="14" cy="14.3" r="1" fill={ACCENT} />
-      <path d="M10.6 16.5Q12 17.6 13.4 16.5" fill="none" stroke={ACCENT} strokeWidth={0.9} strokeLinecap="round" />
+      <path d="M8.6 9.6V4.6l1.13-1 1.13 1 1.14-1 1.13 1 1.14-1 1.13 1v5z" fill={INK} fillOpacity={0.72} />
+      <ellipse cx="7.4" cy="9.3" rx="1.4" ry="0.9" fill={INK} fillOpacity={0.72} />
+      <ellipse cx="16.6" cy="9.3" rx="1.4" ry="0.9" fill={INK} fillOpacity={0.72} />
+      <rect x="6.6" y="18.4" width="3" height="1.6" rx="0.7" fill={INK} fillOpacity={0.72} />
+      <rect x="14.4" y="18.4" width="3" height="1.6" rx="0.7" fill={INK} fillOpacity={0.72} />
+      <rect x="5" y="8.8" width="14" height="10.4" rx="3.6" fill={INK} />
+      <circle cx="10" cy="13.6" r="1.1" fill={ACCENT} />
+      <circle cx="14" cy="13.6" r="1.1" fill={ACCENT} />
+      <path
+        d="M10.6 15.6Q11.3 16.7 12 15.9Q12.7 16.7 13.4 15.6"
+        fill="none"
+        stroke={ACCENT}
+        strokeWidth={0.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </>
   ),
   curl: (

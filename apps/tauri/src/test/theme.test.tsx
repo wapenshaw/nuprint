@@ -23,8 +23,8 @@ describe("accent theme", () => {
     const { user } = await renderApp();
     const settings = await openSettings(user, "Appearance");
     const accents = within(settings).getByRole("group", { name: "Accent colour" });
-    expect(within(accents).getAllByRole("radio")).toHaveLength(4);
-    expect(within(accents).getByRole("radio", { name: "Indigo" })).toBeChecked();
+    expect(within(accents).getAllByRole("radio")).toHaveLength(5);
+    expect(within(accents).getByRole("radio", { name: "Pink" })).toBeChecked();
 
     await user.click(within(accents).getByRole("radio", { name: "Coral" }));
     expect(document.documentElement.dataset.accent).toBe("coral");

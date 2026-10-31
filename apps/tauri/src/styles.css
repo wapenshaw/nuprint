@@ -4,6 +4,18 @@
 
 /* ---- accent palettes: light (-l) and dark (-d) variants */
 :root,
+:root[data-accent="pink"] {
+  --a-l: #c7346a;
+  --a-l-hover: #b02a5c;
+  --a-l-ink: #ffffff;
+  --a-l-text: #b02a5c;
+  --a-l-soft: #fdeaf1;
+  --a-d: #f06f92;
+  --a-d-hover: #ff86a6;
+  --a-d-ink: #2a0a16;
+  --a-d-text: #ff9dba;
+  --a-d-soft: rgb(240 111 146 / 16%);
+}
 :root[data-accent="indigo"] {
   --a-l: #4f5bd5;
   --a-l-hover: #4350c4;
@@ -1961,6 +1973,7 @@ textarea[aria-invalid="true"]:focus {
 
 /* ---- appearance */
 .accent-dot {
+  --swatch-pink: #c7346a;
   --swatch-indigo: #4f5bd5;
   --swatch-coral: #cf4f2c;
   --swatch-ocean: #1f6fd1;
@@ -1970,14 +1983,18 @@ textarea[aria-invalid="true"]:focus {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--swatch-indigo);
+  background: var(--swatch-pink);
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
 }
 :root[data-theme="dark"] .accent-dot {
+  --swatch-pink: #f06f92;
   --swatch-indigo: #6470f3;
   --swatch-coral: #ff7a59;
   --swatch-ocean: #2f84e8;
   --swatch-teal: #2dd4bf;
+}
+.accent-dot[data-swatch="indigo"] {
+  background: var(--swatch-indigo);
 }
 .accent-dot[data-swatch="coral"] {
   background: var(--swatch-coral);

@@ -12,16 +12,17 @@ import { readStored, writeStored } from "./storage";
 
 // ---- accent
 
-export type AccentId = "indigo" | "coral" | "ocean" | "teal";
+export type AccentId = "pink" | "indigo" | "coral" | "ocean" | "teal";
 
 export const ACCENTS: readonly { id: AccentId; label: string }[] = [
+  { id: "pink", label: "Pink" },
   { id: "indigo", label: "Indigo" },
   { id: "coral", label: "Coral" },
   { id: "ocean", label: "Ocean" },
   { id: "teal", label: "Teal" },
 ];
 
-export const DEFAULT_ACCENT: AccentId = "indigo";
+export const DEFAULT_ACCENT: AccentId = "pink";
 
 const ACCENT_KEY = "nuprint.accent";
 
@@ -96,15 +97,16 @@ export function followSystemMode(onChange: (mode: ColorMode) => void): () => voi
   return () => query.removeEventListener("change", listener);
 }
 
-// ---- app icon: the bundle ships the little cube; the host shows another choice in the Dock
-// (or on the window and taskbar) while the app runs. Add one here, as an SVG in
-// assets/app-icons and as a 512 px PNG in src-tauri/icons/choices (see `set_app_icon`):
+// ---- app icon: the bundle ships the little printer (id `cube`, after its first design); the
+// host shows another choice in the Dock (or on the window and taskbar) while the app runs.
+// Add one here, as an SVG in assets/app-icons and as a 512 px PNG in
+// src-tauri/icons/choices (see `set_app_icon`):
 // `npx tauri icon <svg> -p 512 -o <dir>` renders one; without `-p` it makes the bundle set.
 
 export type AppIconId = "cube" | "curl" | "ribbon" | "roll";
 
 export const APP_ICONS: readonly { id: AppIconId; label: string; src: string }[] = [
-  { id: "cube", label: "Little cube", src: cubeIcon },
+  { id: "cube", label: "Little printer", src: cubeIcon },
   { id: "curl", label: "Curl", src: curlIcon },
   { id: "ribbon", label: "Ribbon", src: ribbonIcon },
   { id: "roll", label: "Air roll", src: rollIcon },

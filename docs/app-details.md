@@ -44,7 +44,7 @@ If NuPrint's own queue worker fails (an internal error, not a printer problem), 
 
 ## Appearance
 
-Light and dark also apply to the window's title bar. While NuPrint is open, the chosen icon replaces the little cube in the Dock on macOS, or on the window and taskbar elsewhere. Finder, Launchpad and shortcuts keep the little cube. NuPrint remembers all three choices.
+Light and dark also apply to the window's title bar. While NuPrint is open, the chosen icon replaces the little printer in the Dock on macOS, or on the window and taskbar elsewhere. Finder, Launchpad and shortcuts keep the little printer. NuPrint remembers all three choices.
 
 ## Updates
 
