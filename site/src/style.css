@@ -84,13 +84,25 @@ a:hover {
 
 /* ---- nav */
 
+/* Stays at the top while the page scrolls. The shadow carries its background to the window's edges. */
 .nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 20px 0;
+  padding: 14px 0;
+  background: var(--cream);
+  box-shadow: 0 0 0 100vmax var(--cream);
+  clip-path: inset(0 -100vmax);
+}
+
+/* Links within a page land below the nav, not under it. */
+html {
+  scroll-padding-top: 84px;
 }
 
 .brand {
@@ -125,6 +137,51 @@ a:hover {
 
 .nav-links a:hover {
   background: var(--sand);
+}
+
+/*
+ * On a phone the links keep to one row, so the sticky nav stays short. The moods
+ * are a short scroll down the home page, so that link goes; on the narrowest
+ * screens the row scrolls sideways.
+ */
+@media (max-width: 700px) {
+  html {
+    scroll-padding-top: 116px;
+  }
+
+  .nav {
+    gap: 6px;
+    padding: 10px 0 6px;
+  }
+
+  .nav-links {
+    flex-wrap: nowrap;
+    gap: 2px;
+    width: 100%;
+    margin: 0 -10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    font-size: 15px;
+  }
+
+  .nav-links a {
+    flex: none;
+    padding: 8px 10px;
+  }
+
+  .nav-links a[href="/#meet"] {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .nav-links {
+    font-size: 14px;
+  }
+
+  .nav-links a {
+    padding: 8px 7px;
+  }
 }
 
 /* ---- hero */
