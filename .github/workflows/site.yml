@@ -53,6 +53,9 @@ jobs:
         run: |
           NUPRINT_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
           export NUPRINT_TAG
+          # Its file names, so the page offers only the packages it has.
+          NUPRINT_ASSETS="$(gh release view "$NUPRINT_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          export NUPRINT_ASSETS
           # The user guide is built from the release, not from master.
           git fetch --no-tags --depth=1 origin "refs/tags/$NUPRINT_TAG:refs/tags/$NUPRINT_TAG"
           npm run build

@@ -139,10 +139,35 @@ function fill(template, values) {
 
 const guide = renderGuide(tag);
 
+const download = `${REPO_URL}/releases/download/${tag}`;
+
+/**
+ * The release's file names, which CI passes in NUPRINT_ASSETS, so the page offers the
+ * .rpm and the AppImage only from the first release that has them. A build without the
+ * list offers the .deb alone.
+ */
+const assets = (process.env.NUPRINT_ASSETS ?? "").split(/\s+/).filter(Boolean);
+const rpm = assets.find((name) => /^NuPrint.*\.rpm$/.test(name));
+const appImage = assets.find((name) => /^NuPrint.*\.AppImage$/.test(name));
+
+const ticket = (file, name, detail) => `<a class="ticket lift" href="${download}/${file}">
+<span class="ticket-stub"></span>
+<span class="ticket-main"><span class="ticket-name">${name}</span><span class="ticket-file">${detail}</span></span>
+<span class="ticket-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"/></svg></span>
+</a>`;
+
 const values = {
   TAG: tag,
   VERSION: version,
-  DOWNLOAD: `${REPO_URL}/releases/download/${tag}`,
+  DOWNLOAD: download,
+  // The AppImage runs on any distribution, so the hero button prefers it.
+  LINUX_DOWNLOAD: `${download}/${appImage ?? `NuPrint_${version}_amd64.deb`}`,
+  LINUX_TICKETS: [
+    rpm && ticket(rpm, "Fedora and openSUSE", "64-bit · .rpm package"),
+    appImage && ticket(appImage, "Any Linux", "64-bit · AppImage"),
+  ]
+    .filter(Boolean)
+    .join("\n"),
   RELEASES: published.map(renderRelease).join("\n"),
   GUIDE_INTRO: guide.intro,
   GUIDE_CONTENTS: guide.contents,

@@ -30,6 +30,6 @@
   } else if (isLinux) {
     button.href = button.dataset.linux;
     label.textContent = "Download for Linux";
-    other.textContent = "Windows and macOS";
+    other.textContent = button.href.endsWith(".AppImage") ? "Other Linux packages and systems" : "Windows and macOS";
   }
 })();
