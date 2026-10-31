@@ -1,5 +1,7 @@
 // Points the hero's download button at the visitor's system. Windows is the default
-// in the markup; a Mac has two builds, so it goes to the tickets instead of guessing.
+// in the markup. A Mac gets the Apple silicon build. Chrome and Edge can say when the
+// Mac is Intel; in other browsers, Intel owners use the link beside the button, which
+// goes to the tickets.
 (() => {
   const button = document.getElementById("primary-download");
   const other = document.getElementById("other-systems");
@@ -14,7 +16,17 @@
   if (isMac) {
     button.href = button.dataset.mac;
     label.textContent = "Download for Mac";
-    other.textContent = "Windows and Linux";
+    other.textContent = "Intel Mac and other systems";
+    navigator.userAgentData
+      ?.getHighEntropyValues(["architecture"])
+      .then(({ architecture }) => {
+        if (architecture === "x86") {
+          button.href = button.dataset.macIntel;
+          label.textContent = "Download for Intel Mac";
+          other.textContent = "Apple silicon and other systems";
+        }
+      })
+      .catch(() => {});
   } else if (isLinux) {
     button.href = button.dataset.linux;
     label.textContent = "Download for Linux";
