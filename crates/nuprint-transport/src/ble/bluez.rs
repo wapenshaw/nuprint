@@ -11,9 +11,9 @@
 //!
 //! BlueZ can be asked for LE in two ways, both offered only when its experimental features are
 //! enabled (`Experimental = true` in `/etc/bluetooth/main.conf`): `org.bluez.Bearer.LE1.Connect`
-//! on newer releases, and the `PreferredBearer` device property on older ones (such as Ubuntu
-//! 24.04). The property is stored by BlueZ, so it is set only for the connect call and then
-//! restored.
+//! from BlueZ 5.84, and the `PreferredBearer` device property from 5.80 (such as Ubuntu 25.10's
+//! 5.83). Older BlueZ, such as Ubuntu 24.04's 5.72, has neither. The property is stored by BlueZ,
+//! so it is set only for the connect call and then restored.
 
 use std::time::{Duration, Instant};
 

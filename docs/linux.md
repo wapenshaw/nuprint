@@ -51,11 +51,11 @@ Pairing happens when something starts a Classic connection, for example clicking
 | | BlueZ | Connection used | Status |
 | --- | --- | --- | --- |
 | Fedora 44 | 5.87 | `Bearer.LE1.Connect` | Tested: connection, check and text prints |
-| Ubuntu 26.04 and similar | 5.8x | `Bearer.LE1.Connect` | Expected; not tested |
-| Ubuntu 24.04 and similar | 5.72 | `PreferredBearer` | That path was tested on BlueZ 5.87 by skipping `Bearer.LE1`; not tested on Ubuntu 24.04 itself |
-| Ubuntu 22.04 and older | 5.64 | None | Not supported. `ControllerMode = le` in `/etc/bluetooth/main.conf` works but turns Classic Bluetooth off for every device |
+| Ubuntu 26.04 | 5.85 | `Bearer.LE1.Connect` | Expected; not tested |
+| Ubuntu 25.10 and other BlueZ 5.80 to 5.83 | 5.83 | `PreferredBearer` | That path was tested on BlueZ 5.87 by skipping `Bearer.LE1`; not tested on these versions |
+| Ubuntu 24.04 and older, and any BlueZ before 5.80 | 5.72 (24.04) | None | Not supported. `Experimental = true` does not help, because these versions have neither interface. `ControllerMode = le` in `/etc/bluetooth/main.conf` works but turns Classic Bluetooth off for every device |
 
-The BlueZ versions for Ubuntu are approximate. Both interfaces are experimental in BlueZ: `Bearer.LE1` without experimental features has only its `Disconnected` signal, and `PreferredBearer` is absent.
+BlueZ added `PreferredBearer` in 5.80 ([a22935f](https://github.com/bluez/bluez/commit/a22935f9ba)) and `org.bluez.Bearer.LE1` in 5.84 ([8c8b5ed](https://github.com/bluez/bluez/commit/8c8b5ed25a)); the `last-used` value of `PreferredBearer` arrived in 5.83. The Ubuntu versions are the published `bluez` packages on [Launchpad](https://launchpad.net/ubuntu/+source/bluez) as of 2026-10-31. Both interfaces are experimental in BlueZ: `Bearer.LE1` without experimental features has only its `Disconnected` signal, and `PreferredBearer` is absent.
 
 ## Alternatives considered
 
