@@ -933,22 +933,24 @@ export component BrandMark inherits Rectangle {
     drop-shadow-color: Theme.shadow;
     drop-shadow-offset-y: 1px;
     if root.icon == 0: Glyph {
-        commands: "M8.6 10.5V5.2l1.13-1 1.13 1 1.14-1 1.13 1 1.14-1 1.13 1v5.3z";
+        // Paper, ears and feet.
+        commands: "M8.6 9.6V4.6l1.13-1 1.13 1 1.14-1 1.13 1 1.14-1 1.13 1v5z M6 9.3a1.4 0.9 0 1 0 2.8 0a1.4 0.9 0 1 0-2.8 0 M15.2 9.3a1.4 0.9 0 1 0 2.8 0a1.4 0.9 0 1 0-2.8 0 M7.3 18.4h1.6a0.7 0.7 0 0 1 0.7 0.7v0.2a0.7 0.7 0 0 1-0.7 0.7H7.3a0.7 0.7 0 0 1-0.7-0.7v-0.2a0.7 0.7 0 0 1 0.7-0.7z M15.1 18.4h1.6a0.7 0.7 0 0 1 0.7 0.7v0.2a0.7 0.7 0 0 1-0.7 0.7H15.1a0.7 0.7 0 0 1-0.7-0.7v-0.2a0.7 0.7 0 0 1 0.7-0.7z";
         fill: Theme.accent-ink.with-alpha(0.72);
     }
     if root.icon == 0: Glyph {
-        commands: "M8.6 9.6h6.8a3.6 3.6 0 0 1 3.6 3.6v3.2a3.6 3.6 0 0 1-3.6 3.6H8.6A3.6 3.6 0 0 1 5 16.4v-3.2a3.6 3.6 0 0 1 3.6-3.6z";
+        commands: "M8.6 8.8h6.8a3.6 3.6 0 0 1 3.6 3.6v3.2a3.6 3.6 0 0 1-3.6 3.6H8.6A3.6 3.6 0 0 1 5 15.6v-3.2a3.6 3.6 0 0 1 3.6-3.6z";
         fill: Theme.accent-ink;
     }
     if root.icon == 0: Glyph {
-        commands: "M9 14.3a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M13 14.3a1 1 0 1 0 2 0a1 1 0 1 0-2 0";
+        commands: "M8.9 13.6a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0-2.2 0 M12.9 13.6a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0-2.2 0";
         fill: Theme.accent;
     }
     if root.icon == 0: Glyph {
-        commands: "M10.6 16.5Q12 17.6 13.4 16.5";
+        commands: "M10.6 15.6Q11.3 16.7 12 15.9Q12.7 16.7 13.4 15.6";
         stroke: Theme.accent;
-        stroke-width: 0.9px;
+        stroke-width: 0.8px;
         stroke-line-cap: round;
+        stroke-line-join: round;
     }
     if root.icon == 1: Glyph {
         commands: "M8 14V6l1.33-1.5L10.67 6 12 4.5 13.33 6 14.67 4.5 16 6v8z";

@@ -1,11 +1,11 @@
 // Design tokens: the same neutral surfaces, one accent and light/dark pairs as the web UI's
 // styles.css. `mode` is 0 = follow the system, 1 = light, 2 = dark; `accent` indexes
-// indigo, coral, ocean, teal.
+// indigo, coral, ocean, teal, pink (the default, added last so saved choices keep their index).
 import { Palette } from "std-widgets.slint";
 
 export global Theme {
     in-out property <int> mode: 0;
-    in-out property <int> accent-index: 0;
+    in-out property <int> accent-index: 4;
     out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
 
     // The fonts the web UI resolves on this platform (styles.css: system-ui and ui-monospace
@@ -26,10 +26,10 @@ export global Theme {
     out property <color> ink-faint: dark ? #6f7686 : #8a91a0;
 
     out property <color> accent: accent-of(accent-index);
-    out property <color> accent-hover: dark ? [#7682ff, #ff8f73, #4593f0, #4ee0ce][accent-index] : [#4350c4, #b94322, #1a61b8, #0a786b][accent-index];
-    out property <color> accent-ink: dark ? [#ffffff, #230d06, #ffffff, #032421][accent-index] : #ffffff;
-    out property <color> accent-text: dark ? [#a3abff, #ffa48c, #7dbbff, #6ee9d8][accent-index] : [#4450c8, #b8431f, #1a63bd, #0b7a6e][accent-index];
-    out property <color> accent-soft: dark ? [#6470f32e, #ff7a5929, #2f84e82e, #2dd4bf26][accent-index] : [#eceefd, #fdece6, #e7f0fc, #e3f5f2][accent-index];
+    out property <color> accent-hover: dark ? [#7682ff, #ff8f73, #4593f0, #4ee0ce, #ff86a6][accent-index] : [#4350c4, #b94322, #1a61b8, #0a786b, #b02a5c][accent-index];
+    out property <color> accent-ink: dark ? [#ffffff, #230d06, #ffffff, #032421, #2a0a16][accent-index] : #ffffff;
+    out property <color> accent-text: dark ? [#a3abff, #ffa48c, #7dbbff, #6ee9d8, #ff9dba][accent-index] : [#4450c8, #b8431f, #1a63bd, #0b7a6e, #b02a5c][accent-index];
+    out property <color> accent-soft: dark ? [#6470f32e, #ff7a5929, #2f84e82e, #2dd4bf26, #f06f9229][accent-index] : [#eceefd, #fdece6, #e7f0fc, #e3f5f2, #fdeaf1][accent-index];
 
     out property <color> good-bg: dark ? #22c55e24 : #e6f6ec;
     out property <color> good-ink: dark ? #86e2ad : #15643a;
@@ -54,7 +54,7 @@ export global Theme {
 
     // Any accent's colour in the current mode, for the accent choices in Appearance.
     public pure function accent-of(index: int) -> color {
-        dark ? [#6470f3, #ff7a59, #2f84e8, #2dd4bf][index] : [#4f5bd5, #cf4f2c, #1f6fd1, #0d8a7c][index]
+        dark ? [#6470f3, #ff7a59, #2f84e8, #2dd4bf, #f06f92][index] : [#4f5bd5, #cf4f2c, #1f6fd1, #0d8a7c, #c7346a][index]
     }
     // Tone ids shared by badges, notes and status text: 0 neutral, 1 active, 2 good, 3 warn, 4 bad.
     public pure function tone-bg(tone: int) -> color {
