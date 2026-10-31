@@ -4387,7 +4387,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-cli"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4405,7 +4405,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -4428,7 +4428,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-desktop"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "nuprint-core",
  "nuprint-render",
@@ -4455,7 +4455,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-protocol"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "hex",
  "serde",
@@ -4467,7 +4467,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-render"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cosmic-text",
  "image",
@@ -4483,7 +4483,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-slint"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "base64 0.22.1",
  "cargo-packager-updater",
@@ -4504,7 +4504,7 @@ dependencies = [
 
 [[package]]
 name = "nuprint-transport"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "btleplug",

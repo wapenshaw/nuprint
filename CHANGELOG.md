@@ -5,6 +5,15 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.2.0](https://github.com/wapenshaw/nuprint/compare/v1.1.0...v1.2.0) (2026-10-31)
+
+
+### Features
+
+* **profiles:** mark the sc03h verified on linux ([7c485db](https://github.com/wapenshaw/nuprint/commit/7c485dba916d1ca57cda50299cfe7f63134b187e))
+* **slint:** add the pink accent and the little printer logo ([9a878c8](https://github.com/wapenshaw/nuprint/commit/9a878c8765c6b33a6dc76ee9bfda0ec83568d4bf))
+* **tauri:** make the pink little printer the app's look ([5748168](https://github.com/wapenshaw/nuprint/commit/5748168662ae59715be29ad395fdc0fdf0281d01))
+
 ## [1.1.0](https://github.com/wapenshaw/nuprint/compare/v1.0.1...v1.1.0) (2026-10-29)
 
 
