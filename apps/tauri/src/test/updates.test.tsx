@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SAMPLE_UPDATE as UPDATE } from "../api/mock";
 import { openSettings, renderApp } from "./helpers";
@@ -28,7 +28,7 @@ describe("updates", () => {
     expect(within(settings).getByLabelText("What’s new")).toHaveTextContent("Check for updates");
 
     await user.click(within(settings).getByRole("button", { name: "Install and restart" }));
-    expect(mock.calls.installUpdate).toBe(1);
+    await waitFor(() => expect(mock.calls.installUpdate).toBe(1));
   });
 
   it("remembers the choice to check at start", async () => {
@@ -47,7 +47,7 @@ describe("updates", () => {
     await user.click(within(settings).getByRole("button", { name: "Appearance" }));
     await user.click(within(settings).getByRole("button", { name: "Updates" }));
     expect(await within(settings).findByRole("button", { name: "Installing…" })).toBeDisabled();
-    expect(mock.calls.installUpdate).toBe(1);
+    await waitFor(() => expect(mock.calls.installUpdate).toBe(1));
   });
 
   it("shows a failed install and lets the user try again", async () => {
@@ -62,7 +62,7 @@ describe("updates", () => {
     expect(await screen.findByText("NuPrint could not install the update.")).toBeInTheDocument();
 
     await user.click(within(settings).getByRole("button", { name: "Install and restart" }));
-    expect(mock.calls.installUpdate).toBe(1);
+    await waitFor(() => expect(mock.calls.installUpdate).toBe(1));
   });
 
   it("does not install while a job is printing", async () => {
