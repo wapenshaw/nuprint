@@ -65,12 +65,14 @@ jobs:
             target: x86_64-apple-darwin
             pdfium: mac-x64
             bundle: dmg
-          # The oldest supported Ubuntu, so the .deb installs on older glibc too.
+          # The oldest supported Ubuntu, so the packages run on older glibc too. The
+          # .deb and .rpm use the system's WebKitGTK; the AppImage bundles it for any
+          # other distribution.
           - name: Linux x64
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             pdfium: linux-x64
-            bundle: deb
+            bundle: deb,rpm,appimage
     runs-on: ${{ matrix.os }}
     # id-token and attestations: write let the job sign build provenance for its installers.
     permissions:
@@ -98,7 +100,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential pkg-config libssl-dev libdbus-1-dev \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
-            libfontconfig1-dev libxkbcommon-dev
+            libfontconfig1-dev libxkbcommon-dev patchelf
 
       # rustup reads the pinned toolchain from rust-toolchain.toml.
       - name: Rust toolchain
@@ -147,6 +149,9 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           PDFIUM: vendor/pdfium/${{ matrix.pdfium }}
+          # linuxdeploy's AppImage plugin is itself an AppImage, and without FUSE it
+          # fails with exit code 127 unless it unpacks itself instead (Tauri does this).
+          APPIMAGE_EXTRACT_AND_RUN: 1
         run: |
           case "$RUNNER_OS" in
             Windows) lib="$PDFIUM/bin/pdfium.dll" ;;
@@ -158,7 +163,10 @@ jobs:
           cargo build -p nuprint-slint --release --locked --target "$TARGET"
           release="target/$TARGET/release"
           if [ "$RUNNER_OS" != macOS ]; then
-            cargo packager -p nuprint-slint --release --target "$TARGET" -f ${{ matrix.bundle }}
+            # cargo-packager makes no .rpm; the AppImage covers Fedora and the rest.
+            formats=${{ matrix.bundle }}
+            [ "$RUNNER_OS" = Linux ] && formats=deb,appimage
+            cargo packager -p nuprint-slint --release --target "$TARGET" -f "$formats"
             exit 0
           fi
           cargo packager -p nuprint-slint --release --target "$TARGET" -f app
@@ -177,11 +185,13 @@ jobs:
         run: |
           mkdir dist
           release="target/${{ matrix.target }}/release"
-          bundle="$release/bundle/${{ matrix.bundle }}"
-          case "${{ matrix.bundle }}" in
-            nsis) cp "$bundle"/*-setup.exe "$release"/nuprint-slint_*-setup.exe dist/ ;;
-            dmg) cp "$bundle"/*.dmg "$release"/nuprint-slint_*.dmg dist/ ;;
-            deb) cp "$bundle"/*.deb "$release"/nuprint-slint_*.deb dist/ ;;
+          bundle="$release/bundle"
+          case "$RUNNER_OS" in
+            Windows) cp "$bundle"/nsis/*-setup.exe "$release"/nuprint-slint_*-setup.exe dist/ ;;
+            macOS) cp "$bundle"/dmg/*.dmg "$release"/nuprint-slint_*.dmg dist/ ;;
+            Linux)
+              cp "$bundle"/deb/*.deb "$bundle"/rpm/*.rpm "$bundle"/appimage/*.AppImage dist/
+              cp "$release"/nuprint-slint_*.deb "$release"/nuprint-slint_*.AppImage dist/ ;;
           esac
           ls -l dist
 
@@ -190,9 +200,12 @@ jobs:
       # when that file's signature matches the public key built into the app. The key
       # pair is the maintainer's; its private half is in the repository's secrets.
       # The installer is the update file, except on macOS, where the updaters replace
-      # the .app bundle and so get an archive of it. The Slint app cannot install a
-      # .deb; its Linux entry only tells it a release exists. This writes each app's
-      # entry for this platform to updates/, and the publish job joins them.
+      # the .app bundle and so get an archive of it. On Linux the Tauri updater looks
+      # for the entry of the package it was installed from (linux-x86_64-deb, -rpm or
+      # -appimage) before plain linux-x86_64, which stays the .deb for older installs.
+      # The Slint app cannot install on Linux; its entry only tells it a release
+      # exists. This writes this platform's entries to updates/, and the publish job
+      # joins them.
       - name: Updater files
         shell: bash
         env:
@@ -205,33 +218,40 @@ jobs:
           release="target/$TARGET/release"
           arch=${TARGET%%-*}
           mkdir updates
+          # `tauri` lists the Tauri app's entries as key=file.
           case "$RUNNER_OS" in
             Windows)
-              os=windows; slint_os=windows; slint_format=nsis
-              tauri=$(ls dist/NuPrint_*-setup.exe); slint=$(ls dist/nuprint-slint_*-setup.exe) ;;
+              slint_key=windows-$arch; slint_format=nsis; slint=$(ls dist/nuprint-slint_*-setup.exe)
+              tauri="windows-$arch=$(ls dist/NuPrint_*-setup.exe)" ;;
             Linux)
-              os=linux; slint_os=linux; slint_format=appimage
-              tauri=$(ls dist/NuPrint_*.deb); slint=$(ls dist/nuprint-slint_*.deb) ;;
+              slint_key=linux-$arch; slint_format=appimage; slint=$(ls dist/nuprint-slint_*.AppImage)
+              deb=$(ls dist/NuPrint_*.deb)
+              tauri="linux-$arch=$deb linux-$arch-deb=$deb linux-$arch-rpm=$(ls dist/NuPrint*.rpm) linux-$arch-appimage=$(ls dist/NuPrint_*.AppImage)" ;;
             macOS)
-              os=darwin; slint_os=macos; slint_format=app
+              slint_key=macos-$arch; slint_format=app
               short=$arch; [ "$short" = x86_64 ] && short=x64
-              tauri="dist/NuPrint_${version}_${short}.app.tar.gz"
               slint="dist/nuprint-slint_${version}_${short}.app.tar.gz"
-              COPYFILE_DISABLE=1 tar -czf "$tauri" -C "$release/bundle/macos" NuPrint.app
+              tauri="darwin-$arch=dist/NuPrint_${version}_${short}.app.tar.gz"
+              COPYFILE_DISABLE=1 tar -czf "${tauri#*=}" -C "$release/bundle/macos" NuPrint.app
               COPYFILE_DISABLE=1 tar -czf "$slint" -C "$release" "NuPrint Slint.app" ;;
           esac
-          for file in "$tauri" "$slint"; do
+          # Each file once: the .deb serves two Linux entries.
+          files="$slint"
+          for pair in $tauri; do
+            case " $files " in *" ${pair#*=} "*) ;; *) files="$files ${pair#*=}" ;; esac
+          done
+          for file in $files; do
             (cd apps/tauri && npx tauri signer sign --app-version "$version" "$GITHUB_WORKSPACE/$file")
           done
           node -e '
             const fs = require("fs");
-            const [, tauri, slint, os, slintOs, arch, format] = process.argv;
-            const entry = (file) => ({ file: file.split("/").pop(), signature: fs.readFileSync(file + ".sig", "utf8").trim() });
-            fs.writeFileSync(`updates/${os}-${arch}.json`, JSON.stringify({
-              tauri: { key: `${os}-${arch}`, ...entry(tauri) },
-              slint: { key: `${slintOs}-${arch}`, format, ...entry(slint) },
+            const [, slintKey, slintFormat, slint, ...tauri] = process.argv;
+            const entry = (key, file) => ({ key, file: file.split("/").pop(), signature: fs.readFileSync(file + ".sig", "utf8").trim() });
+            fs.writeFileSync(`updates/${slintKey}.json`, JSON.stringify({
+              tauri: tauri.map((pair) => entry(...pair.split("="))),
+              slint: [{ ...entry(slintKey, slint), format: slintFormat }],
             }));
-          ' "$tauri" "$slint" "$os" "$slint_os" "$arch" "$slint_format"
+          ' "$slint_key" "$slint_format" "$slint" $tauri
           rm dist/*.sig
           cat updates/*.json
 
@@ -285,8 +305,10 @@ jobs:
             const apps = { tauri: { ...manifest, platforms: {} }, slint: { ...manifest, platforms: {} } };
             for (const name of fs.readdirSync("updates")) {
               const platform = JSON.parse(fs.readFileSync(`updates/${name}`, "utf8"));
-              for (const [app, { key, file, ...rest }] of Object.entries(platform)) {
-                apps[app].platforms[key] = { ...rest, url: base + encodeURIComponent(file) };
+              for (const [app, entries] of Object.entries(platform)) {
+                for (const { key, file, ...rest } of entries) {
+                  apps[app].platforms[key] = { ...rest, url: base + encodeURIComponent(file) };
+                }
               }
             }
             fs.writeFileSync("dist/latest.json", JSON.stringify(apps.tauri, null, 2));

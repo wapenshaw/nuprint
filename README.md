@@ -44,6 +44,8 @@ Get the installer for your system from the [latest release](https://github.com/w
 | macOS 14+ on Apple silicon | `NuPrint_<version>_aarch64.dmg` | `nuprint-slint_<version>_aarch64.dmg` |
 | macOS 14+ on Intel | `NuPrint_<version>_x64.dmg` | `nuprint-slint_<version>_x64.dmg` |
 | Debian and Ubuntu | `NuPrint_<version>_amd64.deb` | `nuprint-slint_<version>_amd64.deb` |
+| Fedora and openSUSE | `NuPrint-<version>-1.x86_64.rpm` | the AppImage below |
+| Any other Linux (x64) | `NuPrint_<version>_amd64.AppImage` | `nuprint-slint_<version>_x86_64.AppImage` |
 
 The Windows installers need no admin rights. Once installed, both apps can check for a newer release and install it in **Settings → Updates**. They check only when you ask, or at start if you turn that on.
 

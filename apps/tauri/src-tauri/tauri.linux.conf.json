@@ -6,7 +6,8 @@
       "../../../vendor/pdfium/linux-x64/LICENSE": "pdfium/LICENSE"
     },
     "linux": {
-      "deb": { "depends": ["bluez"] }
+      "deb": { "depends": ["bluez"] },
+      "rpm": { "depends": ["bluez"] }
     }
   }
 }

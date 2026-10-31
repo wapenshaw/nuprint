@@ -14,13 +14,13 @@ If NuPrint doesn't list your model, run `nuprint inspect --device NAME --output 
 
 ## Installers
 
-Check a download against the release's `SHA256SUMS` if you like. The Windows installer installs for the current user without admin rights, and the `.deb` installs BlueZ as a dependency. To confirm that an installer was built by NuPrint's release workflow, see [check a download](code-signing.md#check-a-download).
+Check a download against the release's `SHA256SUMS` if you like. The Windows installer installs for the current user without admin rights, and the `.deb` and `.rpm` install BlueZ as a dependency. The AppImage uses the BlueZ already on the system. To confirm that an installer was built by NuPrint's release workflow, see [check a download](code-signing.md#check-a-download).
 
 The `nuprint` CLI has no installer. You build it from source (see [building from source](building.md)).
 
 ## NuPrint Slint
 
-Each release also includes **NuPrint Slint**, the same app drawn natively with Slint instead of in a web view. Its files are `nuprint-slint_<version>_x64-setup.exe`, `nuprint-slint_<version>_aarch64.dmg`, `nuprint-slint_<version>_x64.dmg` and `nuprint-slint_<version>_amd64.deb`. It uses the same printing engine, installs alongside NuPrint and keeps its own printers and queue. It's newer and less tested: its screens have been checked on Windows, printing from it hasn't been tested on paper yet, and it lacks two options (see the [Slint notes](building.md#slint-app)). It has the same screens as NuPrint.
+Each release also includes **NuPrint Slint**, the same app drawn natively with Slint instead of in a web view. Its files are `nuprint-slint_<version>_x64-setup.exe`, `nuprint-slint_<version>_aarch64.dmg`, `nuprint-slint_<version>_x64.dmg`, `nuprint-slint_<version>_amd64.deb` and `nuprint-slint_<version>_x86_64.AppImage` (there's no Slint `.rpm`; use the AppImage on Fedora). It uses the same printing engine, installs alongside NuPrint and keeps its own printers and queue. It's newer and less tested: its screens have been checked on Windows, printing from it hasn't been tested on paper yet, and it lacks two options (see the [Slint notes](building.md#slint-app)). It has the same screens as NuPrint.
 
 ## The window
 
@@ -50,9 +50,9 @@ Light and dark also apply to the window's title bar. While NuPrint is open, the 
 
 NuPrint checks for updates only when you press **Check for updates**, or at every start if you turn on **Check for updates when NuPrint starts**, which is off until you do. A check asks GitHub, where NuPrint is published. If a check at start finds a new release, the status bar tells you.
 
-When a newer release exists, the Updates page shows what changed. **Install and restart** downloads it, checks its [signature](code-signing.md#updates), installs it and opens NuPrint again. Waiting jobs are kept, and none of them starts while the update installs. The button is unavailable while a job is printing, because closing the app would cancel the job. On Windows the installer shows its progress; if it can't start, NuPrint tells you and starts printing again once you restart it. On Linux the system asks for your password to install the new package. **Release page** opens the release on GitHub.
+When a newer release exists, the Updates page shows what changed. **Install and restart** downloads it, checks its [signature](code-signing.md#updates), installs it and opens NuPrint again. Waiting jobs are kept, and none of them starts while the update installs. The button is unavailable while a job is printing, because closing the app would cancel the job. On Windows the installer shows its progress; if it can't start, NuPrint tells you and starts printing again once you restart it. On Linux the update matches how you installed NuPrint: the system asks for your password to install a new `.deb` or `.rpm`, and an AppImage is replaced where it is. **Release page** opens the release on GitHub.
 
-NuPrint Slint updates itself the same way on Windows and macOS. On Linux it shows the new release, and **Download** opens the release page, where you can get the new `.deb`.
+NuPrint Slint updates itself the same way on Windows and macOS. On Linux it shows the new release, and **Download** opens the release page, where you can get the new package.
 
 Updating from inside the app works from the first release that has this page. To update an earlier version, install the new release's installer.
 

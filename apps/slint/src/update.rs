@@ -2,7 +2,7 @@
 //! cargo-packager's updater reads the Slint release manifest and installs a release only when its
 //! signature matches the key the Tauri app trusts too, and only when that signature names the
 //! version offered. It installs on Windows and macOS; on Linux the app offers the release page,
-//! where the .deb is.
+//! where its packages are.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;

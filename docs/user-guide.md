@@ -18,10 +18,12 @@ Download the installer for your system from [Releases](https://github.com/wapens
 | macOS 14+, Apple silicon | `NuPrint_<version>_aarch64.dmg` |
 | macOS 14+, Intel | `NuPrint_<version>_x64.dmg` |
 | Debian/Ubuntu (x64) | `NuPrint_<version>_amd64.deb` |
+| Fedora/openSUSE (x64) | `NuPrint-<version>-1.x86_64.rpm` |
+| Any other Linux (x64) | `NuPrint_<version>_amd64.AppImage` |
 
 The installers aren't code-signed yet, so the first launch needs one extra step. On Windows, if SmartScreen warns about an unrecognised app, choose **More info → Run anyway**. On macOS, open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint.
 
-On Linux, run these once so NuPrint can reach the printer ([why](linux.md)):
+On Linux, an AppImage needs no install: make it executable (`chmod +x`, or **Allow executing as program** in its properties) and open it. Whichever file you use, run these once so NuPrint can reach the printer ([why](linux.md)):
 
 ```bash
 sudo sed -i 's/^#\?Experimental = .*/Experimental = true/' /etc/bluetooth/main.conf
