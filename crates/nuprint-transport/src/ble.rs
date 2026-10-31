@@ -302,11 +302,12 @@ impl Transport for BleTransport {
 
 #[cfg(target_os = "linux")]
 async fn connect_peripheral(peripheral: &Peripheral, timeout: Duration) -> Result<(), TransportError> {
-    if bluez::connect_le(&peripheral.id().to_string(), timeout).await? == bluez::LeConnect::Connected {
+    let bluez::LeConnect::Unavailable { too_old } = bluez::connect_le(&peripheral.id().to_string(), timeout).await?
+    else {
         return Ok(());
-    }
+    };
     match peripheral.connect().await.map_err(map_err) {
-        Err(error) if bluez::chose_classic(&error) => Err(TransportError::ClassicConnection),
+        Err(error) if bluez::chose_classic(&error) => Err(bluez::classic_error(too_old)),
         result => result,
     }
 }

@@ -132,6 +132,9 @@ pub enum TransportError {
     /// BlueZ connected a dual-mode device over Classic, so its GATT services never appeared.
     #[error("BlueZ tried Classic Bluetooth instead of LE and its LE connection is unavailable")]
     ClassicConnection,
+    /// As [`TransportError::ClassicConnection`], on a BlueZ too old to offer an LE connection at all.
+    #[error("BlueZ {0} tried Classic Bluetooth instead of LE and cannot connect over LE before 5.80")]
+    BluezTooOld(String),
     #[error("Bluetooth error: {0}")]
     Backend(String),
 }
