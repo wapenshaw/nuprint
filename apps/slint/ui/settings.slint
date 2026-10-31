@@ -458,12 +458,19 @@ component AppearancePage inherits Page {
         HorizontalLayout {
             spacing: 8px;
             alignment: start;
-            for name[index] in ["Indigo", "Coral", "Ocean", "Teal"]: Swatch {
-                text: name;
-                dot: Theme.accent-of(index);
-                on: Theme.accent-index == index;
+            // Pink first, as in the web UI; each keeps its index in Theme's palettes.
+            for swatch in [
+                { name: "Pink", index: 4 },
+                { name: "Indigo", index: 0 },
+                { name: "Coral", index: 1 },
+                { name: "Ocean", index: 2 },
+                { name: "Teal", index: 3 },
+            ]: Swatch {
+                text: swatch.name;
+                dot: Theme.accent-of(swatch.index);
+                on: Theme.accent-index == swatch.index;
                 clicked => {
-                    Data.set-accent(index);
+                    Data.set-accent(swatch.index);
                 }
             }
         }
@@ -475,7 +482,7 @@ component AppearancePage inherits Page {
             spacing: 10px;
             alignment: start;
             for choice[index] in [
-                { text: "Little cube", source: @image-url("../../tauri/src-tauri/icons/choices/cube.png") },
+                { text: "Little printer", source: @image-url("../../tauri/src-tauri/icons/choices/cube.png") },
                 { text: "Curl", source: @image-url("../../tauri/src-tauri/icons/choices/curl.png") },
                 { text: "Ribbon", source: @image-url("../../tauri/src-tauri/icons/choices/ribbon.png") },
                 { text: "Air roll", source: @image-url("../../tauri/src-tauri/icons/choices/roll.png") },

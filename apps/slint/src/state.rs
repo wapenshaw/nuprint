@@ -9,14 +9,21 @@ use serde::{Deserialize, Serialize};
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
 /// Missing fields (from an older version's file) take their defaults.
-#[derive(Serialize, Deserialize, Default, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 #[serde(default)]
 pub(crate) struct Prefs {
     pub(crate) mode: i32,
+    /// An index into Theme's accent palettes; 4, pink, is the default.
     pub(crate) accent: i32,
     pub(crate) icon: i32,
     /// Check for a newer release at start. Off until the user turns it on.
     pub(crate) check_updates: bool,
+}
+
+impl Default for Prefs {
+    fn default() -> Self {
+        Self { mode: 0, accent: 4, icon: 0, check_updates: false }
+    }
 }
 
 #[derive(Clone)]
