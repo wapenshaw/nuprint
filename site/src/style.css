@@ -673,6 +673,128 @@ h2 {
   color: var(--muted);
 }
 
+/* ---- user guide: the changelog's cards, one per section of docs/user-guide.md, at full width */
+
+.changelog.guide {
+  max-width: none;
+}
+
+.guide-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.guide-contents a {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.guide-contents a:hover {
+  color: var(--link);
+}
+
+.guide-part {
+  background: var(--paper);
+  border-radius: 20px;
+  padding: 26px 28px 28px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.guide-part [id] {
+  scroll-margin-top: 24px;
+}
+
+.guide-part h2 {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.guide-part h3 {
+  margin: 28px 0 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--link);
+}
+
+.guide-part p,
+.guide-part ul,
+.guide-part ol,
+.guide-part pre {
+  margin: 0 0 14px;
+}
+
+.guide-part ul,
+.guide-part ol {
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-part code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--sand);
+  border-radius: 6px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+.guide-part pre {
+  background: var(--sand);
+  border-radius: 12px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+
+.guide-part pre code {
+  padding: 0;
+  background: none;
+  overflow-wrap: normal;
+}
+
+.guide-part table {
+  display: block;
+  overflow-x: auto;
+  margin: 0 0 18px;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.guide-part th,
+.guide-part td {
+  padding: 9px 14px 9px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.guide-part th {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.guide-part img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 4px;
+  border-radius: 12px;
+  box-shadow: 0 14px 30px -14px rgba(74, 20, 38, 0.35);
+}
+
 /* ---- 404 */
 
 .lost {
