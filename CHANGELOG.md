@@ -5,6 +5,13 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.3.1](https://github.com/wapenshaw/nuprint/compare/v1.3.0...v1.3.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **transport:** tell old bluez users their system is not supported ([787ef0b](https://github.com/wapenshaw/nuprint/commit/787ef0b8e4d8818ea7fd99642d40e4b2fa012d5d))
+
 ## [1.3.0](https://github.com/wapenshaw/nuprint/compare/v1.2.1...v1.3.0) (2026-10-31)
 
 
