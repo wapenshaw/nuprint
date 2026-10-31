@@ -5,6 +5,14 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.3.0](https://github.com/wapenshaw/nuprint/compare/v1.2.1...v1.3.0) (2026-10-31)
+
+
+### Features
+
+* **linux:** add appstream metadata to the packages ([b13abe8](https://github.com/wapenshaw/nuprint/commit/b13abe8b7a61b048a19a534badddd5dbf954cb3a))
+* **linux:** ship an rpm and appimages ([0782b96](https://github.com/wapenshaw/nuprint/commit/0782b96a30f8b1603f02dfb39daca5b6e10ccea8))
+
 ## [1.2.1](https://github.com/wapenshaw/nuprint/compare/v1.2.0...v1.2.1) (2026-10-31)
 
 
