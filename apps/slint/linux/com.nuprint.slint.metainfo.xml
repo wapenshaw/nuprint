@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: software centers such as GNOME Software, KDE
+     Discover and Ubuntu's App Center show the name, icon and description from
+     this file when they open the package, and AppImage tools read it too.
+     Without it they show the package name (nu-print-slint) and a generic icon. -->
+<component type="desktop-application">
+  <id>com.nuprint.slint</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>NuPrint Slint</name>
+  <summary>Print to small Bluetooth thermal printers</summary>
+  <developer id="app.nuprint">
+    <name>wapenshaw and NuPrint contributors</name>
+  </developer>
+  <description>
+    <p>
+      NuPrint prints notes, pictures and PDF pages directly to supported Bluetooth LE
+      thermal printers, with an exact preview of the paper and a print queue that
+      survives restarts.
+    </p>
+    <p>
+      NuPrint Slint is the same app drawn natively with Slint instead of in a web
+      view. It is newer and less tested than NuPrint, and keeps its own printers and
+      queue.
+    </p>
+    <p>
+      The first supported printer is the ZEITEL lowercase SC03h. Printers whose
+      settings match it are offered as experimental.
+    </p>
+  </description>
+  <launchable type="desktop-id">nuprint-slint.desktop</launchable>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <icon type="stock">nuprint-slint</icon>
+  <url type="homepage">https://nuprint.app</url>
+  <url type="bugtracker">https://github.com/wapenshaw/nuprint/issues</url>
+  <url type="vcs-browser">https://github.com/wapenshaw/nuprint</url>
+  <provides>
+    <binary>nuprint-slint</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+</component>

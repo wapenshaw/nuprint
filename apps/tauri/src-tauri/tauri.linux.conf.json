@@ -6,8 +6,17 @@
       "../../../vendor/pdfium/linux-x64/LICENSE": "pdfium/LICENSE"
     },
     "linux": {
-      "deb": { "depends": ["bluez"] },
-      "rpm": { "depends": ["bluez"] }
+      "deb": {
+        "depends": ["bluez"],
+        "files": { "/usr/share/metainfo/com.nuprint.desktop.metainfo.xml": "linux/com.nuprint.desktop.metainfo.xml" }
+      },
+      "rpm": {
+        "depends": ["bluez"],
+        "files": { "/usr/share/metainfo/com.nuprint.desktop.metainfo.xml": "linux/com.nuprint.desktop.metainfo.xml" }
+      },
+      "appimage": {
+        "files": { "/usr/share/metainfo/com.nuprint.desktop.metainfo.xml": "linux/com.nuprint.desktop.metainfo.xml" }
+      }
     }
   }
 }
