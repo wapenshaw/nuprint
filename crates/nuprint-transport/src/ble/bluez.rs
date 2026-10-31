@@ -12,8 +12,9 @@
 //! BlueZ can be asked for LE in two ways, both offered only when its experimental features are
 //! enabled (`Experimental = true` in `/etc/bluetooth/main.conf`): `org.bluez.Bearer.LE1.Connect`
 //! from BlueZ 5.84, and the `PreferredBearer` device property from 5.80 (such as Ubuntu 25.10's
-//! 5.83). Older BlueZ, such as Ubuntu 24.04's 5.72, has neither. The property is stored by BlueZ,
-//! so it is set only for the connect call and then restored.
+//! 5.83). Older BlueZ, such as Ubuntu 24.04's 5.72, has neither, so when neither is offered the
+//! version decides whether to advise turning experimental features on or to say this BlueZ is too
+//! old. The property is stored by BlueZ, so it is set only for the connect call and then restored.
 
 use std::time::{Duration, Instant};
 
@@ -38,9 +39,26 @@ const LE_DISCOVERY: Duration = Duration::from_secs(5);
 pub(super) enum LeConnect {
     /// Connected over LE with services resolved.
     Connected,
-    /// This BlueZ offers no way to ask for LE, so nothing was attempted.
-    Unavailable,
+    /// This BlueZ offers no way to ask for LE, so nothing was attempted. Carries BlueZ's version
+    /// when it is older than [`FIRST_LE`] and so has no way to offer one at all.
+    Unavailable { too_old: Option<Version> },
 }
+
+/// A BlueZ release, such as 5.72.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) struct Version {
+    major: u8,
+    minor: u8,
+}
+
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+/// The first BlueZ that can be asked for LE: it added `PreferredBearer`.
+const FIRST_LE: Version = Version { major: 5, minor: 80 };
 
 /// Connect `device` (a btleplug peripheral id, the object path below `/org/bluez/`) over LE and
 /// wait until BlueZ has resolved its services, as btleplug's own connect does.
@@ -63,8 +81,10 @@ fn connect_le_blocking(path: &str, timeout: Duration) -> Result<LeConnect, Trans
     if !heard_over_le(&device) {
         discover_le(&connection, path, &device, timeout);
     }
-    if connect_bearer(&device)? == LeConnect::Unavailable && connect_preferring_le(&device)? == LeConnect::Unavailable {
-        return Ok(LeConnect::Unavailable);
+    if !connect_bearer(&device)? && !connect_preferring_le(&device)? {
+        let too_old = bluez_version(&connection, path, timeout).filter(|version| *version < FIRST_LE);
+        debug!(?too_old, "BlueZ offers no LE connection");
+        return Ok(LeConnect::Unavailable { too_old });
     }
     loop {
         if device.get::<bool>(DEVICE, "ServicesResolved").map_err(backend)? {
@@ -107,21 +127,41 @@ fn discover_le(connection: &Connection, path: &str, device: &Proxy<'_, &Connecti
     }
 }
 
-fn connect_bearer(device: &Proxy<'_, &Connection>) -> Result<LeConnect, TransportError> {
+/// BlueZ's version, from the adapter's `Modalias`. `None` when it cannot be read or `DeviceID` in
+/// `main.conf` replaced BlueZ's own device ID.
+fn bluez_version(connection: &Connection, path: &str, timeout: Duration) -> Option<Version> {
+    let (adapter_path, _) = path.rsplit_once('/')?;
+    let modalias = connection.with_proxy(BLUEZ, adapter_path, timeout).get::<String>(ADAPTER, "Modalias").ok()?;
+    parse_modalias(&modalias)
+}
+
+/// BlueZ's default device ID is vendor 1D6B (Linux Foundation), product 0246 (BlueZ) and its
+/// version as `major << 8 | minor`, so 5.72 is `usb:v1D6Bp0246d0548`.
+fn parse_modalias(modalias: &str) -> Option<Version> {
+    let (_, id) = modalias.split_once(':')?;
+    let id = id.to_ascii_uppercase();
+    let version = id.strip_prefix("V1D6BP0246D").filter(|version| version.len() == 4)?;
+    let [major, minor] = u16::from_str_radix(version, 16).ok()?.to_be_bytes();
+    Some(Version { major, minor })
+}
+
+/// Connect through `Bearer.LE1`; `false` when this BlueZ does not offer it.
+fn connect_bearer(device: &Proxy<'_, &Connection>) -> Result<bool, TransportError> {
     match device.method_call::<(), _, _, _>(LE_BEARER, "Connect", ()) {
         Ok(()) => {}
         Err(error) if error.name() == Some("org.bluez.Error.AlreadyConnected") => {}
-        Err(error) if missing(&error) => return Ok(LeConnect::Unavailable),
+        Err(error) if missing(&error) => return Ok(false),
         Err(error) => return Err(backend(error)),
     }
     debug!("connected over the LE bearer");
-    Ok(LeConnect::Connected)
+    Ok(true)
 }
 
-fn connect_preferring_le(device: &Proxy<'_, &Connection>) -> Result<LeConnect, TransportError> {
+/// Connect with LE as the preferred bearer; `false` when this BlueZ does not offer it.
+fn connect_preferring_le(device: &Proxy<'_, &Connection>) -> Result<bool, TransportError> {
     let previous = match device.get::<String>(DEVICE, "PreferredBearer") {
         Ok(previous) => previous,
-        Err(error) if missing(&error) => return Ok(LeConnect::Unavailable),
+        Err(error) if missing(&error) => return Ok(false),
         Err(error) => return Err(backend(error)),
     };
     if previous != "le" {
@@ -139,7 +179,7 @@ fn connect_preferring_le(device: &Proxy<'_, &Connection>) -> Result<LeConnect, T
         Err(error) => return Err(backend(error)),
     }
     debug!("connected with LE as the preferred bearer");
-    Ok(LeConnect::Connected)
+    Ok(true)
 }
 
 /// Drop the LE link to `device`. `Device1.Disconnect` can leave it up: with the printer paired over
@@ -184,6 +224,15 @@ pub(super) fn chose_classic(error: &TransportError) -> bool {
         if message.contains("No more profiles to connect to") || message.contains("br-connection"))
 }
 
+/// The error for BlueZ choosing Classic: advice to turn experimental features on, unless this
+/// BlueZ is too old for them to help.
+pub(super) fn classic_error(too_old: Option<Version>) -> TransportError {
+    match too_old {
+        Some(version) => TransportError::BluezTooOld(version.to_string()),
+        None => TransportError::ClassicConnection,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,5 +243,24 @@ mod tests {
         assert!(chose_classic(&TransportError::Backend("br-connection-profile-unavailable".into())));
         assert!(!chose_classic(&TransportError::Backend("Software caused connection abort".into())));
         assert!(!chose_classic(&TransportError::Disconnected));
+    }
+
+    #[test]
+    fn reads_the_version_from_bluez_own_device_id() {
+        let version = |major, minor| Some(Version { major, minor });
+        assert_eq!(parse_modalias("usb:v1D6Bp0246d0548"), version(5, 72));
+        assert_eq!(parse_modalias("usb:v1D6Bp0246d0557"), version(5, 87));
+        assert_eq!(parse_modalias("bluetooth:v1d6bp0246d0550"), version(5, 80));
+        assert!(version(5, 72) < Some(FIRST_LE) && version(5, 83) >= Some(FIRST_LE));
+        assert_eq!(parse_modalias("bluetooth:v1234p5678dABCD"), None, "DeviceID set in main.conf");
+        assert_eq!(parse_modalias("usb:v1D6Bp0246d548"), None);
+        assert_eq!(parse_modalias(""), None);
+    }
+
+    #[test]
+    fn old_bluez_is_not_told_to_turn_on_experimental_features() {
+        let old = parse_modalias("usb:v1D6Bp0246d0548");
+        assert!(matches!(classic_error(old), TransportError::BluezTooOld(version) if version == "5.72"));
+        assert!(matches!(classic_error(None), TransportError::ClassicConnection));
     }
 }

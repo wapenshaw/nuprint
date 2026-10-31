@@ -23,7 +23,7 @@ Download the installer for your system from [Releases](https://github.com/wapens
 
 The installers aren't code-signed yet, so the first launch needs one extra step. On Windows, if SmartScreen warns about an unrecognised app, choose **More info → Run anyway**. On macOS, open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint.
 
-On Linux, an AppImage needs no install: make it executable (`chmod +x`, or **Allow executing as program** in its properties) and open it. Whichever file you use, run these once so NuPrint can reach the printer ([why](linux.md)):
+On Linux, NuPrint needs BlueZ 5.80 or newer (check with `bluetoothctl --version`), so Ubuntu 24.04 and older can't reach the printer. An AppImage needs no install: make it executable (`chmod +x`, or **Allow executing as program** in its properties) and open it. Whichever file you use, run these once so NuPrint can reach the printer ([why](linux.md)):
 
 ```bash
 sudo sed -i 's/^#\?Experimental = .*/Experimental = true/' /etc/bluetooth/main.conf

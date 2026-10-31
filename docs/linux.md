@@ -36,7 +36,9 @@ Windows and macOS are not affected: their Bluetooth APIs connect to LE devices o
 2. **`Bearer.LE1.Connect`** where BlueZ offers it. This connects over LE for this connection only and stores nothing.
 3. **Otherwise `PreferredBearer`.** NuPrint sets the device's `PreferredBearer` property to `le`, calls `Device1.Connect` and restores the previous value (normally `last-used`) whether or not the connection succeeded.
 4. NuPrint then waits for `ServicesResolved`, as btleplug's own connect does.
-5. **Neither available** (experimental features off): NuPrint falls back to btleplug's plain connect. It works only when the adapter is LE-only (`ControllerMode = le`). If BlueZ fails because it chose Classic, the app says: "Linux tried to reach this printer over Classic Bluetooth. Set Experimental = true in /etc/bluetooth/main.conf, restart Bluetooth and retry."
+5. **Neither available** (experimental features off, or BlueZ before 5.80): NuPrint falls back to btleplug's plain connect. It works only when the adapter is LE-only (`ControllerMode = le`). If BlueZ fails because it chose Classic, the app's message depends on the BlueZ version, which NuPrint reads from the adapter's `Modalias` (BlueZ's own device ID, such as `usb:v1D6Bp0246d0548` for 5.72):
+   - 5.80 or newer, or a version NuPrint cannot read (for example because `DeviceID` in `main.conf` replaced it): "Linux tried to reach this printer over Classic Bluetooth. Set Experimental = true in /etc/bluetooth/main.conf, restart Bluetooth and retry."
+   - Before 5.80, where experimental features cannot help: "This Linux system's Bluetooth (BlueZ) is too old to reach this printer. NuPrint needs BlueZ 5.80 or newer, so Ubuntu 24.04 and older are not supported." The diagnostic detail names the version.
 
 When a job ends, or a connection attempt fails, NuPrint calls `Bearer.LE1.Disconnect` before `Device1.Disconnect`. With the printer paired over Classic, `Device1.Disconnect` alone left LE connected (BlueZ logged "No matching connection for device").
 

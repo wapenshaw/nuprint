@@ -136,6 +136,11 @@ impl From<TransportError> for AppError {
                 "Linux tried to reach this printer over Classic Bluetooth. Set Experimental = true in \
                  /etc/bluetooth/main.conf, restart Bluetooth and retry.",
             ),
+            TransportError::BluezTooOld(_) => (
+                ErrorCode::ConnectionFailed,
+                "This Linux system's Bluetooth (BlueZ) is too old to reach this printer. NuPrint needs BlueZ \
+                 5.80 or newer, so Ubuntu 24.04 and older are not supported.",
+            ),
             TransportError::Backend(_) => (ErrorCode::ConnectionFailed, "Bluetooth connection failed."),
         };
         AppError::new(code, message).with_detail(detail)
