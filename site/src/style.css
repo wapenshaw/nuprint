@@ -1,4 +1,4 @@
-/* NuPrint's site. Colours come from the app icon (apps/tauri/src/assets/app-icons/cube.svg). */
+/* NuPrint's site. Colours follow the SC03h itself: a white top over a pink base. */
 
 @font-face {
   font-family: "Bricolage Grotesque";
@@ -22,19 +22,19 @@
 }
 
 :root {
-  --cream: #fbf6f1;
-  --sand: #f4e8df;
+  --cream: #fcf6f6;
+  --sand: #fae6ec;
   --paper: #ffffff;
-  --ink: #2a1a14;
-  --ink-hover: #4a3128;
-  --muted: #6e5248;
-  --line: #eadbd1;
-  --dash: #e3d2c6;
-  --link: #b8401f;
-  --link-hover: #8e2f14;
-  --accent: #d9502f;
-  --orange-1: #ff9e7f;
-  --orange-2: #f05e3d;
+  --ink: #2a1a1f;
+  --ink-hover: #4a2a35;
+  --muted: #6e5259;
+  --line: #f0d6dd;
+  --dash: #ebcfd6;
+  --link: #b4335a;
+  --link-hover: #8a2443;
+  --accent: #e0527a;
+  --tint-1: #ffb3c6;
+  --tint-2: #f06f92;
   --sans: "Bricolage Grotesque", system-ui, sans-serif;
   --mono: "Space Mono", ui-monospace, monospace;
   color-scheme: light;
@@ -61,7 +61,7 @@ a:hover {
 }
 
 :focus-visible {
-  outline: 3px solid var(--orange-2);
+  outline: 3px solid var(--tint-2);
   outline-offset: 3px;
   border-radius: 6px;
 }
@@ -214,7 +214,7 @@ h1 em {
   color: var(--muted);
 }
 
-/* the cube printing the receipt */
+/* the printer printing the receipt */
 
 .hero-art {
   flex: 1 1 400px;
@@ -277,7 +277,7 @@ h1 em {
   left: 0;
   right: 0;
   bottom: 0;
-  filter: drop-shadow(0 6px 10px rgba(58, 21, 8, 0.12));
+  filter: drop-shadow(0 6px 10px rgba(74, 20, 38, 0.12));
 }
 
 .receipt-body {
@@ -356,18 +356,21 @@ h1 em {
   background-position: left bottom;
 }
 
-.pop {
-  position: absolute;
+.printer > .pop {
+  inset: auto;
+  height: auto;
   z-index: 4;
   opacity: 0;
 }
 
-.pop-1 {
+.printer > .pop-1 {
+  width: 11cqw;
   right: 6%;
   top: 18%;
 }
 
-.pop-2 {
+.printer > .pop-2 {
+  width: 6.5cqw;
   left: 8%;
   top: 26%;
 }
@@ -422,10 +425,10 @@ h2 {
 
 .lift:hover {
   transform: translateY(-4px) rotate(-0.6deg);
-  box-shadow: 0 14px 30px -14px rgba(58, 21, 8, 0.35);
+  box-shadow: 0 14px 30px -14px rgba(74, 20, 38, 0.35);
 }
 
-/* meet the cube */
+/* meet the printer */
 
 .moods {
   display: grid;
@@ -445,7 +448,7 @@ h2 {
 .mood-stage {
   height: 200px;
   border-radius: 20px;
-  background: linear-gradient(160deg, var(--orange-1) 0%, var(--orange-2) 100%);
+  background: linear-gradient(160deg, var(--tint-1) 0%, var(--tint-2) 100%);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -520,7 +523,7 @@ h2 {
 
 .ticket-stub {
   width: 18px;
-  background: linear-gradient(180deg, var(--orange-1), var(--orange-2));
+  background: linear-gradient(180deg, var(--tint-1), var(--tint-2));
 }
 
 .ticket-main {
@@ -688,7 +691,7 @@ h2 {
   overflow: visible;
 }
 
-/* ---- motion: the cube's moods (see the design canvas) */
+/* ---- motion: the printer's moods (see the design canvas) */
 
 .a-breathe {
   transform-box: fill-box;

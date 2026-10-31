@@ -1,20 +1,37 @@
 <svg class="sr-defs" aria-hidden="true">
 <defs>
-<linearGradient id="np-bg" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FF9E7F"/><stop offset="1" stop-color="#F05E3D"/></linearGradient>
-<linearGradient id="np-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F0EAE5"/></linearGradient>
-<linearGradient id="np-paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F4F0EC"/></linearGradient>
+<linearGradient id="np-bg" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FFB3C6"/><stop offset="1" stop-color="#F06F92"/></linearGradient>
+<linearGradient id="np-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F3EBEE"/></linearGradient>
+<linearGradient id="np-paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F4F0F1"/></linearGradient>
 <clipPath id="np-slot" clipPathUnits="userSpaceOnUse"><rect x="300" y="-600" width="424" height="1071"/></clipPath>
 <path id="np-heart" d="M512 372C470 344 452 322 461 300C470 279 499 279 512 300C525 279 554 279 563 300C572 322 554 344 512 372Z"/>
 <path id="np-slip" d="M382 471V250l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22l13-22l13 22V471Z"/>
+<!-- The SC03h, small: a white body with pink ears and feet. The slot is on top, so paper comes out upward. -->
+<g id="np-shell">
+<ellipse cx="334" cy="446" rx="46" ry="28" fill="#EC6E93"/>
+<ellipse cx="690" cy="446" rx="46" ry="28" fill="#EC6E93"/>
+<rect x="318" y="796" width="104" height="46" rx="20" fill="#EC6E93"/>
+<rect x="602" y="796" width="104" height="46" rx="20" fill="#EC6E93"/>
+<rect x="252" y="430" width="520" height="400" rx="130" fill="url(#np-body)" stroke="#EEDFE4" stroke-width="4"/>
+</g>
+<!-- Big eyes with two highlights and curled lashes on the outer top. -->
+<g id="np-eyes">
+<path d="M418 587Q411 573 403 572M407 597Q397 589 386 590M606 587Q613 573 621 572M617 597Q627 589 638 590" fill="none" stroke="#2A1A1F" stroke-width="6" stroke-linecap="round"/>
+<circle cx="436" cy="618" r="36" fill="#2A1A1F"/><circle cx="588" cy="618" r="36" fill="#2A1A1F"/>
+<circle cx="430" cy="612" r="13" fill="#FFFFFF"/><circle cx="582" cy="612" r="13" fill="#FFFFFF"/>
+<circle cx="450" cy="633" r="6" fill="#FFFFFF"/><circle cx="602" cy="633" r="6" fill="#FFFFFF"/>
+</g>
+<g id="np-cheeks"><ellipse cx="390" cy="680" rx="22" ry="15" fill="#FF6F96" fill-opacity="0.85"/><ellipse cx="634" cy="680" rx="22" ry="15" fill="#FF6F96" fill-opacity="0.85"/></g>
+<path id="np-mouth" d="M483 676L490 685Q501 697 512 685Q523 697 534 685L541 676" fill="none" stroke="#2A1A1F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
 </defs>
 </svg>
 <nav class="nav" aria-label="Main">
 <a class="brand" href="/">
-<svg viewBox="100 100 824 824" width="40" height="40" aria-hidden="true"><rect x="100" y="100" width="824" height="824" rx="185" fill="url(#np-bg)"/><rect x="252" y="430" width="520" height="400" rx="130" fill="url(#np-body)"/><use href="#np-slip" fill="#FFFFFF"/><use href="#np-heart" fill="#F2603F"/><circle cx="442" cy="620" r="28" fill="#3A2A24"/><circle cx="582" cy="620" r="28" fill="#3A2A24"/><path d="M480 680Q512 708 544 680" fill="none" stroke="#3A2A24" stroke-width="20" stroke-linecap="round"/></svg>
+<svg viewBox="100 100 824 824" width="40" height="40" aria-hidden="true"><rect x="100" y="100" width="824" height="824" rx="185" fill="url(#np-bg)"/><use href="#np-shell"/><use href="#np-slip" fill="#FFFFFF"/><use href="#np-heart" fill="#F0557F"/><circle cx="436" cy="622" r="40" fill="#2A1A1F"/><circle cx="588" cy="622" r="40" fill="#2A1A1F"/><circle cx="428" cy="612" r="14" fill="#FFFFFF"/><circle cx="580" cy="612" r="14" fill="#FFFFFF"/><ellipse cx="380" cy="690" rx="30" ry="20" fill="#FF6F96"/><ellipse cx="644" cy="690" rx="30" ry="20" fill="#FF6F96"/></svg>
 NuPrint
 </a>
 <div class="nav-links">
-<a href="/#cube">Meet the cube</a>
+<a href="/#meet">Meet the printer</a>
 <a href="/#download">Download</a>
 <a href="/changelog">Changelog</a>
 <a href="https://github.com/wapenshaw/nuprint">GitHub</a>
