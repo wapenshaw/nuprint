@@ -121,7 +121,7 @@ fn keep_size_across_monitors(ui: &AppWindow) {
 
 /// Where the installers put PDFium (see `[package.metadata.packager]` in Cargo.toml): beside the
 /// executable on Windows, in the app bundle's `Resources` on macOS and under
-/// `/usr/lib/nuprint-slint` in the Debian package.
+/// `/usr/lib/nuprint-slint` in the Debian package and the AppImage.
 fn bundled_pdfium_dir() -> Option<PathBuf> {
     let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
     let resources = if cfg!(target_os = "macos") {

@@ -74,10 +74,10 @@ cargo install cargo-packager --version 0.11.8 --locked
 New-Item -ItemType Directory -Force target\slint-pdfium
 Copy-Item vendor\pdfium\win-x64\bin\pdfium.dll, vendor\pdfium\win-x64\LICENSE target\slint-pdfium
 cargo build -p nuprint-slint --release --locked
-cargo packager -p nuprint-slint --release -f nsis   # dmg or deb on the other systems
+cargo packager -p nuprint-slint --release -f nsis   # dmg, or deb,appimage on Linux
 ```
 
-The installer lands in `target\release`. On macOS the release workflow builds the app bundle (`-f app`), signs it ad hoc and makes the DMG itself; see `.github/workflows/release.yml`.
+The installer lands in `target\release`. cargo-packager can't make an `.rpm`, so on Fedora the Slint app ships as an AppImage. In a container or anywhere else without FUSE, set `APPIMAGE_EXTRACT_AND_RUN=1` before building the AppImage. On macOS the release workflow builds the app bundle (`-f app`), signs it ad hoc and makes the DMG itself; see `.github/workflows/release.yml`.
 
 ## Repository layout
 

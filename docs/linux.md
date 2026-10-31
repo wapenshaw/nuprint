@@ -61,7 +61,7 @@ The BlueZ versions for Ubuntu are approximate. Both interfaces are experimental 
 
 - **`ControllerMode = le`.** Works on any BlueZ (the first successful Linux print used it) but disables Classic Bluetooth for headphones and every other Classic device.
 - **Printing over Classic (SPP).** The vendor app's SC03h model sets `useSPP` (APK-derived), so the protocol may work over a serial port. It would need a separate RFCOMM transport per OS, usually pairing, and hardware evidence that status and flow control work over a single stream. Not planned for V1.
-- **Setting `Experimental = true` from the `.deb`.** Rejected: it would silently change system Bluetooth configuration.
+- **Setting `Experimental = true` from the `.deb` or `.rpm`.** Rejected: it would silently change system Bluetooth configuration.
 - **A button in the app that applies the setting through `pkexec`.** Possible later, with the user's explicit consent; not implemented.
 
 ## Known issue
