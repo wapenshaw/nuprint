@@ -22,6 +22,9 @@ tokio-util.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies]
+dbus.workspace = true
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-bluetooth.workspace = true
 

@@ -3,6 +3,9 @@
 //! `btleplug` implements central-mode BLE only; it does not provide Classic/SPP.
 //! Discovery results are filtered by the application (core), not here.
 
+#[cfg(target_os = "linux")]
+mod bluez;
+
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
@@ -277,10 +280,9 @@ impl Transport for BleTransport {
         // Once `connect` has been called the device may be connected whatever happens next, even
         // when the call timed out, so every failure from here on disconnects before returning.
         let open = async {
-            tokio::time::timeout(timeout, peripheral.connect())
+            tokio::time::timeout(timeout, connect_peripheral(&peripheral, timeout))
                 .await
-                .map_err(|_| TransportError::Timeout("connection"))?
-                .map_err(map_err)?;
+                .map_err(|_| TransportError::Timeout("connection"))??;
             BleLink::open(backend_id.to_owned(), peripheral.clone(), timeout).await
         };
         let opened = tokio::select! {
@@ -291,11 +293,38 @@ impl Transport for BleTransport {
         match opened {
             Ok(link) => Ok(Box::new(link)),
             Err(error) => {
-                let _ = tokio::time::timeout(Duration::from_secs(10), peripheral.disconnect()).await;
+                let _ = tokio::time::timeout(Duration::from_secs(10), disconnect_peripheral(&peripheral)).await;
                 Err(error)
             }
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+async fn connect_peripheral(peripheral: &Peripheral, timeout: Duration) -> Result<(), TransportError> {
+    if bluez::connect_le(&peripheral.id().to_string(), timeout).await? == bluez::LeConnect::Connected {
+        return Ok(());
+    }
+    match peripheral.connect().await.map_err(map_err) {
+        Err(error) if bluez::chose_classic(&error) => Err(TransportError::ClassicConnection),
+        result => result,
+    }
+}
+
+#[cfg(target_os = "linux")]
+async fn disconnect_peripheral(peripheral: &Peripheral) -> Result<(), TransportError> {
+    bluez::disconnect_le(&peripheral.id().to_string()).await;
+    peripheral.disconnect().await.map_err(map_err)
+}
+
+#[cfg(not(target_os = "linux"))]
+async fn disconnect_peripheral(peripheral: &Peripheral) -> Result<(), TransportError> {
+    peripheral.disconnect().await.map_err(map_err)
+}
+
+#[cfg(not(target_os = "linux"))]
+async fn connect_peripheral(peripheral: &Peripheral, _timeout: Duration) -> Result<(), TransportError> {
+    peripheral.connect().await.map_err(map_err)
 }
 
 pub struct BleLink {
@@ -410,7 +439,7 @@ impl Link for BleLink {
 
     async fn disconnect(&self) -> Result<(), TransportError> {
         self.forwarder.abort();
-        self.peripheral.disconnect().await.map_err(map_err)
+        disconnect_peripheral(&self.peripheral).await
     }
 }
 

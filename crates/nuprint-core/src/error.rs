@@ -131,6 +131,11 @@ impl From<TransportError> for AppError {
             TransportError::EndpointMissing(_) => {
                 (ErrorCode::ServiceMismatch, "This device does not offer the print service its profile requires.")
             }
+            TransportError::ClassicConnection => (
+                ErrorCode::ConnectionFailed,
+                "Linux tried to reach this printer over Classic Bluetooth. Set Experimental = true in \
+                 /etc/bluetooth/main.conf, restart Bluetooth and retry.",
+            ),
             TransportError::Backend(_) => (ErrorCode::ConnectionFailed, "Bluetooth connection failed."),
         };
         AppError::new(code, message).with_detail(detail)

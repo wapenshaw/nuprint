@@ -129,6 +129,9 @@ pub enum TransportError {
     Cancelled,
     #[error("Endpoint {0} is not available on this device")]
     EndpointMissing(String),
+    /// BlueZ connected a dual-mode device over Classic, so its GATT services never appeared.
+    #[error("BlueZ tried Classic Bluetooth instead of LE and its LE connection is unavailable")]
+    ClassicConnection,
     #[error("Bluetooth error: {0}")]
     Backend(String),
 }
