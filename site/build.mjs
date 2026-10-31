@@ -187,8 +187,8 @@ for (const page of ["index", "guide", "changelog", "404"]) {
   await writeFile(`${dist}${page}.html`, fill(template, values));
 }
 
-// Copied as they are: the site's own files and the fonts (self-hosted, so a visit
-// reaches no one but this site).
+// Copied as they are: the site's own files and the fonts (self-hosted, so loading
+// them reaches no other site).
 const copies = {
   "style.css": site("src/style.css"),
   "download.js": site("src/download.js"),
