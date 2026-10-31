@@ -64,3 +64,8 @@ info-plist-path = "../tauri/src-tauri/Info.plist"
 
 [package.metadata.packager.deb]
 depends = ["bluez", "libdbus-1-3", "libfontconfig1", "libfreetype6", "libgtk-3-0", "libxkbcommon0", "libxkbcommon-x11-0"]
+# AppStream metadata, so software centers show the app's name and icon.
+files = { "linux/com.nuprint.slint.metainfo.xml" = "/usr/share/metainfo/com.nuprint.slint.metainfo.xml" }
+
+[package.metadata.packager.appimage]
+files = { "linux/com.nuprint.slint.metainfo.xml" = "/usr/share/metainfo/com.nuprint.slint.metainfo.xml" }

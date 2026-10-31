@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: software centers such as GNOME Software, KDE
+     Discover and Ubuntu's App Center show the name, icon and description from
+     this file when they open the package, and AppImage tools read it too.
+     Without it they show the package name (nu-print) and a generic icon. -->
+<component type="desktop-application">
+  <id>com.nuprint.desktop</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>NuPrint</name>
+  <summary>Print to small Bluetooth thermal printers</summary>
+  <developer id="app.nuprint">
+    <name>wapenshaw and NuPrint contributors</name>
+  </developer>
+  <description>
+    <p>
+      NuPrint prints notes, pictures and PDF pages directly to supported Bluetooth LE
+      thermal printers, with an exact preview of the paper and a print queue that
+      survives restarts.
+    </p>
+    <p>
+      The first supported printer is the ZEITEL lowercase SC03h. Printers whose
+      settings match it are offered as experimental.
+    </p>
+  </description>
+  <launchable type="desktop-id">NuPrint.desktop</launchable>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <icon type="stock">nuprint-desktop</icon>
+  <url type="homepage">https://nuprint.app</url>
+  <url type="bugtracker">https://github.com/wapenshaw/nuprint/issues</url>
+  <url type="vcs-browser">https://github.com/wapenshaw/nuprint</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>A note in the editor with its paper preview</caption>
+      <image>https://nuprint.app/og.png</image>
+    </screenshot>
+  </screenshots>
+  <provides>
+    <binary>nuprint-desktop</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+</component>
