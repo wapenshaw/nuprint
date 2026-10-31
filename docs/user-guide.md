@@ -4,7 +4,7 @@ How to install NuPrint, print with it and fix common problems. For how the app b
 
 ## Supported printers
 
-- **SC03h** (lowercase, names starting `SC03h-`): verified on Windows and macOS, experimental on Linux.
+- **SC03h** (lowercase, names starting `SC03h-`): verified on Windows, macOS and Linux.
 - **Experimental models** have the same settings as the SC03h in the vendor's phone app. NuPrint shows them with an **Experimental** badge and asks you to confirm before you save one. If you try one, please share a diagnostics export and tell us whether the paper looked right.
 - **Everything else** shows up as an unknown device, and NuPrint never prints to it.
 

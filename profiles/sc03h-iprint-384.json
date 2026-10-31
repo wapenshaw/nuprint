@@ -72,12 +72,19 @@
       "level": "verified_basic",
       "date": "2026-10-13",
       "summary": "SC03h-3DE8 on macOS 27.0.1 (Apple silicon): Bluetooth permission prompt, discovery, AE30/AE01 GATT (link limit 182), ready status before and after, and four short text prints from the Rust app (three dev build, one packaged debug .app) that the owner reported working. Firmware not read on macOS."
+    },
+    {
+      "os": "linux",
+      "level": "verified_basic",
+      "date": "2026-10-31",
+      "summary": "SC03h-3DE8 on Linux: the owner reported the Rust app working with this unit as expected, with no issues. Distribution, build, Bluetooth stack and firmware were not recorded."
     }
   ],
   "evidence": [
     { "kind": "apk", "reference": "docs/protocol.md", "summary": "base.apk PrintModelUtils lowercase sc03h: 384 px, 8 dots/mm, image energy 5000, speed 10, 180-byte writes" },
     { "kind": "hardware", "reference": "docs/validation.md", "summary": "2026-10-12 Windows 11, firmware 3.0.49, ready status 00, text/border strip confirmed on paper" },
     { "kind": "hardware", "reference": "docs/validation.md", "summary": "2026-10-13 macOS 27.0.1 Apple silicon, Rust app dev and packaged debug builds, ready status 00 before and after four short text prints the owner reported working" },
+    { "kind": "hardware", "reference": "docs/validation.md", "summary": "2026-10-31 Linux, Rust app, the same unit; the owner reported it working as expected (distribution, build and firmware not recorded)" },
     { "kind": "fixtures", "reference": "fixtures/sc03h/vectors.json", "summary": "Rust encoder matches the Python reference byte-for-byte" }
   ]
 }

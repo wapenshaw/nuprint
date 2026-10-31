@@ -6,7 +6,7 @@ This guide describes the implemented `nuprint` CLI and, for reference, the Pytho
 
 Turn on the computer's Bluetooth and the printer. Keep it close to the PC. Close the phone's printer app so it does not hold the connection. Load paper before a physical print. Select the lowercase model `SC03h-3DE8`; uppercase `SC03H` uses a different profile.
 
-Work from the repository root. `nuprint` below means `cargo run -p nuprint-cli --` (or the built `target\debug\nuprint.exe`). Printing to the SC03h on Linux, or to any experimental model, additionally needs `--allow-experimental`.
+Work from the repository root. `nuprint` below means `cargo run -p nuprint-cli --` (or the built `target\debug\nuprint.exe`). Printing to any experimental model additionally needs `--allow-experimental`.
 
 ## Discovery and diagnosis: no paper movement
 

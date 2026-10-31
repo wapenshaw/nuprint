@@ -773,7 +773,7 @@ mod tests {
         assert_eq!(params, Iprint5178Params::sc03h_reference());
         assert_eq!(sc03h.summary("windows").support, SupportLevel::VerifiedBasic);
         assert_eq!(sc03h.summary("macos").support, SupportLevel::VerifiedBasic);
-        assert_eq!(sc03h.summary("linux").support, SupportLevel::Experimental);
+        assert_eq!(sc03h.summary("linux").support, SupportLevel::VerifiedBasic);
     }
 
     #[test]

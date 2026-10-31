@@ -40,7 +40,7 @@ cargo run -p nuprint-cli -- file document.pdf --page 2 --threshold
 cargo run -p nuprint-cli -- file photo.png --atkinson   # higher-contrast dithering
 ```
 
-Printing commands accept `--device NAME_OR_ADDRESS` (default: first supported printer found), `--darkness light|normal|dark`, `--feed-mm`, `--copies` and `--allow-experimental` (needed for experimental models, and for the SC03h on Linux for now). `--preview` without `--profile` renders for the best-supported profile. Exit status: 0 confirmed, 2 sent without printer confirmation, 3 outcome uncertain, 130 cancelled, 1 error. [Printer interaction](printer-interaction.md) explains each command and option.
+Printing commands accept `--device NAME_OR_ADDRESS` (default: first supported printer found), `--darkness light|normal|dark`, `--feed-mm`, `--copies` and `--allow-experimental` (needed for experimental models). `--preview` without `--profile` renders for the best-supported profile. Exit status: 0 confirmed, 2 sent without printer confirmation, 3 outcome uncertain, 130 cancelled, 1 error. [Printer interaction](printer-interaction.md) explains each command and option.
 
 ## Checks
 

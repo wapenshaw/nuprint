@@ -4,7 +4,7 @@ The [user guide](user-guide.md) covers how to use NuPrint. This page records the
 
 ## Printers
 
-- **SC03h** (lowercase, names starting `SC03h-`): verified on Windows and macOS, experimental on Linux.
+- **SC03h** (lowercase, names starting `SC03h-`): verified on Windows, macOS and Linux.
 - **Experimental models** are printers whose settings in the vendor's Android app are identical to the SC03h's. NuPrint shows them with an **Experimental** badge and asks you to confirm before you save one (in the CLI, pass `--allow-experimental`). They use the SC03h's tested settings but match only their own exact name, and NuPrint sends nothing until the printer shows the expected Bluetooth print service. [The APK printer catalog](apk-printer-models.md) lists these models and the evidence behind them.
 - **Everything else**, including uppercase names such as `SC03H-` or `X6H-` (which use different heat settings), shows up as an unknown device, and NuPrint never sends it print commands.
 
