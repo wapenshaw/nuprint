@@ -36,7 +36,7 @@
 
 ## Download
 
-Get the installer for your system from the [latest release](https://github.com/wapenshaw/nuprint/releases/latest).
+On Windows, get NuPrint from the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG). The Store signs it and keeps it up to date. For every system, the installers are on the [latest release](https://github.com/wapenshaw/nuprint/releases/latest).
 
 | System | NuPrint | NuPrint Slint |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ Get the installer for your system from the [latest release](https://github.com/w
 | Fedora and openSUSE | `NuPrint-<version>-1.x86_64.rpm` | the AppImage below |
 | Any other Linux (x64) | `NuPrint_<version>_amd64.AppImage` | `nuprint-slint_<version>_x86_64.AppImage` |
 
-The Windows installers need no admin rights. Once installed, both apps can check for a newer release and install it in **Settings → Updates**. They check only when you ask, or at start if you turn that on.
+The Windows installers need no admin rights. A Store copy and an installer copy keep separate printers and queues. Once installed, both apps (except a Store copy, which the Store updates) can check for a newer release and install it in **Settings → Updates**. They check only when you ask, or at start if you turn that on.
 
 ### Two apps, one engine
 
@@ -60,7 +60,7 @@ Both can be installed side by side. Each keeps its own printers and queue.
 
 ### Signing
 
-The installers aren't code-signed yet, so Windows and macOS warn on first launch; the [user guide](docs/user-guide.md#installing) shows how to get past the warning. A Microsoft Store version, which the Store signs, is on its way; see [Microsoft Store](docs/microsoft-store.md). The Mac apps are not notarized, which needs a paid Apple developer account.
+The installers aren't code-signed yet, so Windows and macOS warn on first launch; the [user guide](docs/user-guide.md#installing) shows how to get past the warning. The [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG) version is signed by the Store and shows no warning; see [Microsoft Store](docs/microsoft-store.md). The Mac apps are not notarized, which needs a paid Apple developer account.
 
 From the next release on, every installer comes with a GitHub build attestation: a signed record that it was built by NuPrint's release workflow from this repository. [Check a download](docs/code-signing.md#check-a-download) shows how to verify one, and the [code signing policy](docs/code-signing.md) has the details.
 

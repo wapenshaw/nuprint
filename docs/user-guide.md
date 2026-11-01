@@ -10,7 +10,7 @@ How to install NuPrint, print with it and fix common problems. For how the app b
 
 ## Installing
 
-Download the installer for your system from [Releases](https://github.com/wapenshaw/nuprint/releases).
+On Windows, the easiest way is the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG): the Store copy is signed, so Windows doesn't warn about it, and the Store keeps it up to date. For every system, the installers are on [Releases](https://github.com/wapenshaw/nuprint/releases).
 
 | System | File |
 | --- | --- |
@@ -20,6 +20,8 @@ Download the installer for your system from [Releases](https://github.com/wapens
 | Debian/Ubuntu (x64) | `NuPrint_<version>_amd64.deb` |
 | Fedora/openSUSE (x64) | `NuPrint-<version>-1.x86_64.rpm` |
 | Any other Linux (x64) | `NuPrint_<version>_amd64.AppImage` |
+
+A Store copy and an installer copy keep separate printers and queues; to switch, uninstall the one you're leaving.
 
 The installers aren't code-signed yet, so the first launch needs one extra step. On Windows, if SmartScreen warns about an unrecognised app, choose **More info → Run anyway**. On macOS, open **System Settings → Privacy & Security** and choose **Open Anyway** for NuPrint.
 
