@@ -1,6 +1,6 @@
 # Microsoft Store
 
-NuPrint for Windows is also offered through the Microsoft Store, as an MSIX package that the Store signs. A Store install shows no SmartScreen warning, is updated by the Store (Settings → Updates says so and never checks GitHub), and keeps its own saved printers and queue in its package folder, apart from an installer copy's; Windows removes them when the app is uninstalled. [Building](building.md#microsoft-store-package) has the packaging commands.
+NuPrint for Windows is also offered through the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG) (product ID `9NW47STT70BG`), as an MSIX package that the Store signs. winget installs the same copy with `winget install 9NW47STT70BG`; see [winget](winget.md). A Store install shows no SmartScreen warning, is updated by the Store (Settings → Updates says so and never checks GitHub), and keeps its own saved printers and queue in its package folder, apart from an installer copy's; Windows removes them when the app is uninstalled. [Building](building.md#microsoft-store-package) has the packaging commands.
 
 ## Package identity
 
@@ -8,11 +8,34 @@ NuPrint for Windows is also offered through the Microsoft Store, as an MSIX pack
 
 ## Submitting a release
 
+The release workflow's `store` job submits each release on its own once [automatic submission](#automatic-submission) is set up. It uploads the package as a draft, sets **What's new** from the release's changelog entry (as plain text, without commit links), and submits the draft for certification. Certification usually takes up to three business days, and the Store publishes the update when it passes. A manual rebuild of an existing release never resubmits.
+
+If the job fails after uploading, the draft stays in Partner Center: finish it there from step 4 below. Without the secrets, submit by hand:
+
 1. Download the package the release workflow built: the run's `microsoft-store` artifact, for example with `gh run download <run-id> -n microsoft-store`. It isn't attached to the release, because Windows installs an unsigned MSIX only from the Store.
 2. In Partner Center, open NuPrint and **Start update** (the first time, **Start your submission**).
 3. **Packages**: upload `NuPrint_<version>_x64.msix`. Partner Center checks the identity and version; a version must be higher than the last one submitted.
 4. **Store listings → English**: paste "What's new in this version" from the release's changelog entry.
 5. **Submit to the Store**. Certification usually takes up to three business days.
+
+## Automatic submission
+
+The `store` job signs in to Partner Center as a Microsoft Entra application, through the [Microsoft Store Developer CLI](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions). Microsoft supports this for free apps. To set it up once:
+
+1. In Partner Center, open **Account settings → Organization profile → Tenants** and associate a Microsoft Entra tenant with the account, or create one there.
+2. Open **Account settings → User management → Microsoft Entra applications**, create an application (or add an existing one) and give it the **Manager** role.
+3. On that application's page, note the **Tenant ID** and **Client ID**, and use **Add new key** to make a client secret. Partner Center shows the secret only once, and it expires; make a new one before then.
+4. Note the **Seller ID** from **Account settings → Legal info** (the **Developer** tab).
+5. Save the four values as repository secrets:
+
+   ```powershell
+   gh secret set PARTNER_CENTER_TENANT_ID
+   gh secret set PARTNER_CENTER_SELLER_ID
+   gh secret set PARTNER_CENTER_CLIENT_ID
+   gh secret set PARTNER_CENTER_CLIENT_SECRET
+   ```
+
+Until all four exist, the job runs and does nothing.
 
 ## First submission
 

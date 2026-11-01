@@ -375,6 +375,67 @@ jobs:
             --release-notes-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
             --submit
 
+  # Sends this release's MSIX (the microsoft-store artifact from the Windows build) to
+  # the Microsoft Store: it uploads the package as a draft submission, sets "What's new"
+  # from the release notes, and submits it for certification, after which the Store
+  # publishes it. It needs the four PARTNER_CENTER_* secrets of a Microsoft Entra
+  # application with the Manager role in Partner Center (see docs/microsoft-store.md);
+  # without them the job does nothing. A manual rebuild never resubmits.
+  store:
+    needs: [release-please, publish]
+    if: always() && needs.publish.result == 'success' && needs.release-please.outputs.created == 'true'
+    runs-on: windows-latest
+    env:
+      TAG: ${{ needs.release-please.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_ID: 9NW47STT70BG
+      PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+      PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+      PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+      PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+    steps:
+      - uses: actions/download-artifact@v8
+        if: env.PARTNER_CENTER_CLIENT_SECRET != ''
+        with:
+          name: microsoft-store
+          path: msix
+      - uses: microsoft/microsoft-store-apppublisher@v1.4
+        if: env.PARTNER_CENTER_CLIENT_SECRET != ''
+      - name: Sign in to Partner Center
+        if: env.PARTNER_CENTER_CLIENT_SECRET != ''
+        run: msstore reconfigure --tenantId "$env:PARTNER_CENTER_TENANT_ID" --sellerId "$env:PARTNER_CENTER_SELLER_ID" --clientId "$env:PARTNER_CENTER_CLIENT_ID" --clientSecret "$env:PARTNER_CENTER_CLIENT_SECRET"
+      # "msstore publish" replaces any pending draft with a copy of the last published
+      # submission, so it runs first; the release notes go into that new draft.
+      - name: Upload the package
+        if: env.PARTNER_CENTER_CLIENT_SECRET != ''
+        run: |
+          $package = (Get-ChildItem msix -Filter *.msix | Select-Object -First 1).FullName
+          msstore publish $package -id $env:PRODUCT_ID --noCommit
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      # The Store shows plain text, up to 1500 characters: the changelog entry without
+      # its heading, scopes, commit links or Markdown.
+      - name: Set What's new
+        if: env.PARTNER_CENTER_CLIENT_SECRET != ''
+        run: |
+          $body = gh release view $env:TAG --json body --jq .body --repo $env:GITHUB_REPOSITORY
+          $notes = ($body | Where-Object { $_ -and $_ -notmatch '^## ' } | ForEach-Object {
+            $_ -replace '^### ', '' -replace '^\* (\*\*[^*]+:\*\* )?', '- ' -replace ' \(\[[0-9a-f]{7,}\]\([^)]*\)\)', '' -replace '\[([^\]]+)\]\([^)]*\)', '$1'
+          }) -join "`n"
+          if ($notes.Length -gt 1500) { $notes = $notes.Substring(0, 1500) }
+          Write-Output $notes
+          $submission = msstore submission get $env:PRODUCT_ID | ConvertFrom-Json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          foreach ($listing in $submission.Listings.PSObject.Properties.Value) {
+            $listing.BaseListing.ReleaseNotes = $notes
+          }
+          msstore submission update $env:PRODUCT_ID ($submission | ConvertTo-Json -Depth 100 -Compress)
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Submit for certification
+        if: env.PARTNER_CENTER_CLIENT_SECRET != ''
+        run: |
+          msstore submission publish $env:PRODUCT_ID
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
   # nuprint.app links to the newest published release and shows its changelog;
   # redeploy it now that this one is out.
   site:
