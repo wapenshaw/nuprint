@@ -109,6 +109,14 @@ jobs:
           rustup toolchain install
           rustup target add ${{ matrix.target }}
 
+      # Compiled dependencies and cargo-packager from the last build, one cache per
+      # target (both Macs run on the same runner image). GitHub keeps a branch's caches
+      # to that branch, and this workflow never runs for pull requests, so only master's
+      # own release builds fill the cache a release uses.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
       - uses: actions/setup-node@v7
         with:
           node-version: 26
