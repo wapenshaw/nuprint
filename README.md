@@ -60,7 +60,7 @@ Both can be installed side by side. Each keeps its own printers and queue.
 
 ### Signing
 
-The installers aren't code-signed yet, so Windows and macOS warn on first launch; the [user guide](docs/user-guide.md#installing) shows how to get past the warning. Windows signing through the free [SignPath Foundation](https://signpath.org) programme is planned. The Mac apps are not notarized, which needs a paid Apple developer account.
+The installers aren't code-signed yet, so Windows and macOS warn on first launch; the [user guide](docs/user-guide.md#installing) shows how to get past the warning. A Microsoft Store version, which the Store signs, is on its way; see [Microsoft Store](docs/microsoft-store.md). The Mac apps are not notarized, which needs a paid Apple developer account.
 
 From the next release on, every installer comes with a GitHub build attestation: a signed record that it was built by NuPrint's release workflow from this repository. [Check a download](docs/code-signing.md#check-a-download) shows how to verify one, and the [code signing policy](docs/code-signing.md) has the details.
 

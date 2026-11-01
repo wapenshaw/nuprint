@@ -7,7 +7,8 @@ This page says which NuPrint downloads are signed, by what, and how to check one
 | Download | Signature | How to check it |
 | --- | --- | --- |
 | All installers, from the next release on | GitHub build provenance attestation | [Check a download](#check-a-download) |
-| Windows `NuPrint_<version>_x64-setup.exe` | Not code-signed yet; signing through the SignPath Foundation is planned | SmartScreen warns on first launch |
+| Windows `NuPrint_<version>_x64-setup.exe` | Not code-signed | SmartScreen warns on first launch |
+| Windows, from the Microsoft Store (not yet published) | Signed by Microsoft when the Store publishes it | Windows checks it on install; see [Microsoft Store](microsoft-store.md) |
 | macOS `.dmg` | Signed ad hoc, not notarized | Gatekeeper blocks the first launch |
 | Linux `.deb`, `.rpm` and AppImage | Attestation only | [Check a download](#check-a-download) |
 | Updates installed from inside the apps, from the next release on | NuPrint's updater key | Each app checks it before installing; see [updates](#updates) |
@@ -47,7 +48,7 @@ Use the installer's real file name. A good result lists the workflow and commit 
 | Committers and reviewers | [wapenshaw](https://github.com/wapenshaw) |
 | Approvers | [wapenshaw](https://github.com/wapenshaw) |
 
-Committers and reviewers can change the source; changes from anyone else are reviewed before they are merged. Approvers approve each release and each signing request. Every member must use multi-factor authentication on GitHub and on SignPath.
+Committers and reviewers can change the source; changes from anyone else are reviewed before they are merged. Approvers approve each release and each signing request. Every member must use multi-factor authentication on GitHub and on any signing service the project uses.
 
 ## Privacy
 
