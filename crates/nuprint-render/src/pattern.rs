@@ -1,4 +1,5 @@
-//! Self-test pattern: text, a frame and dashed marks to check alignment, width and darkness.
+//! Self-test pattern: text, a frame, a solid patch and dashed marks to check alignment, width
+//! and darkness.
 
 use nuprint_protocol::MonoBitmap;
 
@@ -8,6 +9,10 @@ use crate::{RenderOutput, RenderTarget, TextAlign, TextParams};
 
 const PATTERN_SIZE_PX: u16 = 22;
 const MARK_AREA: u32 = 20;
+/// Solid black patch across the middle half, 3 mm tall at 8 dots/mm, so photos from different
+/// printers show darkness and streaks the same way.
+const PATCH_GAP: u32 = 8;
+const PATCH_HEIGHT: u32 = 24;
 
 fn text_block(text: &str, align: TextAlign, target: &RenderTarget) -> Option<MonoBitmap> {
     let params = TextParams {
@@ -36,7 +41,8 @@ pub fn test_pattern(target: &RenderTarget) -> RenderOutput {
 
     let top_h = top.as_ref().map_or(0, MonoBitmap::height);
     let row_h = left.as_ref().map_or(0, MonoBitmap::height);
-    let height = (top_h + row_h + MARK_AREA).max(MARK_AREA + 8);
+    let patch_y = top_h + row_h + PATCH_GAP;
+    let height = patch_y + PATCH_HEIGHT + MARK_AREA;
     let mut bitmap = MonoBitmap::new(width, height).expect("pattern dimensions are small and non-zero");
 
     let mut blit = |source: &Option<MonoBitmap>, y_offset: u32| {
@@ -53,6 +59,12 @@ pub fn test_pattern(target: &RenderTarget) -> RenderOutput {
     blit(&top, 0);
     blit(&left, top_h);
     blit(&right, top_h);
+
+    for y in patch_y..patch_y + PATCH_HEIGHT {
+        for x in width / 4..width * 3 / 4 {
+            bitmap.set(x, y, true);
+        }
+    }
 
     for x in 0..width {
         bitmap.set(x, 0, true);

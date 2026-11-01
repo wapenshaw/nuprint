@@ -52,8 +52,8 @@ export function SourcePanel() {
       {ws.mode === "pdf" ? <PdfControls /> : null}
       {ws.mode === "test_pattern" ? (
         <p className="muted controls">
-          A small calibration strip: a border, bars and the printable width. Use it to check alignment and
-          darkness before printing real content.
+          A small calibration strip: a border, a solid black patch, bars and the printable width. Use it to
+          check alignment and darkness before printing real content.
         </p>
       ) : null}
     </section>

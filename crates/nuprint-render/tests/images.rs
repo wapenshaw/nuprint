@@ -310,6 +310,9 @@ fn test_pattern_fits_any_width() {
         let (w, h) = (out.bitmap.width(), out.bitmap.height());
         assert!((0..w).all(|x| out.bitmap.get(x, 0) && out.bitmap.get(x, h - 1)));
         assert!((0..h).all(|y| out.bitmap.get(0, y) && out.bitmap.get(w - 1, y)));
+        // Besides the frame, a solid patch spans the middle half for comparing darkness.
+        let solid_rows = (1..h - 1).filter(|&y| (w / 4..w * 3 / 4).all(|x| out.bitmap.get(x, y))).count();
+        assert!(solid_rows >= 24, "width {width} has {solid_rows} solid rows");
     }
     let a = test_pattern(&RenderTarget::default());
     assert_eq!(a.bitmap, test_pattern(&RenderTarget::default()).bitmap);
