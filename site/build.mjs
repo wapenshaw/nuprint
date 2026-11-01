@@ -19,6 +19,7 @@ const repo = (path) => site(`../${path}`);
 const dist = site("dist/");
 const REPO_URL = "https://github.com/wapenshaw/nuprint";
 const SITE_URL = "https://nuprint.app";
+const STORE_URL = "https://apps.microsoft.com/detail/9NW47STT70BG";
 
 /** CHANGELOG.md as `{ version, date, body }`, newest first (release-please's format). */
 function parseChangelog(text) {
@@ -162,6 +163,7 @@ const values = {
   TAG: tag,
   VERSION: version,
   DOWNLOAD: download,
+  STORE: STORE_URL,
   // The AppImage runs on any distribution, so the hero button prefers it.
   LINUX_DOWNLOAD: `${download}/${appImage ?? `NuPrint_${version}_amd64.deb`}`,
   LINUX_TICKETS: [
@@ -213,6 +215,8 @@ const copies = {
   "download.js": site("src/download.js"),
   // The link-preview card, drawn from art/cards.html (see README).
   "og.png": site("src/og.png"),
+  // Microsoft's "Download from the Microsoft Store" badge, from get.microsoft.com, unmodified.
+  "store-badge.svg": site("src/store-badge.svg"),
   _headers: site("src/_headers"),
   "fonts/bricolage-grotesque.woff2": site(
     "node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2",

@@ -39,7 +39,8 @@
 <h1 id="title">Little prints, straight from your <em>computer.</em></h1>
 <p class="lede">Print notes, pictures and PDF pages to a pocket Bluetooth thermal printer. No phone app, no pairing, no printer driver.</p>
 <div class="actions">
-<a class="btn" id="primary-download" href="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64-setup.exe" data-mac="{{DOWNLOAD}}/NuPrint_{{VERSION}}_aarch64.dmg" data-mac-intel="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64.dmg" data-linux="{{LINUX_DOWNLOAD}}"><span>Download for Windows</span>
+<a class="store-badge" id="store-badge" href="{{STORE}}"><img src="/store-badge.svg" alt="Download from the Microsoft Store" width="190" height="52"></a>
+<a class="btn" id="primary-download" href="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64-setup.exe" data-mac="{{DOWNLOAD}}/NuPrint_{{VERSION}}_aarch64.dmg" data-mac-intel="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64.dmg" data-linux="{{LINUX_DOWNLOAD}}"><span>Download .exe</span>
 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"/></svg></a>
 <a class="text-link" id="other-systems" href="#download">macOS and Linux</a>
 </div>
@@ -226,9 +227,14 @@
 <section class="section download" id="download" aria-labelledby="download-title">
 <div class="section-head">
 <h2 id="download-title">Take a ticket</h2>
-<p class="section-note">Pick your system. Windows installers need no admin rights, and the app can check for updates in Settings › Updates when you ask.</p>
+<p class="section-note">Pick your system. On Windows, the Microsoft Store copy is signed and updates itself. The .exe installer needs no admin rights and, like the other downloads, checks for updates in Settings › Updates when you ask.</p>
 </div>
 <div class="tickets">
+<a class="ticket lift" href="{{STORE}}">
+<span class="ticket-stub"></span>
+<span class="ticket-main"><span class="ticket-name">Microsoft Store</span><span class="ticket-file">Windows 10 and 11 · signed, updates itself</span></span>
+<span class="ticket-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 8h15l-1.2 12H5.7z"/><path d="M9 11V6.5a3 3 0 0 1 6 0V11"/></svg></span>
+</a>
 <a class="ticket lift" href="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64-setup.exe">
 <span class="ticket-stub"></span>
 <span class="ticket-main"><span class="ticket-name">Windows</span><span class="ticket-file">10 and 11 · .exe installer</span></span>

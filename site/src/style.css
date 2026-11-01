@@ -239,6 +239,16 @@ h1 em {
   gap: 12px 20px;
 }
 
+/* Microsoft's own badge, used as supplied: only its size is set */
+.store-badge {
+  display: inline-flex;
+  border-radius: 6px;
+}
+
+.store-badge img {
+  display: block;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

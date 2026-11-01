@@ -1,7 +1,8 @@
 // Points the hero's download button at the visitor's system. Windows is the default
-// in the markup. A Mac gets the Apple silicon build. Chrome and Edge can say when the
-// Mac is Intel; in other browsers, Intel owners use the link beside the button, which
-// goes to the tickets.
+// in the markup: Microsoft's Store badge, then the .exe installer. A Mac or Linux
+// loses the badge and gets its own file. A Mac gets the Apple silicon build. Chrome
+// and Edge can say when the Mac is Intel; in other browsers, Intel owners use the
+// link beside the button, which goes to the tickets.
 (() => {
   const button = document.getElementById("primary-download");
   const other = document.getElementById("other-systems");
@@ -13,7 +14,9 @@
   const isLinux = !isMac && (platform.includes("linux") || agent.includes("linux")) && !agent.includes("android");
 
   const label = button.querySelector("span");
+  const download = () => document.getElementById("store-badge")?.remove();
   if (isMac) {
+    download();
     button.href = button.dataset.mac;
     label.textContent = "Download for Mac";
     other.textContent = "Intel Mac and other systems";
@@ -28,6 +31,7 @@
       })
       .catch(() => {});
   } else if (isLinux) {
+    download();
     button.href = button.dataset.linux;
     label.textContent = "Download for Linux";
     other.textContent = button.href.endsWith(".AppImage") ? "Other Linux packages and systems" : "Windows and macOS";
