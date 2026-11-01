@@ -137,6 +137,21 @@ jobs:
           npm ci
           npx tauri build --ci --target ${{ matrix.target }} --bundles "$BUNDLES"
 
+      # The Microsoft Store package, from the same build. It is unsigned, because the Store
+      # signs what it publishes, so Windows installs it only from the Store: it is kept as
+      # this run's microsoft-store artifact for Partner Center (docs/microsoft-store.md),
+      # not attached to the release.
+      - name: Build Store package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/package-msix.ps1 -Exe target/${{ matrix.target }}/release/nuprint-desktop.exe
+      - name: Keep Store package
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: microsoft-store
+          path: target/msix/*.msix
+
       - name: Install cargo-packager
         run: cargo install cargo-packager --version 0.11.8 --locked
 

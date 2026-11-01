@@ -21,6 +21,25 @@ npx tauri dev
 npx tauri build
 ```
 
+### Microsoft Store package
+
+The Store takes NuPrint as an MSIX package, which the Store signs. Build the app, then pack it:
+
+```powershell
+cd apps\tauri
+npx tauri build --no-bundle
+cd ..\..
+.\scripts\package-msix.ps1            # target\msix\NuPrint_<version>_x64.msix
+```
+
+The script needs the Windows SDK (`makeappx.exe`). The package identity comes from `apps/tauri/src-tauri/msix/identity.json`, which must hold the values from Partner Center (**Product management → Product identity**) for the Store to accept it. A Store install leaves updates to the Store: Settings → Updates says so and NuPrint never checks GitHub.
+
+To try the package without the Store, turn on Developer Mode in Windows Settings and register the folder the script packed:
+
+```powershell
+Add-AppxPackage -Register target\msix\layout\AppxManifest.xml
+```
+
 ## Command-line tool
 
 ```powershell
