@@ -346,6 +346,35 @@ jobs:
           gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
           gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
 
+  # Opens the pull request that adds this release's .exe installer to winget
+  # (microsoft/winget-pkgs) as Wapenshaw.NuPrint, from the maintainer's fork. komac
+  # copies the last version's manifests and fills in the new installer, hash and
+  # release notes. It needs WINGET_TOKEN, a classic token with the public_repo scope,
+  # because this workflow's own token can't open pull requests on another
+  # repository; without it the job does nothing. A manual rebuild never resubmits.
+  winget:
+    needs: [release-please, publish]
+    if: always() && needs.publish.result == 'success' && needs.release-please.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.release-please.outputs.tag }}
+      GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      KOMAC_VERSION: 2.17.1
+      KOMAC_SHA256: e694e79cd451afabf47bead66ed34586fef4814f7b94e4b61a098f419978d5d7
+    steps:
+      - name: Submit to winget
+        if: env.GITHUB_TOKEN != ''
+        run: |
+          archive="komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSLO "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/${archive}"
+          echo "${KOMAC_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" komac
+          version="${TAG#v}"
+          ./komac update Wapenshaw.NuPrint --version "$version" \
+            --urls "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/NuPrint_${version}_x64-setup.exe" \
+            --release-notes-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
+            --submit
+
   # nuprint.app links to the newest published release and shows its changelog;
   # redeploy it now that this one is out.
   site:
