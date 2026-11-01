@@ -195,7 +195,7 @@ const appFiles = new Map(
   }).map(([to, from]) => [to, atTag(tag, from)]),
 );
 
-for (const page of ["index", "guide", "changelog", "404"]) {
+for (const page of ["index", "guide", "changelog", "privacy", "404"]) {
   let html = fill(await readFile(site(`src/${page}.html`), "utf8"), values);
   // Sizes the screenshots, as renderGuide does, so the page doesn't jump as they load.
   for (const [to, png] of appFiles) {
@@ -237,7 +237,7 @@ for (const [name, png] of guide.images) {
 
 // The pages search engines should list. Cloudflare puts its content signals above this
 // robots.txt; the Sitemap line still applies.
-const pages = ["", "guide", "changelog"];
+const pages = ["", "guide", "changelog", "privacy"];
 await writeFile(`${dist}robots.txt`, `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 await writeFile(
   `${dist}sitemap.xml`,

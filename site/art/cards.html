@@ -60,6 +60,23 @@
   #square .top h1 { font-size: 76px; color: #fff; text-shadow: 0 2px 24px rgba(160, 30, 70, 0.25); }
   #square .bottom { position: absolute; left: 0; right: 0; bottom: 54px; text-align: center; color: #fff; font-size: 26px; }
   #square .bottom .site { font-size: 30px; }
+  /* 5. Microsoft Store poster art, 1440 × 2160 */
+  #store-poster { width: 1440px; height: 2160px; background: linear-gradient(165deg, #ffc4d3 0%, #f27a9c 100%); }
+  #store-poster .top { position: absolute; left: 0; right: 0; top: 170px; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 34px; text-align: center; }
+  #store-poster h1 { font-size: 190px; color: #fff; text-shadow: 0 4px 48px rgba(160, 30, 70, 0.25); }
+  #store-poster .lede { font-size: 64px; font-weight: 600; line-height: 1.2; max-width: 1100px; }
+  #store-poster .stage { position: absolute; width: 780px; left: 330px; top: 800px; }
+  #store-poster .stage .back ellipse:first-child { fill-opacity: 0.2; }
+
+  /* 6. Microsoft Store box art, 2160 × 2160 */
+  #store-box { width: 2160px; height: 2160px; background: linear-gradient(160deg, #ffc4d3 0%, #f27a9c 100%); }
+  #store-box .stage { position: absolute; width: 1000px; left: 580px; top: 500px; }
+  #store-box .stage .back ellipse:first-child { fill-opacity: 0.2; }
+  #store-box h1 { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font-size: 230px; color: #fff; text-shadow: 0 4px 48px rgba(160, 30, 70, 0.25); }
+
+  /* 7. Store tile icons, 300, 150 and 71 square, on a transparent background */
+  .card.tile { background: transparent; }
+  .card.tile svg { display: block; }
 </style>
 </head>
 <body>
@@ -108,5 +125,21 @@
   {{PRINTER receipt}}
   <div class="bottom"><span class="site">nuprint.app</span> · Windows · macOS · Linux · free</div>
 </div>
+<!-- 5. Microsoft Store poster art -->
+<div class="card" id="store-poster">
+  <div class="top"><h1>NuPrint</h1><p class="lede">Print to your pocket printer from your PC.</p></div>
+  {{PRINTER receipt}}
+</div>
+
+<!-- 6. Microsoft Store box art -->
+<div class="card" id="store-box">
+  <h1>NuPrint</h1>
+  {{PRINTER receipt}}
+</div>
+
+<!-- 7. Store tile icons -->
+<div class="card tile" id="tile-300">{{ICON 300}}</div>
+<div class="card tile" id="tile-150">{{ICON 150}}</div>
+<div class="card tile" id="tile-71">{{ICON 71}}</div>
 </body>
 </html>
