@@ -22,10 +22,10 @@ If the job fails after uploading, the draft stays in Partner Center: finish it t
 
 The `store` job signs in to Partner Center as a Microsoft Entra application, through the [Microsoft Store Developer CLI](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions). Microsoft supports this for free apps. To set it up once:
 
-1. In Partner Center, open **Account settings → Organization profile → Tenants** and associate a Microsoft Entra tenant with the account, or create one there.
-2. Open **Account settings → User management → Microsoft Entra applications**, create an application (or add an existing one) and give it the **Manager** role.
-3. On that application's page, note the **Tenant ID** and **Client ID**, and use **Add new key** to make a client secret. Partner Center shows the secret only once, and it expires; make a new one before then.
-4. Note the **Seller ID** from **Account settings → Legal info** (the **Developer** tab).
+1. Partner Center's user management accepts only a work account in a Microsoft Entra tenant. If the Partner Center account is a personal Microsoft account (Outlook or Hotmail), create one: in the Azure portal, open the account's directory (an Azure sign-up makes one, `<name>.onmicrosoft.com`), add a user under **Manage → Users → New user** with the **Global Administrator** role, and sign in as that user once to set its password.
+2. In Partner Center, open **Account settings → Organization profile → Tenants**, choose **Associate** and sign in with that work account.
+3. Open **Account settings → User management** (signing in with the work account when asked) → **Microsoft Entra applications → Create Microsoft Entra application**. Give it a name and the **Manager** role. Its **Reply URL** is required but unused, because the job signs in with a client secret rather than through a browser; `https://nuprint.app` will do.
+4. On the application's page, note the **Client ID**, and use **Add new key** to make a client secret. Partner Center shows the secret only once, and it expires; make a new one before then. The **Tenant ID** is on the directory's overview in the Azure portal, and the **Seller ID** is under **Account settings → Legal info**, in **Publisher IDs**.
 5. Save the four values as repository secrets:
 
    ```powershell

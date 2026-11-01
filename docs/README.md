@@ -15,8 +15,8 @@ NuPrint is a **Rust + Tauri app for Windows, macOS and Linux** with extensible p
 | [Printer protocol](protocol.md) | Model-specific wire format, GATT endpoints, packet samples and evidence | APK-derived + one-unit hardware verification |
 | [APK printer catalog](apk-printer-models.md) | Model names, prefixes, dimensions and app-list membership from the supplied APK | Research candidates; SC03h only verified |
 | [Printer interaction](printer-interaction.md) | Exact connection/print commands (Rust CLI), Python PoC API and troubleshooting | Implemented |
-| [Microsoft Store](microsoft-store.md) | The Store package, its identity, automatic and manual release submission, and the listing text | Published (v1.4.0); automatic submission needs the Partner Center secrets |
-| [winget](winget.md) | The two winget packages, the Store copy and the installer, and how each release is submitted | Store copy installable; installer package submitted, awaiting review |
+| [Microsoft Store](microsoft-store.md) | The Store package, its identity, automatic and manual release submission, and the listing text | Published (v1.4.0); automatic submission configured, not yet run on a release |
+| [winget](winget.md) | The two winget packages, the Store copy and the installer, and how each release is submitted | Store copy installable; installer package passed validation, awaiting a moderator; automatic submission configured |
 | [Code signing policy](code-signing.md) | Which downloads are signed, release build provenance, update signatures, team roles and how to check a download | Attestations and update signatures configured, not yet on a release; Windows installer unsigned |
 | [Validation and release plan](validation.md) | Automated, hardware, usability and packaging acceptance tests | Python and Rust results + planned coverage |
 | [Engineering backlog](backlog.md) | Deferred refactors, performance work, wording decisions and Rust/Tauri best-practice review findings | Proposed |
