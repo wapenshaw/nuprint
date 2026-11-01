@@ -5,6 +5,13 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.3.2](https://github.com/wapenshaw/nuprint/compare/v1.3.1...v1.3.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **render:** add a black patch to the test strip, thanks u/jatingargiitk ([74806f1](https://github.com/wapenshaw/nuprint/commit/74806f1dc000460cf1a494f55acaf2b162433bc0))
+
 ## [1.3.1](https://github.com/wapenshaw/nuprint/compare/v1.3.0...v1.3.1) (2026-10-31)
 
 
