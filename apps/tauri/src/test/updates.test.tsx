@@ -11,8 +11,8 @@ describe("updates", () => {
     expect(mock.calls.checkForUpdate).toBe(0);
 
     const settings = await openSettings(user, "Updates");
-    expect(within(settings).getByRole("checkbox", { name: "Check for updates when NuPrint starts" })).not.toBeChecked();
-    await user.click(within(settings).getByRole("button", { name: "Check for updates" }));
+    expect(await within(settings).findByRole("checkbox", { name: "Check for updates when NuPrint starts" })).not.toBeChecked();
+    await user.click(await within(settings).findByRole("button", { name: "Check for updates" }));
     expect(await within(settings).findByText("This is the newest version.")).toBeInTheDocument();
     expect(mock.calls.checkForUpdate).toBe(1);
   });
@@ -34,14 +34,14 @@ describe("updates", () => {
   it("remembers the choice to check at start", async () => {
     const { user } = await renderApp();
     const settings = await openSettings(user, "Updates");
-    await user.click(within(settings).getByRole("checkbox", { name: "Check for updates when NuPrint starts" }));
+    await user.click(await within(settings).findByRole("checkbox", { name: "Check for updates when NuPrint starts" }));
     expect(localStorage.getItem("nuprint.updates.checkAtStart")).toBe("on");
   });
 
   it("keeps one install going when the user leaves the page and comes back", async () => {
     const { mock, user } = await renderApp({ update: UPDATE });
     const settings = await openSettings(user, "Updates");
-    await user.click(within(settings).getByRole("button", { name: "Check for updates" }));
+    await user.click(await within(settings).findByRole("button", { name: "Check for updates" }));
     await user.click(await within(settings).findByRole("button", { name: "Install and restart" }));
 
     await user.click(within(settings).getByRole("button", { name: "Appearance" }));
@@ -53,7 +53,7 @@ describe("updates", () => {
   it("shows a failed install and lets the user try again", async () => {
     const { mock, user } = await renderApp({ update: UPDATE });
     const settings = await openSettings(user, "Updates");
-    await user.click(within(settings).getByRole("button", { name: "Check for updates" }));
+    await user.click(await within(settings).findByRole("button", { name: "Check for updates" }));
     vi.spyOn(mock, "installUpdate").mockRejectedValueOnce({
       code: "internal",
       message: "NuPrint could not install the update.",
@@ -69,8 +69,19 @@ describe("updates", () => {
     const { mock, user } = await renderApp({ update: UPDATE });
     mock.seedJob({ state: "sending" });
     const settings = await openSettings(user, "Updates");
-    await user.click(within(settings).getByRole("button", { name: "Check for updates" }));
+    await user.click(await within(settings).findByRole("button", { name: "Check for updates" }));
     expect(await within(settings).findByRole("button", { name: "Install and restart" })).toBeDisabled();
     expect(within(settings).getByText("A job is printing. Install the update when it has finished.")).toBeInTheDocument();
+  });
+
+  it("leaves a Microsoft Store install to the Store", async () => {
+    localStorage.setItem("nuprint.updates.checkAtStart", "on");
+    const { mock, user } = await renderApp({ update: UPDATE, fromStore: true });
+    const settings = await openSettings(user, "Updates");
+
+    expect(await within(settings).findByText("The Microsoft Store keeps this copy of NuPrint up to date.")).toBeInTheDocument();
+    expect(within(settings).queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
+    expect(mock.calls.checkForUpdate).toBe(0);
+    expect(screen.queryByText("NuPrint 1.2.0 is available.")).not.toBeInTheDocument();
   });
 });

@@ -16,6 +16,7 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, Window};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tokio::sync::oneshot;
 
+mod store;
 mod update;
 
 pub const EVENT_CHANNEL: &str = "nuprint://event";
@@ -397,7 +398,11 @@ pub fn run() {
             tauri::async_runtime::spawn_blocking(move || responder.respond(preview_response(&app, &path)));
         })
         .setup(|app| {
-            let base_dir = app.path().app_data_dir()?;
+            // A Store copy keeps its own printers and queue, which Windows removes with it.
+            let base_dir = match store::data_dir() {
+                Some(dir) => dir,
+                None => app.path().app_data_dir()?,
+            };
             let handle = app.handle().clone();
             let events: Arc<dyn nuprint_core::EventSink> = {
                 let handle = handle.clone();
@@ -473,6 +478,7 @@ pub fn run() {
             get_logs,
             diagnostics_report,
             export_diagnostics,
+            update::updates_from_store,
             update::check_for_update,
             update::install_update,
             update::open_release_page,

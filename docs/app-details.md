@@ -52,6 +52,8 @@ NuPrint checks for updates only when you press **Check for updates**, or at ever
 
 When a newer release exists, the Updates page shows what changed. **Install and restart** downloads it, checks its [signature](code-signing.md#updates), installs it and opens NuPrint again. Waiting jobs are kept, and none of them starts while the update installs. The button is unavailable while a job is printing, because closing the app would cancel the job. On Windows the installer shows its progress; if it can't start, NuPrint tells you and starts printing again once you restart it. On Linux the update matches how you installed NuPrint: the system asks for your password to install a new `.deb` or `.rpm`, and an AppImage is replaced where it is. **Release page** opens the release on GitHub.
 
+A copy installed from the Microsoft Store is updated by the Store. Its Updates page says so, and it never checks GitHub for a newer release. It also keeps its own saved printers, queue and log, apart from an installer copy's, and Windows removes them when the app is uninstalled.
+
 NuPrint Slint updates itself the same way on Windows and macOS. On Linux it shows the new release, and **Download** opens the release page, where you can get the new package.
 
 Updating from inside the app works from the first release that has this page. To update an earlier version, install the new release's installer.

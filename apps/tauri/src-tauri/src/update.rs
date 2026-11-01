@@ -1,6 +1,7 @@
 //! Updates, only when the user asks: Settings → Updates, or the check at start they can turn on.
 //! The updater reads the release manifest named in tauri.conf.json and installs a release only
-//! when its signature matches the public key there.
+//! when its signature matches the public key there. A Microsoft Store install is updated by the
+//! Store instead, so the updater stays out of it.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
@@ -10,6 +11,8 @@ use nuprint_core::api::{LogLevel, UpdateInfo};
 use nuprint_core::{AppError, AppResult, AppService, ErrorCode, update};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::{Update, UpdaterExt};
+
+use crate::store;
 
 /// How long a check or the download may take before it is given up.
 const TIMEOUT: Duration = Duration::from_secs(60);
@@ -49,9 +52,18 @@ fn refuse_while_printing(svc: &AppService) -> AppResult<()> {
     Ok(())
 }
 
+/// Whether the Microsoft Store installs this copy's updates.
+#[tauri::command]
+pub fn updates_from_store() -> bool {
+    store::installed()
+}
+
 /// Ask for the newest release; `None` when this is it.
 #[tauri::command]
 pub async fn check_for_update(app: AppHandle, pending: State<'_, PendingUpdate>) -> AppResult<Option<UpdateInfo>> {
+    if store::installed() {
+        return Err(AppError::invalid("The Microsoft Store keeps this copy of NuPrint up to date."));
+    }
     let exiting = app.clone();
     let updater = app
         .updater_builder()

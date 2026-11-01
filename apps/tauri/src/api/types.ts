@@ -87,6 +87,8 @@ export interface Backend {
   /** Rust shows the native save dialog; false when cancelled. */
   exportDiagnostics(includeIdentifiers: boolean): Promise<boolean>;
 
+  /** True for a Microsoft Store install, which the Store keeps up to date instead of NuPrint. */
+  updatesFromStore(): Promise<boolean>;
   /** Asks for the newest release; null when this is it. Only ever called because the user asked. */
   checkForUpdate(): Promise<UpdateInfo | null>;
   /** Downloads the update the last check found, installs it and restarts. Refused while a job prints. */

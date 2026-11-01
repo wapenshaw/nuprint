@@ -235,13 +235,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [reportError]);
 
-  // Only when the user turned it on in Settings → Updates. A failed check stays quiet here; it
-  // shows when the user checks there.
+  // Only when the user turned it on in Settings → Updates, and never for a Microsoft Store
+  // install, which the Store updates. A failed check stays quiet here; it shows when the user
+  // checks there.
   useEffect(() => {
     if (!loadCheckAtStart()) return;
     let cancelled = false;
     api()
-      .checkForUpdate()
+      .updatesFromStore()
+      .then((fromStore) => (fromStore ? null : api().checkForUpdate()))
       .then((found) => {
         if (cancelled || !found) return;
         setUpdate(found);

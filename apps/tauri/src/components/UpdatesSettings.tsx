@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { errorMessage } from "../lib/errors";
 import { isActive } from "../lib/labels";
@@ -13,8 +13,23 @@ export function UpdatesSettings() {
   const [checking, setChecking] = useState(false);
   const [upToDate, setUpToDate] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Null until known, so a Store install never shows controls it cannot use.
+  const [fromStore, setFromStore] = useState<boolean | null>(null);
   const printing = data.jobs.some((j) => isActive(j.state));
   const linux = data.info?.os.startsWith("linux") ?? false;
+
+  useEffect(() => {
+    let cancelled = false;
+    api()
+      .updatesFromStore()
+      .catch(() => false)
+      .then((store) => {
+        if (!cancelled) setFromStore(store);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function check() {
     setChecking(true);
@@ -39,31 +54,36 @@ export function UpdatesSettings() {
 
       <section className="card" aria-labelledby="version-heading">
         <h3 id="version-heading">NuPrint {data.info?.version}</h3>
-        <div className="row">
-          <button type="button" className="btn" onClick={() => void check()} disabled={checking || installing}>
-            {checking ? "Checking…" : "Check for updates"}
-          </button>
-          {upToDate ? (
-            <span className="muted" role="status">
-              This is the newest version.
-            </span>
-          ) : null}
-        </div>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={checkAtStart}
-            onChange={(e) => {
-              saveCheckAtStart(e.target.checked);
-              setCheckAtStart(e.target.checked);
-            }}
-          />
-          Check for updates when NuPrint starts
-        </label>
-        <p className="hint">
-          A check asks GitHub, where NuPrint is published, for the newest release. Nothing about you, your printers
-          or your documents is sent.
-        </p>
+        {fromStore ? <p className="hint">The Microsoft Store keeps this copy of NuPrint up to date.</p> : null}
+        {fromStore === false ? (
+          <>
+            <div className="row">
+              <button type="button" className="btn" onClick={() => void check()} disabled={checking || installing}>
+                {checking ? "Checking…" : "Check for updates"}
+              </button>
+              {upToDate ? (
+                <span className="muted" role="status">
+                  This is the newest version.
+                </span>
+              ) : null}
+            </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={checkAtStart}
+                onChange={(e) => {
+                  saveCheckAtStart(e.target.checked);
+                  setCheckAtStart(e.target.checked);
+                }}
+              />
+              Check for updates when NuPrint starts
+            </label>
+            <p className="hint">
+              A check asks GitHub, where NuPrint is published, for the newest release. Nothing about you, your printers
+              or your documents is sent.
+            </p>
+          </>
+        ) : null}
       </section>
 
       {update ? (

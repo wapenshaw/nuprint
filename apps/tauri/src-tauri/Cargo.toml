@@ -41,6 +41,10 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 webbrowser = "1.2"
 
+[target.'cfg(windows)'.dependencies]
+# To tell a Microsoft Store (MSIX) install, which the Store updates. The version tauri already uses.
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Storage_Packaging_Appx"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # AppKit, to show the app icon chosen in the header in the Dock. The versions tauri already uses.
 objc2 = "=0.6.5"

@@ -57,6 +57,7 @@ export function createTauriBackend(): Backend {
     diagnosticsReport: (includeIdentifiers) => invoke("diagnostics_report", { includeIdentifiers }),
     exportDiagnostics: (includeIdentifiers) => invoke("export_diagnostics", { includeIdentifiers }),
 
+    updatesFromStore: () => invoke("updates_from_store"),
     checkForUpdate: () => invoke("check_for_update"),
     installUpdate: () => invoke("install_update"),
     openReleasePage: () => invoke("open_release_page"),

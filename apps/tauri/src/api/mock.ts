@@ -60,6 +60,8 @@ export interface MockOptions {
   savePath?: string | null;
   /** What a check for updates finds (default: nothing newer). */
   update?: UpdateInfo | null;
+  /** Runs as a Microsoft Store install, which the Store updates (default: false). */
+  fromStore?: boolean;
 }
 
 export interface MockBackend extends Backend {
@@ -170,6 +172,7 @@ export function createMockBackend(opts: MockOptions = {}): MockBackend {
     savePath: opts.savePath === undefined ? "C:\\Users\\you\\Documents\\nuprint-preview.png" : opts.savePath,
     previewLatencyMs: opts.previewLatencyMs,
     update: opts.update ?? null,
+    fromStore: opts.fromStore ?? false,
   };
 
   const handlers = new Set<(e: AppEvent) => void>();
@@ -934,8 +937,13 @@ export function createMockBackend(opts: MockOptions = {}): MockBackend {
       return true;
     },
 
+    async updatesFromStore() {
+      await sleep(options.latencyMs);
+      return options.fromStore;
+    },
     async checkForUpdate() {
       await sleep(options.latencyMs);
+      if (options.fromStore) throw err("invalid_input", "The Microsoft Store keeps this copy of NuPrint up to date.");
       calls.checkForUpdate += 1;
       return options.update;
     },
