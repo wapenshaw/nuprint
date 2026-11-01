@@ -36,7 +36,7 @@
 
 ## Download
 
-On Windows, get NuPrint from the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG). The Store signs it and keeps it up to date. For every system, the installers are on the [latest release](https://github.com/wapenshaw/nuprint/releases/latest).
+On Windows, get NuPrint from the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG), or with `winget install 9NW47STT70BG`. The Store signs it and keeps it up to date. For every system, the installers are on the [latest release](https://github.com/wapenshaw/nuprint/releases/latest).
 
 | System | NuPrint | NuPrint Slint |
 | --- | --- | --- |

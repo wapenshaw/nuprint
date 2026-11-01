@@ -10,7 +10,7 @@ How to install NuPrint, print with it and fix common problems. For how the app b
 
 ## Installing
 
-On Windows, the easiest way is the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG): the Store copy is signed, so Windows doesn't warn about it, and the Store keeps it up to date. For every system, the installers are on [Releases](https://github.com/wapenshaw/nuprint/releases).
+On Windows, the easiest way is the [Microsoft Store](https://apps.microsoft.com/detail/9NW47STT70BG), or `winget install 9NW47STT70BG` in a terminal: the Store copy is signed, so Windows doesn't warn about it, and the Store keeps it up to date. For every system, the installers are on [Releases](https://github.com/wapenshaw/nuprint/releases).
 
 | System | File |
 | --- | --- |
