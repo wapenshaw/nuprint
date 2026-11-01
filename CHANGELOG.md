@@ -5,6 +5,13 @@ do not edit it by hand. Versions follow semver and match the workspace
 `version` in `Cargo.toml`, `apps/desktop/package.json` and
 `apps/desktop/src-tauri/tauri.conf.json`.
 
+## [1.4.0](https://github.com/wapenshaw/nuprint/compare/v1.3.2...v1.4.0) (2026-11-01)
+
+
+### Features
+
+* **desktop:** leave a store install's updates and data to the store ([7d94ebf](https://github.com/wapenshaw/nuprint/commit/7d94ebfda4020a2bb6432673e3907f5bd8357179))
+
 ## [1.3.2](https://github.com/wapenshaw/nuprint/compare/v1.3.1...v1.3.2) (2026-11-01)
 
 
