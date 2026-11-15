@@ -79,36 +79,52 @@ Complete the IARC questionnaire as a **utility** app. NuPrint has no violence, s
 
 **Product name:** NuPrint
 
-**Short description:** Print notes, pictures and PDF pages to a pocket Bluetooth thermal printer from your PC, without the phone app.
+**Short description:** A free thermal printer app for PC. Print notes, pictures and PDF pages from Windows to a pocket Bluetooth thermal printer, with an exact paper preview. No phone app, no driver.
 
-**Description:**
+**Description** (plain text; the Store does not render Markdown):
 
-> NuPrint prints straight from your Windows PC to small Bluetooth thermal printers, the pocket kind usually driven by a phone app.
+> NuPrint is a free thermal printer app for your Windows PC. It prints notes, pictures and PDF pages to a small Bluetooth thermal printer, the pocket kind that usually needs a phone app.
 >
-> Write a note, open a picture or pick one page of a PDF. The preview shows exactly what will come out of the printer, dot for dot, with a millimetre ruler beside it, so you see the paper before you use it. Set the darkness, copies and extra feed, then print.
+> Write a note, open a picture or pick one page of a PDF. The preview shows exactly what will come out of the printer, dot for dot, with a millimetre ruler beside it, so you see the paper before you use any. Set the darkness, copies and extra feed, then press Print.
 >
-> Jobs go through a queue that keeps them safe: you can cancel one while it is still waiting, print a failed one again, and see a job's history for 30 days. If NuPrint can't tell whether a job printed, it says so and never resends it on its own.
+> HOW IT WORKS
+> 1. Turn on your printer, load thermal paper and close its phone app.
+> 2. In NuPrint, open the printer button, choose Find printers and save yours. Windows doesn't need you to pair it first.
+> 3. Write or open something, check the preview and press Print.
 >
-> NuPrint has no account, no ads and no tracking. It talks to your printer over Bluetooth and nothing else, and it doesn't need the printer to be paired.
+> WHY NUPRINT
+> - No phone app, no printer driver and no pairing.
+> - A print queue that keeps jobs safe: cancel one while it is waiting, print a failed one again, and see each job's history for 30 days. If NuPrint can't tell whether a job printed, it says so and never resends it on its own.
+> - Notes with headings: start a line with # to make it a heading.
+> - Save any print as a PNG image.
+> - Light and dark mode, with a choice of accent colours.
+> - No account, no ads and no tracking. NuPrint talks to your printer over Bluetooth and nothing else.
 >
-> Supported printers: the SC03h (names starting "SC03h-"). Printers with the same settings in the vendor's app are offered as Experimental. NuPrint is free and open source under the MIT licence.
+> WHICH PRINTERS WORK
+> The ZEITEL SC03h (its Bluetooth name starts with "SC03h-", with a lowercase h) is the model tested with NuPrint. More models that use the same settings in the maker's own phone app are offered as Experimental: NuPrint marks each one and asks you to confirm before you save it. The full list is at nuprint.app/printers.
+>
+> NuPrint is open source under the MIT licence: github.com/wapenshaw/nuprint. It is an independent project, not affiliated with ZEITEL or the makers of the printers' own phone app.
 
 **What's new in this version:** the release's changelog entry.
 
-**Product features** (one per line):
+**Product features** (one per line, up to 20):
 
 - Exact paper preview with a millimetre ruler
-- Notes, pictures and single PDF pages
+- Print notes, pictures and single PDF pages
+- Notes with headings: start a line with #
 - Darkness, copies and extra feed for each print
 - A print queue that never resends a job on its own
+- No phone app, printer driver or pairing needed
 - Save any print as a PNG image
 - Light and dark mode, with a choice of accent colours
 - No account, ads or tracking
 
-**Search terms:** thermal printer, Bluetooth printer, pocket printer, label printer, mini printer, SC03h, receipt printer
+**Search terms** (up to 7, no more than 21 unique words in all): thermal printer app, bluetooth thermal printer, print from pc to thermal printer, pocket printer, mini printer, SC03h, print notes and pdf
+
+**Trailer:** the launch video, https://youtu.be/3epwBCVY-1Y, as MP4 (H.264 High, 1920 × 1080, 30 fps, AAC-LC 48 kHz) with a 1920 × 1080 PNG thumbnail. The Store plays it at the top of the listing only if a 16:9 Super hero art PNG (1920 × 1080, no text or app UI) is also set.
 
 **Screenshots:** at least one desktop screenshot of 1366 × 768 or larger, PNG. Show the note with its preview, a picture, Settings → Printers and dark mode.
 
-**Store logos:** the 9:16 poster art (1440 × 2160), the 1:1 box art (2160 × 2160) and the app tile icon at 300, 150 and 71 pixels. They are the `store-poster`, `store-box` and `tile-*` cards in `site/art/cards.html`; [site/README.md](../site/README.md) explains how to render them.
+**Store logos:** the 9:16 poster art (1440 × 2160), the 1:1 box art (2160 × 2160) and the app tile icon at 300, 150 and 71 pixels. They are the `store-poster`, `store-box` and `tile-*` cards in `site/art/cards.html`; the tiles must have transparent corners, or the Store shows grey corners; [site/README.md](../site/README.md) explains how to render them.
 
 **Copyright and trademark info:** © 2026 wapenshaw and NuPrint contributors. MIT licence.
