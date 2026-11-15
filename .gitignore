@@ -33,3 +33,6 @@ Thumbs.db
 # nuprint.app (site/)
 site/dist/
 site/.wrangler/
+
+# launch video sources and renders (large, not part of the app)
+videos/

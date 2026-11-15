@@ -255,6 +255,8 @@ const copies = {
   "download.js": site("src/download.js"),
   // The link-preview card, drawn from art/cards.html (see README).
   "og.png": site("src/og.png"),
+  // The poster for the demo video on the home page; it links to YouTube.
+  "demo-poster.jpg": site("src/demo-poster.jpg"),
   // Microsoft's "Download from the Microsoft Store" badge, from get.microsoft.com, unmodified.
   "store-badge.svg": site("src/store-badge.svg"),
   _headers: site("src/_headers"),
