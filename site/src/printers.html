@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{HEAD}}
+<title>Supported thermal printers · NuPrint</title>
+<meta name="description" content="Which Bluetooth thermal printers NuPrint works with: the ZEITEL SC03h (tested) and {{PRINTERS_COUNT}} more models (experimental), with the Bluetooth name each one shows.">
+<link rel="canonical" href="https://nuprint.app/printers">
+<meta property="og:title" content="Thermal printers NuPrint supports">
+<meta property="og:description" content="The ZEITEL SC03h is tested on Windows, macOS and Linux. {{PRINTERS_COUNT}} more models are offered as experimental.">
+<meta property="og:url" content="https://nuprint.app/printers">
+</head>
+<body>
+<div class="wrap">
+{{NAV}}
+
+<main class="changelog guide">
+<div class="section-head">
+<h1>Supported printers</h1>
+<p class="section-note">NuPrint prints to pocket Bluetooth thermal printers. One model is tested on real hardware, and {{PRINTERS_COUNT}} more are offered as experimental.</p>
+</div>
+<p class="meta">For NuPrint {{TAG}}, the version on the download page.</p>
+
+<section class="guide-part">
+<h2 id="tested">Tested: the SC03h</h2>
+<p>The <strong>ZEITEL SC03h</strong> is verified on Windows, macOS and Linux. Its Bluetooth name starts with <code>SC03h-</code>, and the <strong>h is lowercase</strong>. A printer whose name starts with an uppercase <code>SC03H-</code> is a different model, and NuPrint does not print to it.</p>
+{{PRINTERS_VERIFIED}}
+</section>
+
+<section class="guide-part">
+<h2 id="experimental">Experimental: {{PRINTERS_COUNT}} more models</h2>
+<p>These printers use the same settings as the SC03h in the maker's own phone app, but nobody has tried them with NuPrint on real hardware yet. NuPrint lists each one with an <strong>Experimental</strong> badge and asks you to confirm before you save it. Each model is matched by its exact Bluetooth name, so a lookalike never gets print commands by mistake.</p>
+{{PRINTERS_EXPERIMENTAL}}
+<p>Names that differ only by letter case, such as <code>X5h-</code> and <code>X5H-</code>, are different printers. Only the spelling in the table is offered.</p>
+</section>
+
+<section class="guide-part">
+<h2 id="check">Check your printer</h2>
+<ol>
+<li>Turn the printer on and close any printer app on your phone.</li>
+<li>In NuPrint, open the printer button and choose <strong>Find printers…</strong>.</li>
+<li>Look for a name that starts as in the tables above. A supported printer appears with a <strong>Save printer</strong> button, and an experimental one carries the badge.</li>
+<li>Press <strong>Check connection</strong>. It asks the printer how it is doing without using any paper.</li>
+</ol>
+<p>A printer that isn't in the tables shows up as an unknown device. NuPrint never sends it anything.</p>
+</section>
+
+<section class="guide-part">
+<h2 id="not-listed">If your printer isn't listed</h2>
+<p>If you own one of the experimental models, a <a href="https://github.com/wapenshaw/nuprint/issues/new/choose">printer report</a> is the fastest way to get it tested and moved to the tested list. Print the <strong>Test pattern</strong> (under <strong>What to print</strong>), take a photo of the strip and attach a diagnostics export from <strong>Settings → Diagnostics</strong>. Device names, addresses and job titles are hidden in the export unless you choose to include them.</p>
+<p>Other makers' printers need real protocol work before they can be added, and each one is checked on hardware first.</p>
+<p>Ready to try it? <a href="/#download">Download NuPrint</a> for <a href="/windows">Windows</a>, <a href="/macos">macOS</a> or <a href="/linux">Linux</a>.</p>
+<p class="meta">NuPrint is an independent project, not affiliated with, endorsed by or supported by ZEITEL or the makers of the printers' own phone app. Product names only identify compatible hardware.</p>
+</section>
+</main>
+
+{{FOOTER}}
+</div>
+</body>
+</html>

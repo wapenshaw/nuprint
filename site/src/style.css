@@ -671,6 +671,32 @@ h2 {
   color: var(--cream);
 }
 
+.printers a {
+  color: var(--link);
+}
+
+/* ---- questions (the home page FAQ) */
+
+.faq {
+  max-width: 760px;
+}
+
+.faq h3 {
+  margin: 28px 0 6px;
+  font-size: 20px;
+}
+
+.faq p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.faq a {
+  color: var(--link);
+}
+
 /* ---- footer */
 
 .footer {

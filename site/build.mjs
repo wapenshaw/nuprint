@@ -8,7 +8,7 @@
 // not features merged since.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -121,6 +121,44 @@ function renderGuide(tag) {
   return { intro: guide.parseInline(intro), contents, html, images };
 }
 
+/**
+ * The printer profiles as they were at `tag`, split into the verified one(s) and the
+ * experimental ones, so /printers lists exactly what the download supports.
+ */
+function renderPrinters(tag) {
+  const files =
+    process.env.NUPRINT_GUIDE === "local"
+      ? readdirSync(repo("profiles"))
+      : execFileSync("git", ["ls-tree", "--name-only", `${tag}:profiles`], { cwd: repo("") })
+          .toString()
+          .split("\n")
+          .filter(Boolean);
+  const profiles = files
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => JSON.parse(atTag(tag, `profiles/${file}`).toString("utf8")))
+    .map((profile) => ({
+      name: profile.display_name,
+      prefix: profile.match.name_prefixes[0],
+      verified: profile.verification.length > 0,
+    }))
+    .sort((a, b) => a.prefix.localeCompare(b.prefix, "en", { sensitivity: "base" }));
+  const row = ({ name, prefix }) => `<tr><td>${name}</td><td><code>${prefix}</code></td></tr>`;
+  const table = (list) =>
+    `<table>
+<thead><tr><th>Printer</th><th>Bluetooth name starts with</th></tr></thead>
+<tbody>
+${list.map(row).join("\n")}
+</tbody>
+</table>`;
+  const verified = profiles.filter((profile) => profile.verified);
+  const experimental = profiles.filter((profile) => !profile.verified);
+  return {
+    PRINTERS_VERIFIED: table(verified),
+    PRINTERS_EXPERIMENTAL: table(experimental),
+    PRINTERS_COUNT: String(experimental.length),
+  };
+}
+
 const releases = parseChangelog(await readFile(repo("CHANGELOG.md"), "utf8"));
 const tag = process.env.NUPRINT_TAG || `v${releases[0].version}`;
 if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`NUPRINT_TAG must look like v1.2.3, got ${tag}`);
@@ -141,6 +179,7 @@ function fill(template, values) {
 }
 
 const guide = renderGuide(tag);
+const printers = renderPrinters(tag);
 
 const download = `${REPO_URL}/releases/download/${tag}`;
 
@@ -176,6 +215,7 @@ const values = {
   GUIDE_INTRO: guide.intro,
   GUIDE_CONTENTS: guide.contents,
   GUIDE: guide.html,
+  ...printers,
 };
 
 // Empty dist/ rather than delete it: `wrangler dev` keeps watching the folder.
@@ -197,7 +237,7 @@ const appFiles = new Map(
   }).map(([to, from]) => [to, atTag(tag, from)]),
 );
 
-for (const page of ["index", "guide", "changelog", "privacy", "404"]) {
+for (const page of ["index", "guide", "printers", "windows", "macos", "linux", "changelog", "privacy", "404"]) {
   let html = fill(await readFile(site(`src/${page}.html`), "utf8"), values);
   // Sizes the screenshots, as renderGuide does, so the page doesn't jump as they load.
   for (const [to, png] of appFiles) {
@@ -241,7 +281,7 @@ for (const [name, png] of guide.images) {
 
 // The pages search engines should list. Cloudflare puts its content signals above this
 // robots.txt; the Sitemap line still applies.
-const pages = ["", "guide", "changelog", "privacy"];
+const pages = ["", "printers", "windows", "macos", "linux", "guide", "changelog", "privacy"];
 await writeFile(`${dist}robots.txt`, `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 await writeFile(
   `${dist}sitemap.xml`,

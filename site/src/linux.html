@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{HEAD}}
+<title>Thermal printer app for Linux (AppImage, deb, rpm) · NuPrint</title>
+<meta name="description" content="Print notes, pictures and PDF pages from Linux to a Bluetooth thermal printer. NuPrint is free, with an AppImage, a .deb and an .rpm. Needs BlueZ 5.80 or newer.">
+<link rel="canonical" href="https://nuprint.app/linux">
+<meta property="og:title" content="NuPrint: thermal printer app for Linux">
+<meta property="og:description" content="Free Linux app that prints notes, pictures and PDF pages to a pocket Bluetooth thermal printer. No phone app, no driver.">
+<meta property="og:url" content="https://nuprint.app/linux">
+</head>
+<body>
+<div class="wrap">
+{{NAV}}
+
+<main class="changelog guide">
+<div class="section-head">
+<h1>A thermal printer app for Linux</h1>
+<p class="section-note">NuPrint prints notes, pictures and PDF pages from a Linux computer to a pocket Bluetooth thermal printer. It is free, and it needs no phone app and no printer driver.</p>
+</div>
+<p class="meta">For NuPrint {{TAG}} · 64-bit · <a href="/printers">supported printers</a></p>
+
+<section class="guide-part">
+<h2 id="install">Install it</h2>
+<ul>
+<li>Debian and Ubuntu: <a href="{{DOWNLOAD}}/NuPrint_{{VERSION}}_amd64.deb">NuPrint_{{VERSION}}_amd64.deb</a></li>
+<li>Fedora and openSUSE, and any other distribution: see the files on the <a href="https://github.com/wapenshaw/nuprint/releases/tag/{{TAG}}">{{TAG}} release page</a> (an <code>.rpm</code> package and an AppImage).</li>
+</ul>
+<p>An AppImage needs no install. Make it executable (<code>chmod +x</code>, or <strong>Allow executing as program</strong> in its properties) and open it.</p>
+</section>
+
+<section class="guide-part">
+<h2 id="bluez">Check your Bluetooth version</h2>
+<p>NuPrint needs <strong>BlueZ 5.80 or newer</strong>. Check with <code>bluetoothctl --version</code>. Ubuntu 24.04 and older can't reach the printer.</p>
+<p>Run these once, so NuPrint can connect to the printer over Bluetooth LE:</p>
+<pre><code>sudo sed -i 's/^#\?Experimental = .*/Experimental = true/' /etc/bluetooth/main.conf
+sudo systemctl restart bluetooth</code></pre>
+<p>Don't pair the printer in your system's Bluetooth settings. NuPrint doesn't need pairing, and if you did pair it, choose <strong>Forget</strong>. The <a href="https://github.com/wapenshaw/nuprint/blob/{{TAG}}/docs/linux.md">NuPrint on Linux notes</a> explain why this is needed and what was tested.</p>
+</section>
+
+<section class="guide-part">
+<h2 id="print">Print in four steps</h2>
+<ol>
+<li>Turn on the printer, load thermal paper and close any printer app on your phone.</li>
+<li>In NuPrint, open the printer button, choose <strong>Find printers…</strong> and press <strong>Save printer</strong> on yours.</li>
+<li>Write a note, or open a picture or one page of a PDF. The preview shows exactly what will print.</li>
+<li>Set darkness, copies and extra feed, then press <strong>Print</strong>.</li>
+</ol>
+</section>
+
+<section class="guide-part">
+<h2 id="printers">Which printers work</h2>
+<p>The <strong>ZEITEL SC03h</strong> is tested on Linux (Fedora). More models are offered as experimental. See the <a href="/printers">full list of supported printers</a>.</p>
+</section>
+</main>
+
+{{FOOTER}}
+</div>
+</body>
+</html>

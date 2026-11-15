@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{HEAD}}
+<title>Thermal printer app for Windows 10 and 11 · NuPrint</title>
+<meta name="description" content="Print notes, pictures and PDF pages from a Windows PC to a Bluetooth thermal printer. Free NuPrint app: no phone app, no printer driver. Store or .exe.">
+<link rel="canonical" href="https://nuprint.app/windows">
+<meta property="og:title" content="NuPrint: thermal printer app for Windows">
+<meta property="og:description" content="Free Windows app that prints notes, pictures and PDF pages to a pocket Bluetooth thermal printer. No phone app, no driver.">
+<meta property="og:url" content="https://nuprint.app/windows">
+</head>
+<body>
+<div class="wrap">
+{{NAV}}
+
+<main class="changelog guide">
+<div class="section-head">
+<h1>A thermal printer app for Windows</h1>
+<p class="section-note">NuPrint prints notes, pictures and PDF pages from a Windows 10 or 11 PC to a pocket Bluetooth thermal printer. It is free, and it needs no phone app, no pairing and no printer driver.</p>
+</div>
+<p class="meta">For NuPrint {{TAG}} · <a href="/printers">supported printers</a></p>
+
+<section class="guide-part">
+<h2 id="install">Install it</h2>
+<ul>
+<li><a href="{{STORE}}">Microsoft Store</a>: signed, so Windows doesn't warn about it, and the Store keeps it up to date. Or run <code>winget install 9NW47STT70BG</code> in a terminal.</li>
+<li><a href="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64-setup.exe">NuPrint_{{VERSION}}_x64-setup.exe</a>: needs no admin rights. The installer isn't code-signed yet, so if SmartScreen warns about an unrecognised app, choose <strong>More info → Run anyway</strong>.</li>
+</ul>
+<p>A Store copy and an installer copy keep separate printers and queues. To switch, uninstall the one you're leaving.</p>
+</section>
+
+<section class="guide-part">
+<h2 id="print">Print in four steps</h2>
+<ol>
+<li>Turn on the printer, load thermal paper and close any printer app on your phone.</li>
+<li>In NuPrint, open the printer button, choose <strong>Find printers…</strong> and press <strong>Save printer</strong> on yours. Windows doesn't need you to pair it first.</li>
+<li>Write a note, or open a picture or one page of a PDF. The preview shows exactly what will print, with a millimetre ruler beside it.</li>
+<li>Set darkness, copies and extra feed, then press <strong>Print</strong>.</li>
+</ol>
+</section>
+
+<section class="guide-part">
+<h2 id="printers">Which printers work</h2>
+<p>The <strong>ZEITEL SC03h</strong> is tested on Windows. More models are offered as experimental. See the <a href="/printers">full list of supported printers</a>.</p>
+</section>
+
+<section class="guide-part">
+<h2 id="trouble">If Windows can't find the printer</h2>
+<ul>
+<li>Check that Bluetooth is on, turn the printer off and on, and keep it close.</li>
+<li>Close any phone app that may be holding the connection.</li>
+<li>Connected but no status? Turn the printer off and on and check the connection again. Removing an old Bluetooth pairing for the printer in Windows settings can help.</li>
+<li>Blank paper? The thermal side of the paper must face the print head.</li>
+</ul>
+<p>The <a href="/guide#troubleshooting">user guide</a> has the rest.</p>
+<p><a class="btn" href="{{DOWNLOAD}}/NuPrint_{{VERSION}}_x64-setup.exe"><span>Download for Windows</span></a></p>
+</section>
+</main>
+
+{{FOOTER}}
+</div>
+</body>
+</html>
